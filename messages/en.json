@@ -1,0 +1,1268 @@
+{
+  "nav": {
+    "home": "Home",
+    "howItWorks": "How It Works",
+    "performance": "Performance",
+    "pricing": "Pricing",
+    "blog": "Blog",
+    "refer": "Refer & Earn",
+    "login": "Log In",
+    "getStarted": "Get Started",
+    "faq": "FAQ",
+    "about": "About",
+    "contact": "Contact",
+    "dashboard": "Dashboard",
+    "settings": "Settings"
+  },
+  "promo": {
+    "text": "Use code PICK80 for 80% off your first month!",
+    "cta": "Claim Offer"
+  },
+  "hero": {
+    "eyebrow": "Start Winning Today",
+    "headline": {
+      "line1": "Data-Driven Sports Betting",
+      "highlight": "Picks"
+    },
+    "subheadline": "Advanced analytics, sharp market insights, and disciplined bankroll strategy.",
+    "cta1": "Get Started",
+    "cta2": "See Our Performance",
+    "socialProof": {
+      "members": "2,000+ members",
+      "rating": "4.9/5"
+    },
+    "stats": {
+      "years": "6+",
+      "yearsLabel": "Years of Data",
+      "daily": "3+",
+      "dailyLabel": "Daily Picks",
+      "delivered": "10K+",
+      "deliveredLabel": "Picks Delivered"
+    }
+  },
+  "socialProof": {
+    "picksLabel": "Picks Delivered",
+    "clvLabel": "CLV Rate",
+    "profitLabel": "Units Profit",
+    "yearsLabel": "Years of Data"
+  },
+  "sportsMarquee": {
+    "title": "Sports We Cover"
+  },
+  "howItWorks": {
+    "title": "How It Works",
+    "subtitle": "From raw data to winning picks in four steps",
+    "steps": [
+      {
+        "title": "Data Ingestion",
+        "description": "We aggregate injury reports, weather data, historical matchups, and real-time line movement from 20+ sources."
+      },
+      {
+        "title": "Model Consensus",
+        "description": "Multiple statistical models analyze each game independently. We only act when models agree on an edge."
+      },
+      {
+        "title": "Sharp Action Scan",
+        "description": "We track where sharp money is moving, reverse line movement, and steam moves to confirm our edge."
+      },
+      {
+        "title": "Pick Delivery",
+        "description": "Verified picks are delivered instantly via our dedicated mobile app, email, and your member dashboard with full analysis."
+      }
+    ],
+    "pageTitle": "How WinFact Picks Works",
+    "pageSubtitle": "A transparent look at our data-driven process from raw data to your winning picks."
+  },
+  "features": {
+    "title": "Why WinFact?",
+    "subtitle": "Advanced tools and transparent tracking that serious bettors demand",
+    "items": [
+      {
+        "title": "EV Analysis",
+        "description": "Every pick is evaluated for expected value. We only recommend bets where the math is in your favor."
+      },
+      {
+        "title": "CLV Tracking",
+        "description": "We track Closing Line Value on every pick — the gold standard metric for measuring betting skill."
+      },
+      {
+        "title": "Sharp Money Alerts",
+        "description": "Know where the professional bettors are putting their money before the lines move."
+      },
+      {
+        "title": "Multi-Model Consensus",
+        "description": "We don't rely on a single model. Multiple independent models must agree before we release a pick."
+      },
+      {
+        "title": "Mobile App + Dashboard",
+        "description": "Get picks instantly via our dedicated mobile app with push notifications, or access them anytime on your personal member dashboard."
+      },
+      {
+        "title": "Bilingual Coverage",
+        "description": "Full service in English and Spanish. Every pick, every analysis, in your preferred language."
+      }
+    ]
+  },
+  "testimonials": {
+    "title": "What Our Members Say",
+    "subtitle": "Real results from real bettors",
+    "items": [
+      {
+        "name": "Jake M.",
+        "role": "VIP Monthly Member",
+        "duration": "8 months",
+        "text": "I've tried dozens of handicapping services. WinFact is the only one that actually shows their full record — wins AND losses. Up 47 units in 8 months."
+      },
+      {
+        "name": "Carlos R.",
+        "role": "Miembro VIP Mensual",
+        "duration": "1 year",
+        "text": "Finally a service that speaks my language — literally. The Spanish analysis is just as detailed as the English. Best investment I've made in betting."
+      },
+      {
+        "name": "Mike T.",
+        "role": "VIP Weekly Member",
+        "duration": "3 months",
+        "text": "The CLV tracking sold me. Knowing that my picks are consistently beating the closing line gives me confidence this is a real edge."
+      }
+    ]
+  },
+  "pricing": {
+    "title": "Choose Your Plan",
+    "subtitle": "Start with a 7-day free trial on any VIP plan",
+    "tiers": [
+      {
+        "name": "Free",
+        "price": "$0",
+        "period": "forever",
+        "description": "Get started with free picks and analysis",
+        "features": [
+          "Occasional free picks",
+          "Sport analysis newsletter",
+          "Free community access",
+          "Basic performance stats"
+        ],
+        "cta": "Join Free"
+      },
+      {
+        "name": "VIP Weekly",
+        "price": "$45",
+        "period": "/week",
+        "description": "Full access for casual bettors",
+        "features": [
+          "2-4 daily VIP picks",
+          "All sports covered",
+          "In-depth analysis (EN/ES)",
+          "Mobile App + Dashboard access",
+          "7-day free trial"
+        ],
+        "cta": "Start Free Trial"
+      },
+      {
+        "name": "VIP Monthly",
+        "price": "$120",
+        "period": "/month",
+        "description": "Best value for serious bettors",
+        "features": [
+          "Everything in Weekly",
+          "Performance dashboard",
+          "Pick history & filters",
+          "Priority support",
+          "Best value — save 33%",
+          "7-day free trial"
+        ],
+        "cta": "Start Free Trial",
+        "badge": "Most Popular"
+      }
+    ],
+    "promo": "Use code PICK80 for 80% off your first month",
+    "promoPlaceholder": "Enter promo code",
+    "promoApply": "Apply",
+    "comparisonTitle": "Compare Plans",
+    "guarantee": "7-day free trial on all VIP plans. Cancel anytime."
+  },
+  "faq": {
+    "title": "Frequently Asked Questions",
+    "subtitle": "Everything you need to know about WinFact Picks",
+    "categories": {
+      "general": "General",
+      "picks": "Picks & Analysis",
+      "billing": "Billing & Plans",
+      "technical": "Technical"
+    },
+    "items": [
+      {
+        "question": "What makes WinFact different from other handicapping services?",
+        "answer": "We combine multiple statistical models, real-time line analysis, and sharp money tracking to identify positive expected value (+EV) bets. Unlike most services, we track and publicly display our full record — wins AND losses — with verified CLV (Closing Line Value) metrics.",
+        "category": "general"
+      },
+      {
+        "question": "What sports do you cover?",
+        "answer": "We cover MLB, NFL, NBA, NHL, NCAA (college basketball), Soccer (MLS, EPL, La Liga, UCL), and Tennis. Our coverage varies by season, with 2-5 picks daily depending on the sports calendar.",
+        "category": "general"
+      },
+      {
+        "question": "Do you offer service in Spanish?",
+        "answer": "Yes! We're one of the few handicapping services that provides full bilingual coverage. Every pick and analysis is available in both English and Spanish.",
+        "category": "general"
+      },
+      {
+        "question": "How are picks delivered?",
+        "answer": "Picks are delivered instantly via our dedicated mobile app (primary), email digest, and your member dashboard. Morning picks go out between 10 AM - 12 PM EST, with additional picks in the afternoon (2-5 PM) and occasional evening picks (7-9 PM). We also have an active Telegram community for discussion.",
+        "category": "picks"
+      },
+      {
+        "question": "What is CLV and why does it matter?",
+        "answer": "CLV (Closing Line Value) measures whether you got better odds than the closing line. Consistently beating the closing line is the single best predictor of long-term profitability in sports betting. We track CLV on every single pick.",
+        "category": "picks"
+      },
+      {
+        "question": "What does 'model edge' mean?",
+        "answer": "Model edge represents the percentage difference between our model's calculated probability and the implied probability from the odds. A +7.4% edge means our model gives the bet a 7.4% higher chance of winning than the market suggests.",
+        "category": "picks"
+      },
+      {
+        "question": "Can I cancel anytime?",
+        "answer": "Absolutely. All VIP plans come with a 7-day free trial. You can cancel anytime from your account settings or Stripe customer portal. No questions asked, no hidden fees.",
+        "category": "billing"
+      },
+      {
+        "question": "What's the difference between Weekly and Monthly?",
+        "answer": "Both plans give you full access to all VIP picks and analysis. The Monthly plan saves you about 33% compared to Weekly and includes access to detailed performance dashboards and pick history filters.",
+        "category": "billing"
+      },
+      {
+        "question": "Is there a promo code?",
+        "answer": "Yes! Use code PICK80 to get 80% off your first month of VIP Monthly. This brings your first month down to just $24.",
+        "category": "billing"
+      },
+      {
+        "question": "What platforms can I use?",
+        "answer": "WinFact works on any device. Our dedicated mobile app (iOS & Android) delivers picks with push notifications. The website is fully responsive and works on desktop, tablet, and mobile. We also maintain an active Telegram community.",
+        "category": "technical"
+      }
+    ]
+  },
+  "cta": {
+    "title": "Stop Guessing. Start Winning With Data.",
+    "subtitle": "Join thousands of smart bettors who trust WinFact's data-driven approach.",
+    "button": "Get Started Today"
+  },
+  "footer": {
+    "description": "Data-driven sports betting picks backed by advanced analytics and transparent performance tracking.",
+    "product": "Product",
+    "community": "Community",
+    "support": "Support",
+    "links": {
+      "howItWorks": "How It Works",
+      "performance": "Performance",
+      "pricing": "Pricing",
+      "blog": "Free Picks & Blog",
+      "telegram": "Telegram",
+      "refer": "Refer & Earn",
+      "faq": "FAQ",
+      "contact": "Contact",
+      "about": "About"
+    },
+    "responsible": "Responsible Gambling: There are no guaranteed wins in sports betting. Even our strongest picks carry inherent risk. Always bet responsibly. If you or someone you know has a gambling problem, call 1-800-GAMBLER.",
+    "copyright": "\u00a9 {year} WinFact Picks. All rights reserved.",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "disclaimer": "Disclaimer",
+    "responsibleGambling": "Responsible Gambling"
+  },
+  "performance": {
+    "title": "Our Performance",
+    "subtitle": "Transparent, verified results. No fake records, no hidden losses.",
+    "overallTitle": "Overall Record",
+    "wins": "Wins",
+    "losses": "Losses",
+    "pushes": "Pushes",
+    "winRate": "Win Rate",
+    "unitsWon": "Units Won",
+    "roi": "ROI",
+    "avgClv": "Avg CLV",
+    "bySport": "Performance by Sport",
+    "monthlyTrend": "Monthly Trend",
+    "disclaimer": "Past performance does not guarantee future results. All records are from verified, tracked picks."
+  },
+  "about": {
+    "title": "About WinFact Picks",
+    "subtitle": "Miami-based. Data-driven. Bilingual.",
+    "mission": "Our Mission",
+    "missionText": "WinFact Picks was founded with a simple belief: sports betting should be treated like investing, not gambling. We use advanced statistical models, real-time market analysis, and sharp money intelligence to find bets with positive expected value.",
+    "bilingual": "Bilingual Advantage",
+    "bilingualText": "Based in Miami, we understand the diverse betting community. That's why we offer full service in both English and Spanish — every pick, every analysis, every piece of content. No other handicapping service offers this level of bilingual coverage.",
+    "transparency": "Radical Transparency",
+    "transparencyText": "We publish our full record — wins AND losses. We track CLV on every pick. We show our ROI by sport, by month, by bet type. If we have a losing streak, you'll see it. Because trust is earned through honesty, not hype.",
+    "values": [
+      {
+        "title": "Data Over Opinions",
+        "description": "Every pick is backed by statistical models, not gut feelings."
+      },
+      {
+        "title": "Full Transparency",
+        "description": "Complete record tracking with verified results."
+      },
+      {
+        "title": "Bilingual Service",
+        "description": "Full coverage in English and Spanish."
+      },
+      {
+        "title": "No Hype",
+        "description": "No fake records, no '100-unit locks,' no impossible promises."
+      }
+    ]
+  },
+  "contact": {
+    "title": "Contact Us",
+    "subtitle": "Have a question? We'd love to hear from you.",
+    "form": {
+      "name": "Your Name",
+      "email": "Your Email",
+      "subject": "Subject",
+      "message": "Your Message",
+      "submit": "Send Message",
+      "success": "Message sent! We'll get back to you within 24 hours.",
+      "error": "Something went wrong. Please try again or email us directly."
+    },
+    "info": {
+      "email": "support@winfactpicks.com",
+      "location": "Miami, FL",
+      "social": "Follow Us"
+    }
+  },
+  "refer": {
+    "title": "Refer & Earn",
+    "subtitle": "Share WinFact with friends and earn rewards",
+    "howItWorks": "How It Works",
+    "steps": [
+      {
+        "title": "Share Your Link",
+        "description": "Get your unique referral link from your dashboard and share it with friends."
+      },
+      {
+        "title": "Friend Subscribes",
+        "description": "When your friend signs up for any VIP plan using your link, you both benefit."
+      },
+      {
+        "title": "Earn Rewards",
+        "description": "Earn credits, free months, and VIP discounts as you refer more members."
+      }
+    ],
+    "rewards": "Reward Tiers",
+    "tiers": [
+      {
+        "count": "1 Referral",
+        "reward": "$10 credit"
+      },
+      {
+        "count": "5 Referrals",
+        "reward": "1 free month"
+      },
+      {
+        "count": "10 Referrals",
+        "reward": "VIP lifetime discount"
+      }
+    ],
+    "cta": "Start Referring"
+  },
+  "blog": {
+    "title": "Free Picks & Insights",
+    "subtitle": "Expert analysis, game previews, and betting strategy articles",
+    "readMore": "Read More",
+    "readingTime": "{minutes} min read",
+    "categories": {
+      "all": "All",
+      "free_pick": "Free Picks",
+      "game_preview": "Game Previews",
+      "strategy": "Strategy",
+      "model_breakdown": "Model Breakdowns",
+      "news": "News"
+    },
+    "relatedPosts": "Related Posts",
+    "noPosts": "No posts yet. Check back soon!"
+  },
+  "sports": {
+    "mlb": {
+      "name": "MLB",
+      "fullName": "Major League Baseball",
+      "title": "MLB Picks",
+      "description": "Data-driven MLB picks backed by pitching matchup models, bullpen usage tracking, and line movement analysis.",
+      "season": "April \u2013 October"
+    },
+    "nfl": {
+      "name": "NFL",
+      "fullName": "National Football League",
+      "title": "NFL Picks",
+      "description": "Sharp NFL picks powered by advanced analytics, injury impact models, and professional money tracking.",
+      "season": "September \u2013 February"
+    },
+    "nba": {
+      "name": "NBA",
+      "fullName": "National Basketball Association",
+      "title": "NBA Picks",
+      "description": "Analytics-driven NBA picks using rest advantage models, pace metrics, and real-time line movement.",
+      "season": "October \u2013 June"
+    },
+    "nhl": {
+      "name": "NHL",
+      "fullName": "National Hockey League",
+      "title": "NHL Picks",
+      "description": "Data-backed NHL picks analyzing goalie matchups, shot metrics, and back-to-back fatigue factors.",
+      "season": "October \u2013 June"
+    },
+    "soccer": {
+      "name": "Soccer",
+      "fullName": "Soccer (MLS, EPL, La Liga, UCL)",
+      "title": "Soccer Picks",
+      "description": "Global soccer picks covering MLS, Premier League, La Liga, and Champions League with xG models.",
+      "season": "Year-round"
+    },
+    "ncaa": {
+      "name": "NCAA",
+      "fullName": "NCAA Football & Basketball",
+      "title": "NCAA Picks",
+      "description": "College sports picks leveraging efficiency ratings, transfer portal impact, and market inefficiencies.",
+      "season": "September \u2013 April"
+    }
+  },
+  "sportPage": {
+    "heroSubtitle": "by WinFact Picks",
+    "performanceTitle": "Season Performance",
+    "samplePick": "Sample Pick Format",
+    "faqTitle": "Frequently Asked Questions",
+    "ctaTitle": "Get {sport} Picks Today",
+    "ctaSubtitle": "Join VIP for full access to all {sport} analysis and picks.",
+    "ctaButton": "Start Free Trial"
+  },
+  "admin": {
+    "sidebar": {
+      "sections": {
+        "content": "Content",
+        "operations": "Operations",
+        "analytics": "Analytics",
+        "business": "Business",
+        "system": "System"
+      },
+      "items": {
+        "dashboard": "Dashboard",
+        "picks": "Picks",
+        "blog": "Blog",
+        "media": "Media",
+        "siteContent": "Site Content",
+        "calendar": "Calendar",
+        "distribution": "Distribution",
+        "intelligence": "Intelligence",
+        "aiAssistant": "AI Assistant",
+        "subscribers": "Subscribers",
+        "performance": "Performance",
+        "revenue": "Revenue",
+        "referrals": "Referrals",
+        "pricing": "Pricing Plans",
+        "promotions": "Promotions",
+        "affiliates": "Affiliates",
+        "auditTrail": "Audit Trail",
+        "team": "Team",
+        "integrations": "Integrations"
+      }
+    },
+    "common": {
+      "management": "Management",
+      "dashboard": "Dashboard",
+      "all": "All",
+      "edit": "Edit",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving...",
+      "creating": "Creating...",
+      "actions": "Actions",
+      "active": "Active",
+      "inactive": "Inactive",
+      "status": "Status",
+      "date": "Date",
+      "noExpiry": "No expiry",
+      "networkError": "Network error",
+      "viewSite": "View Site",
+      "viewAll": "View all →",
+      "none": "-- None --",
+      "select": "-- Select --",
+      "noResults": "No results found.",
+      "delete": "Delete",
+      "refresh": "Refresh",
+      "copied": "Copied!",
+      "copy": "Copy"
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "greetingMorning": "Good morning",
+      "greetingAfternoon": "Good afternoon",
+      "greetingEvening": "Good evening",
+      "activeSubscribers": "Active Subscribers",
+      "picksThisMonth": "Picks This Month",
+      "publishedPosts": "Published Posts",
+      "monthlyRevenue": "Monthly Revenue",
+      "newPick": "New Pick",
+      "newPost": "New Post",
+      "viewSite": "View Site",
+      "performance": "Performance",
+      "distribution": "Distribution",
+      "intelligence": "Intelligence",
+      "aiAssistant": "AI Assistant",
+      "recentPicks": "Recent Picks",
+      "noPicksYet": "No picks created yet.",
+      "createFirstPick": "Create your first pick",
+      "sport": "Sport",
+      "matchup": "Matchup",
+      "pick": "Pick",
+      "status": "Status",
+      "result": "Result",
+      "viewAll": "View all",
+      "todaysGames": "Today's Games",
+      "games": "games",
+      "live": "live",
+      "all": "All",
+      "noGamesScheduled": "No games scheduled today",
+      "final": "Final",
+      "activePicks": "Active Picks",
+      "noActivePicks": "No active picks right now"
+    },
+    "picks": {
+      "title": "Picks",
+      "newPick": "New Pick",
+      "backToPicks": "Back to Picks",
+      "create": "Create",
+      "editTitle": "Edit",
+      "pickSubtitle": "Pick",
+      "newPickSubtitle": "New Pick",
+      "sport": "Sport",
+      "matchup": "Matchup",
+      "pick": "Pick",
+      "odds": "Odds",
+      "units": "Units",
+      "tier": "Tier",
+      "status": "Status",
+      "result": "Result",
+      "vip": "VIP",
+      "free": "Free",
+      "draft": "Draft",
+      "published": "Published",
+      "settled": "Settled",
+      "empty": "No picks found.",
+      "active": "Active",
+      "allPicks": "All Picks",
+      "history": "History",
+      "settleAction": "Settle",
+      "settling": "Settling...",
+      "win": "Win",
+      "loss": "Loss",
+      "push": "Push",
+      "edge": "edge",
+      "noActivePicksTitle": "No active picks",
+      "noActivePicksDesc": "Create a new pick to get started",
+      "all": "All"
+    },
+    "quickPick": {
+      "title": "Quick Pick",
+      "selectGame": "Select Game",
+      "refreshGames": "Refresh",
+      "refreshing": "Refreshing...",
+      "noGames": "No games available. Try refreshing.",
+      "pickText": "Pick *",
+      "pickTextPlaceholder": "e.g. Yankees ML, Over 8.5",
+      "odds": "Odds *",
+      "oddsPlaceholder": "-110",
+      "units": "Units *",
+      "confidence": "Confidence",
+      "tier": "Tier",
+      "standard": "Standard",
+      "strong": "Strong",
+      "top": "Top",
+      "free": "Free",
+      "vip": "VIP",
+      "analysisEn": "Analysis (EN)",
+      "analysisEs": "Analysis (ES)",
+      "analysisPlaceholder": "Optional brief analysis...",
+      "publishPick": "Publish Pick",
+      "publishing": "Publishing...",
+      "failedToPublish": "Failed to publish pick",
+      "networkError": "Network error",
+      "gameAt": "at",
+      "manualEntry": "Or enter manually",
+      "matchup": "Matchup *",
+      "matchupPlaceholder": "e.g. Yankees vs Red Sox",
+      "sport": "Sport",
+      "date": "Date",
+      "next": "Next",
+      "back": "Back",
+      "optionalDetails": "All fields below are optional.",
+      "gameRequired": "Please select a game or enter sport & matchup manually.",
+      "pickRequired": "Pick text is required.",
+      "all": "All",
+      "searchTeams": "Search teams..."
+    },
+    "pickForm": {
+      "gameDetails": "Game Details",
+      "sport": "Sport *",
+      "league": "League",
+      "matchup": "Matchup *",
+      "pickDetails": "Pick Details",
+      "pickText": "Pick Text *",
+      "odds": "Odds *",
+      "units": "Units *",
+      "modelConfidence": "Model & Confidence",
+      "modelEdge": "Model Edge (%)",
+      "confidence": "Confidence",
+      "tierLabel": "Tier",
+      "free": "Free",
+      "vip": "VIP",
+      "analysis": "Analysis",
+      "analysisEn": "Analysis (EN)",
+      "analysisEs": "Analysis (ES)",
+      "statusResult": "Status & Result",
+      "statusLabel": "Status",
+      "draft": "Draft",
+      "published": "Published",
+      "settled": "Settled",
+      "resultLabel": "Result (for settling)",
+      "win": "Win",
+      "loss": "Loss",
+      "push": "Push",
+      "closingOdds": "Closing Odds",
+      "saving": "Saving...",
+      "updatePick": "Update Pick",
+      "createPick": "Create Pick",
+      "cancel": "Cancel",
+      "failedToSave": "Failed to save pick",
+      "networkError": "Network error"
+    },
+    "blog": {
+      "title": "Blog",
+      "newPost": "New Post",
+      "backToBlog": "Back to Blog",
+      "create": "Create",
+      "editTitle": "Edit",
+      "postSubtitle": "Post",
+      "newPostSubtitle": "New Post",
+      "titleCol": "Title",
+      "slug": "Slug",
+      "category": "Category",
+      "status": "Status",
+      "published": "Published",
+      "empty": "No posts found.",
+      "draft": "Draft",
+      "scheduled": "Scheduled"
+    },
+    "postForm": {
+      "titleSection": "Title",
+      "titleEn": "Title (EN) *",
+      "titleEs": "Title (ES)",
+      "slug": "Slug *",
+      "generate": "Generate",
+      "content": "Content",
+      "bodyEn": "Body (EN) *",
+      "bodyEs": "Body (ES)",
+      "publishing": "Publishing",
+      "category": "Category",
+      "status": "Status",
+      "author": "Author",
+      "draft": "Draft",
+      "published": "Published",
+      "scheduled": "Scheduled",
+      "sportTags": "Sport Tags",
+      "mediaSeo": "Media & SEO",
+      "featuredImage": "Featured Image URL",
+      "seoTitle": "SEO Title",
+      "seoDescription": "SEO Description",
+      "saving": "Saving...",
+      "updatePost": "Update Post",
+      "createPost": "Create Post",
+      "cancel": "Cancel",
+      "failedToSave": "Failed to save post",
+      "networkError": "Network error"
+    },
+    "siteContent": {
+      "title": "Site Content",
+      "subtitle": "Edit site content blocks (hero text, promo banner, testimonials, etc.) without code deploys."
+    },
+    "contentEditor": {
+      "addNewBlock": "Add New Content Block",
+      "contentKey": "Content key (e.g. hero_headline)",
+      "contentValue": "Content value...",
+      "addBlock": "Add Block",
+      "adding": "Adding...",
+      "saved": "Saved",
+      "save": "Save",
+      "updated": "Updated:"
+    },
+    "media": {
+      "title": "Media Library",
+      "subtitle": "Library",
+      "files": "files",
+      "upload": "Upload",
+      "noMedia": "No media files uploaded yet.",
+      "uploadComing": "Upload functionality coming in Phase 6."
+    },
+    "performancePage": {
+      "title": "Performance",
+      "subtitle": "Dashboard",
+      "winRate": "Win Rate",
+      "record": "Record",
+      "unitsWon": "Units Won",
+      "roi": "ROI",
+      "avgClv": "Avg CLV",
+      "bySport": "By Sport",
+      "sport": "Sport",
+      "winPct": "Win%"
+    },
+    "analytics": {
+      "advancedAnalytics": "Advanced Analytics",
+      "filters": "Filters",
+      "exportCSV": "Export CSV",
+      "noData": "No settled picks to analyze yet.",
+      "cumulativeUnits": "Cumulative Units Profit",
+      "resultBreakdown": "Result Breakdown",
+      "monthlyWinRate": "Monthly Win Rate",
+      "monthlyUnits": "Monthly Units Profit",
+      "performanceBySport": "Performance by Sport",
+      "byConfidence": "By Confidence Level",
+      "byTier": "By Tier",
+      "wins": "Wins",
+      "losses": "Losses",
+      "pushes": "Pushes",
+      "units": "Units",
+      "picks": "picks",
+      "record": "Record",
+      "winRate": "Win %",
+      "level": "Level",
+      "tier": "Tier"
+    },
+    "subscribers": {
+      "title": "Subscribers",
+      "totalUsers": "Total Users",
+      "active": "Active",
+      "trialing": "Trialing",
+      "cancelled": "Cancelled",
+      "noSub": "No Sub",
+      "pastDue": "Past due",
+      "email": "Email",
+      "name": "Name",
+      "role": "Role",
+      "plan": "Plan",
+      "status": "Status",
+      "joined": "Joined",
+      "empty": "No users match filter."
+    },
+    "referrals": {
+      "title": "Referrals",
+      "totalReferrals": "Total Referrals",
+      "converted": "Converted",
+      "rewardsGiven": "Rewards Given",
+      "conversionRate": "Conversion Rate",
+      "referrer": "Referrer",
+      "referredEmail": "Referred Email",
+      "status": "Status",
+      "reward": "Reward",
+      "date": "Date",
+      "applied": "Applied",
+      "empty": "No referrals yet."
+    },
+    "distribution": {
+      "title": "Distribution",
+      "subtitle": "Hub",
+      "totalSent": "Total Sent",
+      "sentToday": "Sent Today",
+      "pending": "Pending",
+      "failed": "Failed",
+      "sendNow": "Send Now",
+      "sending": "Sending...",
+      "scheduleDelivery": "Schedule Delivery",
+      "scheduling": "Scheduling...",
+      "schedule": "Schedule",
+      "selectPick": "Select Pick",
+      "selectPickPlaceholder": "-- Select a published pick --",
+      "channels": "Channels",
+      "telegramFree": "Telegram (Free)",
+      "telegramVip": "Telegram (VIP)",
+      "email": "Email",
+      "selectPickAndChannel": "Select a pick and at least one channel",
+      "pickSentSuccess": "Pick sent successfully!",
+      "selectPickChannelTime": "Select a pick, channels, and schedule time",
+      "scheduledFor": "Scheduled for {date}",
+      "scheduledTimeEt": "Scheduled Time (ET)",
+      "pendingQueue": "Pending Queue",
+      "pendingCount": "{count} pending",
+      "pickCol": "Pick",
+      "channelsCol": "Channels",
+      "scheduledCol": "Scheduled",
+      "deliveryLog": "Delivery Log",
+      "channel": "Channel",
+      "status": "Status",
+      "recipients": "Recipients",
+      "error": "Error",
+      "sentAt": "Sent At",
+      "noDeliveries": "No deliveries yet.",
+      "failedToSend": "Failed to send",
+      "failedToSchedule": "Failed to schedule"
+    },
+    "intelligence": {
+      "title": "Intelligence",
+      "subtitle": "Today's Games",
+      "refreshGames": "Refresh Games",
+      "totalGames": "Total Games",
+      "strongEdge": "Strong Edge",
+      "moderateEdge": "Moderate Edge",
+      "picksPosted": "Picks Posted",
+      "noEdge": "No Edge",
+      "moderate": "Moderate",
+      "pickPosted": "Pick Posted",
+      "skipped": "Skipped",
+      "pendingStatus": "Pending",
+      "sharpAction": "Sharp Action",
+      "edge": "Edge:",
+      "modelLine": "Model Line:",
+      "public": "Public:",
+      "injuryUpdate": "injury update",
+      "injuryUpdates": "injury updates",
+      "quickPick": "Quick Pick",
+      "noGames": "No games loaded for today.",
+      "noGamesHint": "Click \"Refresh Games\" to pull today's schedule from The Odds API.",
+      "at": "at"
+    },
+    "revenue": {
+      "title": "Revenue",
+      "subtitle": "Dashboard",
+      "mrr": "MRR",
+      "arr": "ARR",
+      "activeSubscribers": "Active Subscribers",
+      "churnRate": "Churn Rate",
+      "subscribersByTier": "Subscribers by Tier",
+      "subscriptionStatus": "Subscription Status",
+      "recentEvents": "Recent Revenue Events",
+      "type": "Type",
+      "amount": "Amount",
+      "tier": "Tier",
+      "source": "Source",
+      "date": "Date",
+      "noEvents": "No revenue events yet.",
+      "eventsHint": "Events are recorded automatically from Stripe webhooks."
+    },
+    "promos": {
+      "title": "Promotions",
+      "subtitle": "& Discounts",
+      "newCode": "New Code",
+      "totalCodes": "Total Codes",
+      "active": "Active",
+      "inactive": "Inactive",
+      "totalRedemptions": "Total Redemptions",
+      "newPromoCode": "New Promo Code",
+      "code": "Code *",
+      "discountType": "Discount Type *",
+      "value": "Value *",
+      "maxRedemptions": "Max Redemptions",
+      "validUntil": "Valid Until",
+      "percentage": "Percentage (%)",
+      "fixed": "Fixed ($)",
+      "freeTrialDays": "Free Trial Days",
+      "createCode": "Create Code",
+      "codeCol": "Code",
+      "discount": "Discount",
+      "redemptions": "Redemptions",
+      "status": "Status",
+      "disable": "Disable",
+      "enable": "Enable",
+      "deleteConfirm": "Delete this promo code?",
+      "empty": "No promo codes created yet."
+    },
+    "affiliates": {
+      "title": "Affiliates",
+      "subtitle": "& Partners",
+      "newAffiliate": "New Affiliate",
+      "totalAffiliates": "Total Affiliates",
+      "active": "Active",
+      "totalEarned": "Total Earned",
+      "totalPaid": "Total Paid",
+      "name": "Name *",
+      "email": "Email *",
+      "commissionRate": "Commission Rate (%)",
+      "commissionType": "Commission Type",
+      "tier": "Tier",
+      "paymentMethod": "Payment Method",
+      "paymentEmail": "Payment Email",
+      "percentage": "Percentage",
+      "fixedType": "Fixed",
+      "standard": "Standard",
+      "premium": "Premium",
+      "partner": "Partner",
+      "paypal": "PayPal",
+      "stripe": "Stripe",
+      "venmo": "Venmo",
+      "createAffiliate": "Create Affiliate",
+      "affiliatesTitle": "Affiliates",
+      "nameCol": "Name",
+      "trackingCode": "Tracking Code",
+      "commission": "Commission",
+      "referralsCol": "Referrals",
+      "conversions": "Conversions",
+      "earned": "Earned",
+      "status": "Status",
+      "recentPayouts": "Recent Payouts",
+      "affiliate": "Affiliate",
+      "amount": "Amount",
+      "method": "Method",
+      "empty": "No affiliates yet."
+    },
+    "calendar": {
+      "title": "Content",
+      "subtitle": "Calendar",
+      "newItem": "New Item",
+      "totalItems": "Total Items",
+      "ideas": "Ideas",
+      "scheduled": "Scheduled",
+      "publishedStat": "Published",
+      "newCalendarItem": "New Calendar Item",
+      "titleField": "Title *",
+      "type": "Type *",
+      "stage": "Stage",
+      "scheduledDate": "Scheduled Date",
+      "template": "Template",
+      "sport": "Sport",
+      "notes": "Notes",
+      "allNone": "All / None",
+      "additionalNotes": "Additional notes...",
+      "createItem": "Create Item",
+      "deleteConfirm": "Delete this calendar item?",
+      "noItems": "No items in this stage.",
+      "idea": "Idea",
+      "draft": "Draft",
+      "review": "Review",
+      "published": "Published"
+    },
+    "ai": {
+      "title": "AI",
+      "subtitle": "Assistant",
+      "poweredBy": "Powered by Claude",
+      "pickAnalysis": "Pick Analysis",
+      "blogWriter": "Blog Writer",
+      "weeklyRecap": "Weekly Recap",
+      "injuryImpact": "Injury Impact",
+      "input": "Input",
+      "output": "Output",
+      "sport": "Sport *",
+      "odds": "Odds",
+      "matchup": "Matchup *",
+      "modelEdge": "Model Edge (%)",
+      "injuries": "Injuries",
+      "lineHistory": "Line History",
+      "generateAnalysis": "Generate Analysis",
+      "generating": "Generating...",
+      "topic": "Topic *",
+      "keywords": "Keywords (comma-separated)",
+      "generateBlog": "Generate Blog Post",
+      "writing": "Writing...",
+      "recapDescription": "Generates a weekly recap from the last 7 days of settled picks. Includes record, units, and highlights.",
+      "generateRecap": "Generate Weekly Recap",
+      "injuryReport": "Injury Report *",
+      "analyzeImpact": "Analyze Impact",
+      "analyzing": "Analyzing...",
+      "english": "English",
+      "spanish": "Spanish",
+      "titleEn": "Title (EN)",
+      "titleEs": "Title (ES)",
+      "bodyEn": "Body (EN)",
+      "bodyEs": "Body (ES)",
+      "aiThinking": "AI is thinking...",
+      "resultsHere": "Results will appear here",
+      "copied": "Copied",
+      "copy": "Copy"
+    },
+    "team": {
+      "title": "Team",
+      "subtitle": "Management",
+      "teamMembers": "Team Members",
+      "owners": "Owners",
+      "active": "Active",
+      "recentActions": "Recent Actions",
+      "rolePermissions": "Role Permissions",
+      "ownerRole": "Owner",
+      "ownerDesc": "Full access to all features, settings, and team management.",
+      "analystRole": "Analyst",
+      "analystDesc": "Can run models, post picks, view intelligence dashboard.",
+      "writerRole": "Writer",
+      "writerDesc": "Can manage blog posts, site content, and media library.",
+      "supportRole": "Support",
+      "supportDesc": "Can view subscribers, referrals, and handle support tasks.",
+      "member": "Member",
+      "role": "Role",
+      "status": "Status",
+      "added": "Added",
+      "inactive": "Inactive",
+      "emptyMembers": "No team members configured.",
+      "emptyMembersHint": "Team roles are available for enterprise features.",
+      "activityLog": "Activity Log",
+      "user": "User",
+      "action": "Action",
+      "resource": "Resource",
+      "time": "Time",
+      "emptyActivity": "No activity recorded yet."
+    },
+    "audit": {
+      "title": "Audit",
+      "subtitle": "Trail",
+      "totalEntries": "Total Entries",
+      "publishes": "Publishes",
+      "settlements": "Settlements",
+      "edits": "Edits",
+      "tamperProofTitle": "Tamper-Proof Record",
+      "tamperProofDesc": "Every pick is logged with timestamp proof. Changes are tracked with before/after snapshots. This audit trail ensures full transparency of our verified record.",
+      "pickAuditLog": "Pick Audit Log",
+      "pickId": "Pick ID",
+      "action": "Action",
+      "user": "User",
+      "changes": "Changes",
+      "timestamp": "Timestamp",
+      "empty": "No audit entries yet.",
+      "emptyHint": "Entries are recorded automatically when picks are created, updated, published, or settled."
+    },
+    "integrations": {
+      "title": "Integrations",
+      "subtitle": "& API Hub",
+      "totalIntegrations": "Total Integrations",
+      "connected": "Connected",
+      "errors": "Errors",
+      "recentWebhooks": "Recent Webhooks",
+      "theOddsApi": "The Odds API",
+      "theOddsApiDesc": "Live odds, scores, and line data",
+      "telegramBot": "Telegram Bot",
+      "telegramBotDesc": "Pick delivery to Telegram channels",
+      "mailerLite": "MailerLite",
+      "mailerLiteDesc": "Email campaigns and subscriber management",
+      "stripeService": "Stripe",
+      "stripeServiceDesc": "Payment processing and subscriptions",
+      "clerk": "Clerk",
+      "clerkDesc": "Authentication and user management",
+      "claudeAi": "Claude AI",
+      "claudeAiDesc": "AI-powered analysis and content generation",
+      "webhookLog": "Webhook Log",
+      "direction": "Direction",
+      "source": "Source",
+      "endpoint": "Endpoint",
+      "status": "Status",
+      "duration": "Duration",
+      "time": "Time",
+      "in": "IN",
+      "out": "OUT",
+      "requestsToday": "requests today",
+      "noWebhooks": "No webhooks recorded yet."
+    }
+  },
+  "common": {
+    "learnMore": "Learn More",
+    "viewAll": "View All",
+    "backToHome": "Back to Home"
+  },
+  "terms": {
+    "badge": "Legal",
+    "title": "Terms of Service",
+    "subtitle": "Please read these terms carefully before using our platform.",
+    "lastUpdated": "Last updated: March 10, 2026",
+    "sections": {
+      "acceptance": {
+        "title": "1. Acceptance of Terms",
+        "content": "By accessing or using WinFact.com (the \"Service\"), you agree to be bound by these Terms of Service. If you do not agree to all the terms and conditions, you may not access or use the Service. We reserve the right to update these terms at any time, and your continued use of the Service constitutes acceptance of any changes."
+      },
+      "serviceDescription": {
+        "title": "2. Service Description",
+        "content": "WinFact is a sports analytics platform that provides data-driven sports picks, analysis, and insights. We use statistical models, market analysis, and other data sources to generate our content. WinFact does not provide bookmaking services, facilitate gambling, or guarantee any outcomes. Our picks and analysis are for informational and entertainment purposes only."
+      },
+      "userAccounts": {
+        "title": "3. User Accounts",
+        "content": "To access certain features of the Service, you must create an account. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You must provide accurate and complete information when creating your account. You agree to notify us immediately of any unauthorized use of your account. We reserve the right to suspend or terminate accounts that violate these terms."
+      },
+      "subscriptions": {
+        "title": "4. Subscriptions & Billing",
+        "content": "VIP access to the Service requires a paid subscription. Subscription plans, pricing, and features are described on our pricing page. All payments are processed securely through Stripe. Subscriptions automatically renew unless canceled before the renewal date. You may cancel your subscription at any time through your account settings or the Stripe customer portal. Refunds are handled on a case-by-case basis. Promotional codes are subject to their own terms and conditions."
+      },
+      "intellectualProperty": {
+        "title": "5. Intellectual Property",
+        "content": "All content on the Service, including but not limited to text, graphics, logos, data, analysis, picks, statistical models, and software, is the property of WinFact or its licensors and is protected by copyright, trademark, and other intellectual property laws. You may not reproduce, distribute, modify, or create derivative works from any content without our prior written consent. Your subscription grants you a personal, non-transferable, non-exclusive license to access the content for your own personal use."
+      },
+      "userConduct": {
+        "title": "6. User Conduct",
+        "content": "You agree not to: share your account or subscription access with others; redistribute, resell, or publicly share our premium content, picks, or analysis; use the Service for any unlawful purpose; attempt to reverse-engineer our models or algorithms; use automated tools to scrape or collect data from the Service; harass, abuse, or harm other users; impersonate any person or entity. Violation of these rules may result in immediate account termination without refund."
+      },
+      "disclaimerOfWarranties": {
+        "title": "7. Disclaimer of Warranties",
+        "content": "The Service is provided \"as is\" and \"as available\" without warranties of any kind, either express or implied. We do not guarantee the accuracy, completeness, or reliability of any picks, analysis, or content. Past performance does not guarantee future results. Sports betting involves inherent risk, and you may lose money. We are not responsible for any financial decisions you make based on our content."
+      },
+      "limitationOfLiability": {
+        "title": "8. Limitation of Liability",
+        "content": "To the maximum extent permitted by law, WinFact and its owners, employees, and affiliates shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of profits, data, or other intangible losses, resulting from your use of or inability to use the Service. Our total liability for any claims arising from these terms or your use of the Service shall not exceed the amount you paid to us in the twelve months preceding the claim."
+      },
+      "termination": {
+        "title": "9. Termination",
+        "content": "We reserve the right to terminate or suspend your account and access to the Service at our sole discretion, without notice, for conduct that we determine violates these Terms, is harmful to other users or the Service, or is otherwise objectionable. Upon termination, your right to use the Service will immediately cease. All provisions of these Terms that by their nature should survive termination shall survive."
+      },
+      "governingLaw": {
+        "title": "10. Governing Law",
+        "content": "These Terms shall be governed by and construed in accordance with the laws of the State of Florida, United States, without regard to its conflict of law provisions. Any disputes arising from these Terms or the Service shall be resolved in the courts located in Miami-Dade County, Florida. You agree to submit to the personal jurisdiction of these courts."
+      },
+      "contact": {
+        "title": "11. Contact Information",
+        "content": "If you have any questions about these Terms of Service, please contact us at support@winfactpicks.com."
+      }
+    }
+  },
+  "privacy": {
+    "badge": "Legal",
+    "title": "Privacy Policy",
+    "subtitle": "How we collect, use, and protect your personal information.",
+    "lastUpdated": "Last updated: March 10, 2026",
+    "sections": {
+      "informationWeCollect": {
+        "title": "1. Information We Collect",
+        "content": "We collect information you provide directly to us, including: your name, email address, and password when you create an account; payment information processed through Stripe (we do not store your credit card details); usage data such as pages visited, picks viewed, and features used; device information including browser type, IP address, and operating system; and communication data when you contact our support team."
+      },
+      "howWeUseInfo": {
+        "title": "2. How We Use Your Information",
+        "content": "We use the information we collect to: provide, maintain, and improve the Service; process transactions and send related information; send you picks, analysis, and other content you have subscribed to; respond to your comments, questions, and support requests; monitor and analyze usage trends to improve user experience; detect, investigate, and prevent fraudulent or unauthorized activity; and send promotional communications (you can opt out at any time)."
+      },
+      "cookies": {
+        "title": "3. Cookies & Tracking Technologies",
+        "content": "We use cookies and similar tracking technologies to collect and track information about your activity on our Service. Cookies help us remember your preferences, understand how you use our Service, and improve your experience. You can instruct your browser to refuse all cookies or indicate when a cookie is being sent. However, some features of the Service may not function properly without cookies. We use both session cookies (which expire when you close your browser) and persistent cookies (which remain until deleted)."
+      },
+      "thirdPartyServices": {
+        "title": "4. Third-Party Services",
+        "content": "We use trusted third-party services to operate our platform: Clerk for authentication and user management; Stripe for secure payment processing; analytics services to understand usage patterns and improve our Service. These third-party services have their own privacy policies and may collect information as described in their respective policies. We encourage you to review their privacy practices. We do not sell your personal information to third parties."
+      },
+      "dataRetention": {
+        "title": "5. Data Retention",
+        "content": "We retain your personal information for as long as your account is active or as needed to provide you with the Service. If you delete your account, we will delete or anonymize your personal data within 30 days, except where we are required to retain it for legal, accounting, or regulatory purposes. Usage data and analytics may be retained in aggregate, anonymized form indefinitely."
+      },
+      "yourRights": {
+        "title": "6. Your Rights",
+        "content": "Depending on your location, you may have the following rights regarding your personal data: the right to access and receive a copy of your personal data; the right to correct inaccurate data; the right to request deletion of your data; the right to object to or restrict processing of your data; the right to data portability; and the right to withdraw consent at any time. To exercise any of these rights, please contact us at support@winfactpicks.com."
+      },
+      "childrensPrivacy": {
+        "title": "7. Children's Privacy",
+        "content": "The Service is not intended for individuals under the age of 18. We do not knowingly collect personal information from children under 18. If we become aware that we have collected personal data from a child under 18, we will take steps to delete that information promptly. If you believe we have inadvertently collected information from a minor, please contact us immediately."
+      },
+      "changesToPolicy": {
+        "title": "8. Changes to This Policy",
+        "content": "We may update this Privacy Policy from time to time. We will notify you of any material changes by posting the new policy on this page and updating the \"Last updated\" date. We encourage you to review this Privacy Policy periodically for any changes. Your continued use of the Service after any modifications constitutes acceptance of the updated policy."
+      },
+      "contact": {
+        "title": "9. Contact Us",
+        "content": "If you have any questions about this Privacy Policy or our data practices, please contact us at support@winfactpicks.com."
+      }
+    }
+  },
+  "disclaimer": {
+    "badge": "Legal",
+    "title": "Disclaimer",
+    "subtitle": "Important information about the use of our platform and services.",
+    "lastUpdated": "Last updated: March 10, 2026",
+    "sections": {
+      "general": {
+        "title": "1. General Disclaimer",
+        "content": "WinFact.com is not responsible for any financial or other decisions made based on information or links provided on this site. We do not guarantee winnings and cannot be held liable for any losses resulting from the use of our data-driven insights. WinFact.com does not provide bookmaking services or enable any form of gambling. As a sports analytics platform, we are not responsible for the outcomes of any picks or predictions. If you or someone you know has a gambling problem, we encourage you to seek help from the appropriate authorities in your area."
+      },
+      "noFinancialAdvice": {
+        "title": "2. No Financial Advice",
+        "content": "The content provided on WinFact.com, including picks, analysis, and predictions, is for informational and entertainment purposes only. Nothing on this site constitutes financial, investment, or gambling advice. You should not make any financial decisions based solely on the information provided here. Always conduct your own research and consult with qualified professionals before making any financial decisions. You are solely responsible for your own betting decisions and any associated financial outcomes."
+      },
+      "noGamblingServices": {
+        "title": "3. No Gambling Services",
+        "content": "WinFact is a sports analytics and information platform. We do not operate as a sportsbook, bookmaker, or gambling operator. We do not accept bets, wagers, or any form of gambling transactions. We do not facilitate or encourage gambling. Our service provides statistical analysis and data-driven insights about sports events. How you use this information is entirely your responsibility and at your own risk."
+      },
+      "accuracyOfInformation": {
+        "title": "4. Accuracy of Information",
+        "content": "While we strive to provide accurate and up-to-date information, we make no representations or warranties of any kind about the completeness, accuracy, reliability, or suitability of the information on our platform. Our statistical models and analysis are based on historical data and algorithms that may not account for all variables. Sports outcomes are inherently unpredictable, and past performance does not guarantee future results. Any reliance you place on our information is strictly at your own risk."
+      },
+      "externalLinks": {
+        "title": "5. External Links",
+        "content": "Our platform may contain links to external websites or services that are not owned or controlled by WinFact. We have no control over, and assume no responsibility for, the content, privacy policies, or practices of any third-party websites or services. We do not endorse or guarantee the offerings of any third-party websites. You acknowledge and agree that WinFact shall not be liable for any damage or loss caused by your use of any third-party content, goods, or services."
+      },
+      "limitationOfLiability": {
+        "title": "6. Limitation of Liability",
+        "content": "To the fullest extent permitted by applicable law, WinFact, its owners, employees, partners, and affiliates shall not be liable for any direct, indirect, incidental, special, consequential, or exemplary damages resulting from your use of the Service, including but not limited to damages for loss of profits, goodwill, data, or other intangible losses, even if we have been advised of the possibility of such damages. This limitation applies regardless of the legal theory on which the claim is based."
+      }
+    }
+  },
+  "responsibleGambling": {
+    "badge": "Responsibility",
+    "title": "Responsible Gambling",
+    "subtitle": "We are committed to promoting responsible gambling practices.",
+    "sections": {
+      "commitment": {
+        "title": "Our Commitment",
+        "content": "At WinFact, we believe that sports betting should be approached responsibly and treated as entertainment, not as a source of income. While we provide data-driven analysis to help inform your decisions, we recognize that gambling can become problematic for some individuals. We are committed to promoting responsible gambling practices and providing resources for those who may need help."
+      },
+      "warningSigns": {
+        "title": "Warning Signs of Problem Gambling",
+        "content": "Problem gambling can affect anyone. It's important to recognize the warning signs early:",
+        "signs": [
+          "Spending more money or time on gambling than you can afford",
+          "Difficulty controlling or stopping your gambling behavior",
+          "Feeling restless or irritable when trying to reduce gambling",
+          "Gambling to escape problems or relieve feelings of anxiety or depression",
+          "Lying to family members or friends about the extent of your gambling",
+          "Borrowing money or selling possessions to finance gambling"
+        ]
+      },
+      "selfAssessment": {
+        "title": "Self-Assessment Questions",
+        "content": "If you answer \"yes\" to any of these questions, you may want to seek professional guidance:",
+        "questions": [
+          "Have you ever felt the need to bet more and more money?",
+          "Have you ever lied to people important to you about how much you gamble?",
+          "Have you ever felt guilty about the way you gamble or what happens when you gamble?",
+          "Have you ever tried to win back money you've lost (chasing losses)?",
+          "Have you ever borrowed money or sold anything to get money to gamble?"
+        ]
+      },
+      "resources": {
+        "title": "Resources & Helplines",
+        "content": "If you or someone you know has a gambling problem, help is available. These organizations provide free, confidential support:",
+        "helplines": [
+          {
+            "name": "National Problem Gambling Helpline",
+            "description": "24/7 confidential helpline for problem gamblers and their families.",
+            "contact": "1-800-522-4700"
+          },
+          {
+            "name": "National Council on Problem Gambling",
+            "description": "Resources, self-assessment tools, and treatment referrals.",
+            "contact": "ncpgambling.org"
+          },
+          {
+            "name": "Gamblers Anonymous",
+            "description": "A fellowship of men and women who share their experience to help each other.",
+            "contact": "gamblersanonymous.org"
+          },
+          {
+            "name": "Crisis Text Line",
+            "description": "Free, 24/7 crisis support via text message.",
+            "contact": "Text HOME to 741741"
+          }
+        ]
+      },
+      "tips": {
+        "title": "Tips for Responsible Betting",
+        "content": "Follow these guidelines to keep your betting experience enjoyable and safe:",
+        "items": [
+          "Set a budget before you start and never bet more than you can afford to lose",
+          "Set time limits for your betting activities and take regular breaks",
+          "Never chase losses — accept that losing is part of the experience",
+          "Don't bet when you are upset, stressed, or under the influence of alcohol or drugs",
+          "Keep gambling as entertainment, not as a way to make money or solve financial problems",
+          "Balance gambling with other hobbies and activities in your life"
+        ]
+      },
+      "safeguards": {
+        "title": "Our Safeguards",
+        "content": "WinFact is committed to responsible practices. We include responsible gambling disclaimers on all our content. We do not target minors or vulnerable individuals. We encourage responsible bankroll management in our analysis. We provide links to gambling help resources throughout our platform. We do not provide bookmaking services or facilitate any form of gambling. If you believe you need to take a break, please contact our support team and we will assist you."
+      }
+    }
+  }
+}

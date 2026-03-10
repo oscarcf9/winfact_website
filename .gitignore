@@ -33,9 +33,21 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# local database
+local.db
+
+# drizzle
+/drizzle/
+
+# uploads
+/public/uploads/
+
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# clerk configuration (can include secrets)
+/.clerk/
