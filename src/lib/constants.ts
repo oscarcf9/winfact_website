@@ -15,3 +15,10 @@ export const NAV_LINKS = [
 
 export const PROMO_CODE = "PICK80";
 export const PROMO_DISCOUNT = "80%";
+
+export const VIP_TIERS = ["vip_weekly", "vip_monthly", "season_pass"] as const;
+export type VipTier = (typeof VIP_TIERS)[number];
+
+export function isVipTier(tier: string | null | undefined): boolean {
+  return VIP_TIERS.includes(tier as VipTier);
+}

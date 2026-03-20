@@ -4,6 +4,7 @@ import { getActiveSubscription } from "@/db/queries/subscriptions";
 import { PickCard } from "@/components/dashboard/pick-card";
 import { Target, Crown, CalendarClock } from "lucide-react";
 import { getLocale } from "next-intl/server";
+import { isVipTier } from "@/lib/constants";
 
 export default async function DashboardPage() {
   const { userId } = await auth();
@@ -13,7 +14,7 @@ export default async function DashboardPage() {
     userId ? getActiveSubscription(userId) : null,
   ]);
 
-  const isVip = subscription?.tier === "vip_weekly" || subscription?.tier === "vip_monthly";
+  const isVip = isVipTier(subscription?.tier);
 
   return (
     <div className="space-y-6">

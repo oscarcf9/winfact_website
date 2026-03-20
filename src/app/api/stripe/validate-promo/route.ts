@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { promoCodes } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  const { success } = await rateLimit(req, { prefix: "validate-promo", maxRequests: 10, windowMs: 60_000 });
+  if (!success) {
+    return NextResponse.json({ valid: false, error: "Too many requests" }, { status: 429, headers: { "Retry-After": "60" } });
+  }
+
   try {
     const { code } = await req.json();
     if (!code) {

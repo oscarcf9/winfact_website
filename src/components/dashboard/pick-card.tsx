@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Lock, Crown, X, Zap, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -55,9 +55,67 @@ function formatDate(dateStr: string): string {
   });
 }
 
+type PlanInfo = {
+  id: string;
+  name: string;
+  price: string;
+  period: string;
+  popular?: boolean;
+  features: string[];
+};
+
+const FALLBACK_PLANS: PlanInfo[] = [
+  {
+    id: "vip_weekly",
+    name: "VIP Weekly",
+    price: "$45",
+    period: "/week",
+    features: ["All VIP picks", "Full analysis", "Real-time alerts"],
+  },
+  {
+    id: "vip_monthly",
+    name: "VIP Monthly",
+    price: "$120",
+    period: "/month",
+    popular: true,
+    features: ["All VIP picks", "Full analysis", "Real-time alerts", "Priority support"],
+  },
+];
+
+const INTERVAL_MAP: Record<string, string> = {
+  week: "/week",
+  month: "/month",
+  year: "/year",
+};
+
 // ─── Inline Upgrade Modal ────────────────────────────────────
-function UpgradeModal({ onClose }: { onClose: () => void }) {
+function UpgradeModal({ onClose, locale = "en" }: { onClose: () => void; locale?: string }) {
   const [loading, setLoading] = useState<string | null>(null);
+  const [plans, setPlans] = useState<PlanInfo[]>(FALLBACK_PLANS);
+
+  useEffect(() => {
+    fetch("/api/pricing")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          const isEs = locale === "es";
+          const paid = data
+            .filter((p: { isFree?: boolean }) => !p.isFree)
+            .map((p: { key: string; nameEn: string; nameEs: string; price: number; interval: string; isPopular?: boolean; featuresEn: string[]; featuresEs: string[] }) => ({
+              id: p.key,
+              name: isEs ? p.nameEs : p.nameEn,
+              price: `$${p.price}`,
+              period: INTERVAL_MAP[p.interval] || `/${p.interval}`,
+              popular: p.isPopular || false,
+              features: isEs ? p.featuresEs : p.featuresEn,
+            }));
+          if (paid.length > 0) setPlans(paid);
+        }
+      })
+      .catch(() => {
+        // keep fallback
+      });
+  }, [locale]);
 
   async function handleSubscribe(plan: string) {
     setLoading(plan);
@@ -77,24 +135,6 @@ function UpgradeModal({ onClose }: { onClose: () => void }) {
       setLoading(null);
     }
   }
-
-  const plans = [
-    {
-      id: "vip_weekly",
-      name: "VIP Weekly",
-      price: "$9.99",
-      period: "/week",
-      features: ["All VIP picks", "Full analysis", "Real-time alerts"],
-    },
-    {
-      id: "vip_monthly",
-      name: "VIP Monthly",
-      price: "$29.99",
-      period: "/month",
-      popular: true,
-      features: ["All VIP picks", "Full analysis", "Real-time alerts", "Priority support"],
-    },
-  ];
 
   return (
     <div
@@ -286,7 +326,7 @@ export function PickCard({ pick, locale = "en", isVipMember = true, showAnalysis
       </div>
 
       {/* Upgrade Modal */}
-      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
+      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} locale={locale} />}
     </>
   );
 }

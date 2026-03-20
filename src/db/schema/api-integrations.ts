@@ -10,8 +10,7 @@ export const apiIntegrations = sqliteTable("api_integrations", {
   status: text("status", {
     enum: ["connected", "disconnected", "error", "rate_limited"],
   }).default("disconnected"),
-  apiKey: text("api_key"), // Encrypted in production
-  config: text("config"), // JSON: additional config
+  config: text("config"), // JSON: additional config (non-secret settings only)
   lastHealthCheck: text("last_health_check"),
   lastError: text("last_error"),
   requestsToday: integer("requests_today").default(0),

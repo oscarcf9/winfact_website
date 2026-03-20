@@ -20,9 +20,10 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "hero" });
+  const meta = await getTranslations({ locale, namespace: "metadata" });
 
   return {
-    title: "WinFact Picks — Smart Betting Starts With Data",
+    title: meta("homeTitle"),
     description: t("subheadline"),
     alternates: {
       canonical: "/",

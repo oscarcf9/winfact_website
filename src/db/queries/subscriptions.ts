@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { subscriptions } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, desc } from "drizzle-orm";
 
 export async function getActiveSubscription(userId: string) {
   const result = await db
@@ -9,26 +9,16 @@ export async function getActiveSubscription(userId: string) {
     .where(
       and(
         eq(subscriptions.userId, userId),
-        eq(subscriptions.status, "active")
+        or(
+          eq(subscriptions.status, "active"),
+          eq(subscriptions.status, "trialing")
+        )
       )
     )
+    .orderBy(desc(subscriptions.currentPeriodEnd))
     .limit(1);
 
-  if (result.length > 0) return result[0];
-
-  // Check trialing as well
-  const trialing = await db
-    .select()
-    .from(subscriptions)
-    .where(
-      and(
-        eq(subscriptions.userId, userId),
-        eq(subscriptions.status, "trialing")
-      )
-    )
-    .limit(1);
-
-  return trialing[0] ?? null;
+  return result[0] ?? null;
 }
 
 export async function getUserSubscription(userId: string) {

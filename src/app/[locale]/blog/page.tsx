@@ -13,8 +13,10 @@ import { Button } from "@/components/ui/button";
 import { PageHero } from "@/components/ui/page-hero";
 import { AnimatedSection } from "@/components/ui/animated-section";
 import { Link } from "@/i18n/navigation";
-import { getPublishedPosts, getPostTags } from "@/db/queries/posts";
+import { getPublishedPosts, getPostTagsBatch } from "@/db/queries/posts";
 import { samplePosts } from "@/data/sample-posts";
+
+export const revalidate = 3600;
 
 export async function generateMetadata({
   params,
@@ -30,6 +32,13 @@ export async function generateMetadata({
     alternates: {
       canonical: "/blog",
       languages: { en: "/en/blog", es: "/es/blog" },
+    },
+    openGraph: {
+      title: "Blog | WinFact Picks",
+      description:
+        "Free picks, game previews, betting strategy, and model breakdowns from the WinFact analytics team.",
+      type: "website",
+      images: [{ url: "/images/og-default.png" }],
     },
   };
 }
@@ -159,14 +168,13 @@ export default async function BlogPage({
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "blog" });
 
-  // Fetch posts from DB
+  // Fetch posts from DB (batch-load tags in single query to avoid N+1)
   const dbPosts = await getPublishedPosts({ limit: 20 });
-  const postsWithTags = await Promise.all(
-    dbPosts.map(async (post) => {
-      const tags = await getPostTags(post.id);
-      return { ...post, sports: tags.map((t) => t.sport) };
-    })
-  );
+  const tagsByPostId = await getPostTagsBatch(dbPosts.map((p) => p.id));
+  const postsWithTags = dbPosts.map((post) => ({
+    ...post,
+    sports: tagsByPostId.get(post.id) ?? [],
+  }));
 
   // Map DB posts to BlogPost shape, or fall back to sample data
   let posts: BlogPost[];
@@ -177,10 +185,16 @@ export default async function BlogPage({
       title: locale === "es" && p.titleEs ? p.titleEs : p.titleEn,
       category: (p.category ?? "news") as BlogPost["category"],
       sports: p.sports,
-      excerpt: p.bodyEn ? p.bodyEn.slice(0, 200).replace(/\s+\S*$/, "...") : "",
-      readingTime: p.bodyEn
-        ? Math.ceil(p.bodyEn.split(/\s+/).length / 200)
-        : 5,
+      excerpt: (() => {
+        const body = locale === "es" && p.bodyEs ? p.bodyEs : p.bodyEn;
+        if (!body) return "";
+        const plain = body.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+        return plain.length > 160 ? plain.slice(0, 160).replace(/\s+\S*$/, "...") : plain;
+      })(),
+      readingTime: (() => {
+        const body = locale === "es" && p.bodyEs ? p.bodyEs : p.bodyEn;
+        return body ? Math.ceil(body.replace(/<[^>]*>/g, "").split(/\s+/).length / 200) : 5;
+      })(),
       publishedAt: p.publishedAt ?? p.createdAt ?? new Date().toISOString(),
       author: p.author ?? "WinFact",
     }));

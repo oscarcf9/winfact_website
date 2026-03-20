@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, RefreshCw, Circle, ExternalLink } from "lucide-react";
+import { GameDetailModal } from "@/components/dashboard/game-detail-modal";
 
 type Game = {
   id: string;
@@ -45,11 +46,6 @@ function formatGameTime(iso: string): string {
   });
 }
 
-function googleSearchUrl(awayTeam: string, homeTeam: string): string {
-  const query = encodeURIComponent(`${awayTeam} vs ${homeTeam}`);
-  return `https://www.google.com/search?q=${query}`;
-}
-
 function StatusDot({ status }: { status: "pre" | "in" | "post" }) {
   if (status === "in") {
     return <Circle className="h-2 w-2 fill-success text-success animate-pulse" />;
@@ -66,6 +62,12 @@ export function TodaysGames() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState("All");
+  const [selectedGame, setSelectedGame] = useState<{
+    league: string;
+    eventId: string;
+    homeTeam: string;
+    awayTeam: string;
+  } | null>(null);
 
   async function fetchGames(isRefresh = false) {
     if (isRefresh) setRefreshing(true);
@@ -119,6 +121,7 @@ export function TodaysGames() {
   }
 
   return (
+    <>
     <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
       {/* Header */}
       <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -210,14 +213,20 @@ export function TodaysGames() {
                 </span>
               </div>
 
-              {/* Games — each row is a clickable link to Google */}
+              {/* Games — each row opens the detail modal */}
               {leagueData.games.map((game) => (
-                <a
+                <button
                   key={game.id}
-                  href={googleSearchUrl(game.awayTeam, game.homeTeam)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`px-5 py-3 flex items-center gap-3 hover:bg-primary/[0.03] transition-colors group cursor-pointer ${
+                  type="button"
+                  onClick={() =>
+                    setSelectedGame({
+                      league: leagueData.league,
+                      eventId: game.id,
+                      homeTeam: game.homeTeam,
+                      awayTeam: game.awayTeam,
+                    })
+                  }
+                  className={`w-full text-left px-5 py-3 flex items-center gap-3 hover:bg-primary/[0.03] transition-colors group cursor-pointer ${
                     game.status === "in" ? "bg-success/[0.02]" : ""
                   }`}
                 >
@@ -291,12 +300,24 @@ export function TodaysGames() {
                     </div>
                     <ExternalLink className="h-3 w-3 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                </a>
+                </button>
               ))}
             </div>
           ))}
         </div>
       )}
     </div>
+
+    {/* Game Detail Modal */}
+    {selectedGame && (
+      <GameDetailModal
+        league={selectedGame.league}
+        eventId={selectedGame.eventId}
+        homeTeam={selectedGame.homeTeam}
+        awayTeam={selectedGame.awayTeam}
+        onClose={() => setSelectedGame(null)}
+      />
+    )}
+    </>
   );
 }

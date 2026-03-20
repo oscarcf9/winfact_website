@@ -54,7 +54,7 @@ export default function AboutPage() {
         {/* Hero */}
         <PageHero>
           <Badge className="mb-4 bg-white/10 text-white border border-white/20">
-            About Us
+            {t("badge")}
           </Badge>
           <Heading as="h1" size="h1" className="text-white mb-4">
             {t("title")}
@@ -64,7 +64,7 @@ export default function AboutPage() {
           </p>
           <Link href="/pricing">
             <Button variant="primary" size="xl">
-              View Pricing Plans
+              {t("viewPricing")}
             </Button>
           </Link>
         </PageHero>
@@ -88,13 +88,11 @@ export default function AboutPage() {
                     <Target className="h-5 w-5" />
                   </div>
                   <span className="font-heading font-bold text-navy text-lg">
-                    Data Over Opinions
+                    {t("values.0.title")}
                   </span>
                 </div>
                 <p className="text-gray-500 leading-relaxed">
-                  Every pick is evaluated for expected value using multiple
-                  independent statistical models, real-time line analysis, and
-                  sharp money intelligence.
+                  {t("dataOverOpinionsDetail")}
                 </p>
               </div>
             </div>
@@ -113,12 +111,11 @@ export default function AboutPage() {
                     <Globe className="h-5 w-5" />
                   </div>
                   <span className="font-heading font-bold text-navy text-lg">
-                    English & Spanish
+                    {t("bilingualLabel")}
                   </span>
                 </div>
                 <p className="text-gray-500 leading-relaxed">
-                  Full bilingual coverage means every pick, every analysis, and
-                  every piece of content is available in your preferred language.
+                  {t("bilingualDetail")}
                 </p>
               </div>
               <div className="order-1 lg:order-2">

@@ -31,7 +31,7 @@ export function FaqSection() {
 
         <div className="text-center mt-8">
           <Link href="/faq">
-            <Button variant="ghost">View All FAQ &rarr;</Button>
+            <Button variant="ghost">{t("viewAll")}</Button>
           </Link>
         </div>
       </Container>

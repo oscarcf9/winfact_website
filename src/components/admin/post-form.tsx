@@ -15,6 +15,8 @@ import {
   Settings2,
   Search,
   Tag,
+  Eye,
+  Calendar,
 } from "lucide-react";
 
 const CATEGORIES = ["free_pick", "game_preview", "strategy", "model_breakdown", "news"];
@@ -40,12 +42,14 @@ type Post = {
   seoTitle?: string | null;
   seoDescription?: string | null;
   status?: string | null;
+  publishedAt?: string | null;
   author?: string | null;
 };
 
 type Props = {
   post?: Post;
   tags?: string[];
+  deleteButton?: React.ReactNode;
 };
 
 const inputClass =
@@ -53,7 +57,7 @@ const inputClass =
 
 const labelClass = "block text-sm font-medium text-gray-600 mb-1.5";
 
-export function PostForm({ post, tags = [] }: Props) {
+export function PostForm({ post, tags = [], deleteButton }: Props) {
   const t = useTranslations("admin.postForm");
   const router = useRouter();
   const isEdit = !!post;
@@ -63,6 +67,12 @@ export function PostForm({ post, tags = [] }: Props) {
   const [imagePreview, setImagePreview] = useState<string | null>(post?.featuredImage || null);
   const [uploading, setUploading] = useState(false);
   const [showSeo, setShowSeo] = useState(false);
+  const [postStatus, setPostStatus] = useState(post?.status || "draft");
+  const [scheduledAt, setScheduledAt] = useState(
+    post?.status === "scheduled" && post?.publishedAt
+      ? post.publishedAt.slice(0, 16) // "YYYY-MM-DDTHH:mm" for datetime-local
+      : ""
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [featuredImageUrl, setFeaturedImageUrl] = useState(post?.featuredImage || "");
 
@@ -114,7 +124,8 @@ export function PostForm({ post, tags = [] }: Props) {
     setError("");
 
     const form = new FormData(e.currentTarget);
-    const data = {
+    const status = postStatus;
+    const data: Record<string, unknown> = {
       titleEn: form.get("titleEn"),
       titleEs: null,
       slug: form.get("slug"),
@@ -124,10 +135,15 @@ export function PostForm({ post, tags = [] }: Props) {
       featuredImage: featuredImageUrl || null,
       seoTitle: form.get("seoTitle") || null,
       seoDescription: form.get("seoDescription") || null,
-      status: form.get("status"),
+      status,
       author: form.get("author") || "WinFact",
       tags: selectedTags,
     };
+
+    // Include publishedAt for scheduled posts
+    if (status === "scheduled" && scheduledAt) {
+      data.publishedAt = new Date(scheduledAt).toISOString();
+    }
 
     try {
       const url = isEdit ? `/api/admin/blog/${post.id}` : "/api/admin/blog";
@@ -274,7 +290,7 @@ export function PostForm({ post, tags = [] }: Props) {
                 </div>
                 <div className="text-center">
                   <p className="text-sm font-medium text-gray-600">Click to upload image</p>
-                  <p className="text-xs text-gray-400 mt-1">PNG, JPG, WebP up to 5MB</p>
+                  <p className="text-xs text-gray-400 mt-1">PNG, JPG, WebP up to 10MB</p>
                 </div>
               </button>
             )}
@@ -346,7 +362,8 @@ export function PostForm({ post, tags = [] }: Props) {
                 <div className="relative">
                   <select
                     name="status"
-                    defaultValue={post?.status || "draft"}
+                    value={postStatus}
+                    onChange={(e) => setPostStatus(e.target.value)}
                     className={`${inputClass} appearance-none cursor-pointer pr-10`}
                   >
                     <option value="draft">{t("draft")}</option>
@@ -356,6 +373,31 @@ export function PostForm({ post, tags = [] }: Props) {
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                 </div>
               </div>
+
+              {/* Schedule Date — shown only when status is "scheduled" */}
+              {postStatus === "scheduled" && (
+                <div>
+                  <label className={labelClass}>
+                    <span className="flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5 text-primary" />
+                      Publish Date &amp; Time
+                    </span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    min={new Date().toISOString().slice(0, 16)}
+                    required
+                    className={`${inputClass} font-mono text-sm`}
+                  />
+                  {scheduledAt && new Date(scheduledAt) <= new Date() && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      This time is in the past. The post will be published on the next cron run.
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Category */}
               <div>
@@ -409,6 +451,18 @@ export function PostForm({ post, tags = [] }: Props) {
               >
                 {t("cancel")}
               </button>
+              {isEdit && (
+                <a
+                  href={`/admin/blog/${post!.id}/preview`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-primary/20 text-primary text-sm font-medium hover:bg-primary/5 transition-all duration-200 cursor-pointer"
+                >
+                  <Eye className="h-4 w-4" />
+                  Preview
+                </a>
+              )}
+              {deleteButton}
             </div>
           </div>
 

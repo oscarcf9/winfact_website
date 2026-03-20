@@ -12,6 +12,10 @@ import {
   Search,
   Circle,
   Clock,
+  Send,
+  Radio,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -79,8 +83,14 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
   const [tier, setTier] = useState("vip");
   const [analysis, setAnalysis] = useState("");
 
+  const [sendOnPublish, setSendOnPublish] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [publishResult, setPublishResult] = useState<{
+    success: boolean;
+    distributed: boolean;
+    distributionError: string | null;
+  } | null>(null);
 
   const fetchGames = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -118,7 +128,9 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
       setConfidence("");
       setTier("vip");
       setAnalysis("");
+      setSendOnPublish(true);
       setError("");
+      setPublishResult(null);
     }
   }, [open, fetchGames]);
 
@@ -188,6 +200,7 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
   async function handleSubmit() {
     setSubmitting(true);
     setError("");
+    setPublishResult(null);
 
     const payload: Record<string, unknown> = {
       sport: effectiveSport,
@@ -198,6 +211,7 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
       status: "published",
       analysisEn: analysis || null,
     };
+    if (sendOnPublish) payload.distribute = true;
     if (odds) payload.odds = Number(odds);
     if (units) payload.units = Number(units);
     if (confidence) payload.confidence = confidence;
@@ -215,6 +229,8 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
         return;
       }
 
+      const result = await res.json();
+
       // Trigger auto-blog generation in the background (non-blocking)
       fetch("/api/admin/auto-blog", {
         method: "POST",
@@ -231,12 +247,24 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
           tier,
           analysisEn: analysis || null,
         }),
-      }).catch(() => {
-        // Blog generation is best-effort, don't block the pick
-      });
+      }).catch(() => {});
 
-      onSuccess();
-      onClose();
+      // Show distribution result before closing
+      if (sendOnPublish) {
+        setPublishResult({
+          success: true,
+          distributed: result.distributed ?? false,
+          distributionError: result.distributionError ?? null,
+        });
+        // Auto-close after showing result
+        setTimeout(() => {
+          onSuccess();
+          onClose();
+        }, 2500);
+      } else {
+        onSuccess();
+        onClose();
+      }
     } catch {
       setError(t("networkError"));
     } finally {
@@ -279,7 +307,7 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
 
         {/* Body */}
         <div className="overflow-y-auto flex-1 px-6 py-5">
-          {error && (
+          {error && !publishResult && (
             <div className="mb-4 p-3 bg-danger/10 border border-danger/20 text-danger text-sm rounded-xl flex items-center gap-2">
               <X className="h-4 w-4 shrink-0" />
               {error}
@@ -287,7 +315,7 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
           )}
 
           {/* STEP 1 */}
-          {step === 1 && (
+          {step === 1 && !publishResult && (
             <div className="space-y-4">
               {/* Selected game preview */}
               {selectedGame && (
@@ -541,7 +569,7 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
           )}
 
           {/* STEP 2: Optional details */}
-          {step === 2 && (
+          {step === 2 && !publishResult && (
             <div className="space-y-4">
               {/* Summary */}
               <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-1">
@@ -618,43 +646,130 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
                   placeholder={t("analysisPlaceholder")}
                 />
               </div>
+
+              {/* Distribution toggle */}
+              <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-3 space-y-2">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <Send className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-sm font-medium text-navy">Distribute on publish</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={sendOnPublish}
+                    onClick={() => setSendOnPublish(!sendOnPublish)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 cursor-pointer ${sendOnPublish ? "bg-primary" : "bg-gray-200"}`}
+                  >
+                    <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${sendOnPublish ? "translate-x-4" : "translate-x-0"}`} />
+                  </button>
+                </label>
+                {sendOnPublish && (
+                  <div className="flex items-start gap-1.5 pt-1 border-t border-gray-200">
+                    <Radio className="h-3 w-3 text-gray-400 mt-0.5 shrink-0" />
+                    <p className="text-xs text-gray-500">
+                      {tier === "free"
+                        ? "Telegram (full pick) + Email (free members)"
+                        : "Telegram (teaser only) + Email (VIP members)"}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* PUBLISH RESULT SCREEN */}
+          {publishResult && (
+            <div className="flex flex-col items-center justify-center py-8 space-y-4">
+              {publishResult.distributed ? (
+                <>
+                  <div className="h-14 w-14 rounded-full bg-success/10 flex items-center justify-center">
+                    <CheckCircle2 className="h-8 w-8 text-success" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-lg font-semibold text-navy">Pick Published & Distributed</p>
+                    <p className="text-sm text-gray-400 mt-1">Telegram + Email sent successfully</p>
+                  </div>
+                </>
+              ) : publishResult.success && !sendOnPublish ? (
+                <>
+                  <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
+                    <CheckCircle2 className="h-8 w-8 text-primary" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-lg font-semibold text-navy">Pick Published</p>
+                    <p className="text-sm text-gray-400 mt-1">Saved without distribution</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="h-14 w-14 rounded-full bg-warning/10 flex items-center justify-center">
+                    <AlertTriangle className="h-8 w-8 text-warning" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-lg font-semibold text-navy">Pick Saved — Distribution Issue</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Pick was saved but distribution encountered an issue.
+                    </p>
+                    {publishResult.distributionError && (
+                      <p className="text-xs text-danger mt-2 font-mono bg-danger/5 rounded-lg px-3 py-1.5">
+                        {publishResult.distributionError}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-400 mt-2">
+                      You can resend from the Picks management page.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50/50">
-          {step === 1 ? (
-            <button
-              type="button"
-              onClick={handleNext}
-              className="w-full flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-primary to-accent text-white text-sm font-medium hover:shadow-lg hover:shadow-primary/20 transition-all duration-200 cursor-pointer"
-            >
-              {t("next")}
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          ) : (
-            <div className="flex gap-3">
+        {!publishResult && (
+          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50/50">
+            {step === 1 ? (
               <button
                 type="button"
-                onClick={() => { setStep(1); setError(""); }}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50 hover:text-gray-700 transition-all duration-200 cursor-pointer"
+                onClick={handleNext}
+                className="w-full flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-primary to-accent text-white text-sm font-medium hover:shadow-lg hover:shadow-primary/20 transition-all duration-200 cursor-pointer"
               >
-                <ArrowLeft className="h-4 w-4" />
-                {t("back")}
+                {t("next")}
+                <ArrowRight className="h-4 w-4" />
               </button>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-primary to-accent text-white text-sm font-medium hover:shadow-lg hover:shadow-primary/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <Zap className="h-4 w-4" />
-                {submitting ? t("publishing") : t("publishPick")}
-              </button>
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setStep(1); setError(""); }}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50 hover:text-gray-700 transition-all duration-200 cursor-pointer"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  {t("back")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-primary to-accent text-white text-sm font-medium hover:shadow-lg hover:shadow-primary/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {sendOnPublish ? (
+                    <>
+                      <Send className="h-4 w-4" />
+                      {submitting ? t("publishing") : "Publish & Send"}
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="h-4 w-4" />
+                      {submitting ? t("publishing") : t("publishPick")}
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

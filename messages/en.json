@@ -1,4 +1,12 @@
 {
+  "errors": {
+    "serverError": "Something went wrong",
+    "serverErrorDescription": "An unexpected error occurred. Please try again or contact support if the problem persists.",
+    "tryAgain": "Try Again",
+    "notFound": "Page not found",
+    "notFoundDescription": "The page you're looking for doesn't exist or has been moved.",
+    "goHome": "Go Home"
+  },
   "nav": {
     "home": "Home",
     "howItWorks": "How It Works",
@@ -190,6 +198,7 @@
       "billing": "Billing & Plans",
       "technical": "Technical"
     },
+    "viewAll": "View All FAQ →",
     "items": [
       {
         "question": "What makes WinFact different from other handicapping services?",
@@ -264,6 +273,7 @@
       "contact": "Contact",
       "about": "About"
     },
+    "ageNotice": "18+ Only",
     "responsible": "Responsible Gambling: There are no guaranteed wins in sports betting. Even our strongest picks carry inherent risk. Always bet responsibly. If you or someone you know has a gambling problem, call 1-800-GAMBLER.",
     "copyright": "\u00a9 {year} WinFact Picks. All rights reserved.",
     "privacy": "Privacy Policy",
@@ -289,10 +299,15 @@
   "about": {
     "title": "About WinFact Picks",
     "subtitle": "Miami-based. Data-driven. Bilingual.",
+    "badge": "About Us",
+    "viewPricing": "View Pricing",
     "mission": "Our Mission",
     "missionText": "WinFact Picks was founded with a simple belief: sports betting should be treated like investing, not gambling. We use advanced statistical models, real-time market analysis, and sharp money intelligence to find bets with positive expected value.",
+    "dataOverOpinionsDetail": "We never rely on gut feelings. Every pick is backed by multiple statistical models, real-time market data, and sharp money intelligence. If the numbers don't support it, we don't recommend it.",
     "bilingual": "Bilingual Advantage",
+    "bilingualLabel": "English & Spanish",
     "bilingualText": "Based in Miami, we understand the diverse betting community. That's why we offer full service in both English and Spanish — every pick, every analysis, every piece of content. No other handicapping service offers this level of bilingual coverage.",
+    "bilingualDetail": "Every pick, analysis, and piece of content is available in both English and Spanish. Our bilingual team ensures nothing is lost in translation, so you get the same depth of insight regardless of your preferred language.",
     "transparency": "Radical Transparency",
     "transparencyText": "We publish our full record — wins AND losses. We track CLV on every pick. We show our ROI by sport, by month, by bet type. If we have a losing streak, you'll see it. Because trust is earned through honesty, not hype.",
     "values": [
@@ -365,7 +380,8 @@
         "reward": "VIP lifetime discount"
       }
     ],
-    "cta": "Start Referring"
+    "cta": "Start Referring",
+    "disclosure": "Disclosure: WinFact compensates members who successfully refer paying customers. Rewards are earned when a referred friend subscribes to a paid plan. This constitutes a material connection under FTC guidelines."
   },
   "blog": {
     "title": "Free Picks & Insights",
@@ -382,6 +398,9 @@
     },
     "relatedPosts": "Related Posts",
     "noPosts": "No posts yet. Check back soon!"
+  },
+  "metadata": {
+    "homeTitle": "WinFact Picks — Smart Betting Starts With Data"
   },
   "sports": {
     "mlb": {
@@ -525,7 +544,10 @@
       "noGamesScheduled": "No games scheduled today",
       "final": "Final",
       "activePicks": "Active Picks",
-      "noActivePicks": "No active picks right now"
+      "noActivePicks": "No active picks right now",
+      "blogDraftsAwaiting": "blog draft(s) awaiting review",
+      "blogDraftsReview": "Auto-generated posts ready for your review",
+      "blogDraftsAction": "Review now →"
     },
     "picks": {
       "title": "Picks",
@@ -632,9 +654,15 @@
       "saving": "Saving...",
       "updatePick": "Update Pick",
       "createPick": "Create Pick",
+      "publishAndSend": "Publish & Send",
       "cancel": "Cancel",
       "failedToSave": "Failed to save pick",
-      "networkError": "Network error"
+      "networkError": "Network error",
+      "distribution": "Distribution",
+      "sendOnPublish": "Send on Publish",
+      "distributionFreeDesc": "✓ Telegram (full pick) · ✓ Email (all free members)",
+      "distributionVipDesc": "✓ Telegram (teaser only) · ✓ Email (VIP members only)",
+      "distributionNote": "Pick will be distributed immediately after saving."
     },
     "blog": {
       "title": "Blog",

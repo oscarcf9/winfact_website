@@ -1,41 +1,17 @@
 import { NextRequest } from "next/server";
-
-interface RateLimitEntry {
-  timestamps: number[];
-}
+import { db } from "@/db";
+import { rateLimits } from "@/db/schema";
+import { eq, lt, sql } from "drizzle-orm";
 
 interface RateLimitConfig {
-  windowMs?: number; // sliding window in ms (default: 60_000 = 60s)
+  windowMs?: number; // fixed window in ms (default: 60_000 = 60s)
   maxRequests?: number; // max requests per window (default: 30)
+  prefix?: string; // key prefix for namespace (default: "global")
 }
 
 interface RateLimitResult {
   success: boolean;
   remaining: number;
-}
-
-const store = new Map<string, RateLimitEntry>();
-
-// Periodically clean up expired entries every 60 seconds
-let cleanupInterval: ReturnType<typeof setInterval> | null = null;
-
-function ensureCleanup(windowMs: number) {
-  if (cleanupInterval) return;
-  cleanupInterval = setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of store) {
-      // Remove timestamps older than the largest reasonable window
-      entry.timestamps = entry.timestamps.filter((t) => now - t < windowMs * 2);
-      if (entry.timestamps.length === 0) {
-        store.delete(key);
-      }
-    }
-  }, 60_000);
-
-  // Allow the process to exit without waiting for this interval
-  if (cleanupInterval && typeof cleanupInterval === "object" && "unref" in cleanupInterval) {
-    cleanupInterval.unref();
-  }
 }
 
 /**
@@ -44,7 +20,6 @@ function ensureCleanup(windowMs: number) {
 export function getClientIp(req: NextRequest): string {
   const forwarded = req.headers.get("x-forwarded-for");
   if (forwarded) {
-    // x-forwarded-for can be a comma-separated list; take the first (original client)
     return forwarded.split(",")[0].trim();
   }
 
@@ -57,44 +32,66 @@ export function getClientIp(req: NextRequest): string {
 }
 
 /**
- * In-memory sliding window rate limiter.
+ * Turso-backed fixed-window rate limiter.
+ * Works correctly on Vercel serverless (no shared in-memory state needed).
+ *
+ * Uses INSERT ... ON CONFLICT to atomically increment counters.
  *
  * Usage:
- *   const { success, remaining } = rateLimit(req);
+ *   const { success } = await rateLimit(req, { prefix: "checkout", maxRequests: 5, windowMs: 60_000 });
  *   if (!success) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
  */
-export function rateLimit(
+export async function rateLimit(
   req: NextRequest,
   config: RateLimitConfig = {}
-): RateLimitResult {
-  const { windowMs = 60_000, maxRequests = 30 } = config;
-
-  ensureCleanup(windowMs);
+): Promise<RateLimitResult> {
+  const { windowMs = 60_000, maxRequests = 30, prefix = "global" } = config;
 
   const ip = getClientIp(req);
-  const now = Date.now();
-  const windowStart = now - windowMs;
+  const windowSec = Math.floor(windowMs / 1000);
+  const currentWindow = Math.floor(Date.now() / 1000 / windowSec) * windowSec;
 
-  let entry = store.get(ip);
-  if (!entry) {
-    entry = { timestamps: [] };
-    store.set(ip, entry);
+  const key = `${prefix}:${ip}`;
+  const id = `${key}:${currentWindow}`;
+
+  try {
+    // Atomic upsert: insert or increment counter
+    await db.run(
+      sql`INSERT INTO rate_limits (id, key, window_start, count)
+          VALUES (${id}, ${key}, ${currentWindow}, 1)
+          ON CONFLICT(id) DO UPDATE SET count = count + 1`
+    );
+
+    // Read current count
+    const [row] = await db
+      .select({ count: rateLimits.count })
+      .from(rateLimits)
+      .where(eq(rateLimits.id, id))
+      .limit(1);
+
+    const count = row?.count ?? 1;
+
+    if (count > maxRequests) {
+      return { success: false, remaining: 0 };
+    }
+
+    return { success: true, remaining: maxRequests - count };
+  } catch (error) {
+    // If rate limiting fails (DB issue), allow the request through
+    // rather than blocking legitimate users
+    console.error("Rate limit check failed:", error);
+    return { success: true, remaining: maxRequests };
   }
+}
 
-  // Remove timestamps outside the current window
-  entry.timestamps = entry.timestamps.filter((t) => t > windowStart);
-
-  if (entry.timestamps.length >= maxRequests) {
-    return {
-      success: false,
-      remaining: 0,
-    };
-  }
-
-  entry.timestamps.push(now);
-
-  return {
-    success: true,
-    remaining: maxRequests - entry.timestamps.length,
-  };
+/**
+ * Clean up expired rate limit entries.
+ * Call from a cron job periodically (e.g. every hour).
+ */
+export async function cleanupRateLimits(): Promise<number> {
+  const cutoff = Math.floor(Date.now() / 1000) - 3600; // older than 1 hour
+  const result = await db
+    .delete(rateLimits)
+    .where(lt(rateLimits.windowStart, cutoff));
+  return result.rowsAffected;
 }

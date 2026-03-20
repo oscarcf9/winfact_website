@@ -2,12 +2,13 @@
 
 import { usePathname } from "@/i18n/navigation";
 import { Link } from "@/i18n/navigation";
-import { Target, History, Settings, Gift, Home } from "lucide-react";
+import { Target, History, Settings, Gift, Home, Gamepad2 } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Today's Picks", icon: Target, exact: true },
+  { href: "/dashboard/games", label: "Games", icon: Gamepad2, exact: false },
   { href: "/dashboard/history", label: "Pick History", icon: History, exact: false },
   { href: "/dashboard/settings", label: "Settings", icon: Settings, exact: false },
   { href: "/dashboard/referrals", label: "Referrals", icon: Gift, exact: false },

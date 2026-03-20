@@ -17,6 +17,7 @@ import {
   XCircle,
   ChevronRight,
 } from "lucide-react";
+import { isVipTier } from "@/lib/constants";
 
 /* ────────────────────────────── types ────────────────────────────── */
 
@@ -215,7 +216,7 @@ export function SettingsClient() {
 
   const isVip =
     subscription &&
-    ["vip_weekly", "vip_monthly", "season_pass"].includes(subscription.tier) &&
+    isVipTier(subscription.tier) &&
     (subscription.status === "active" || subscription.status === "trialing");
 
   if (loading) {

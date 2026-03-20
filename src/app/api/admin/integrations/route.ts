@@ -32,7 +32,6 @@ export async function PUT(req: NextRequest) {
     if (existing) {
       await db.update(apiIntegrations).set({
         status: data.status || existing.status,
-        apiKey: data.apiKey || existing.apiKey,
         config: data.config ? JSON.stringify(data.config) : existing.config,
         updatedAt: new Date().toISOString(),
       }).where(eq(apiIntegrations.id, existing.id));
@@ -42,7 +41,6 @@ export async function PUT(req: NextRequest) {
         name: data.name,
         type: data.type,
         status: "disconnected",
-        apiKey: data.apiKey || null,
         config: data.config ? JSON.stringify(data.config) : null,
       });
     }

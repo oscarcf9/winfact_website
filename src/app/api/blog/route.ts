@@ -3,7 +3,7 @@ import { getPublishedPosts, getPostTags } from "@/db/queries/posts";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
-  const { success } = rateLimit(request);
+  const { success } = await rateLimit(request);
   if (!success) {
     return NextResponse.json(
       { error: "Too many requests" },

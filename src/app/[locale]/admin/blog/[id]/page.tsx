@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { Link } from "@/i18n/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
+import { BlogDeleteButtonFull } from "@/components/admin/blog-delete-button";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -32,7 +33,17 @@ export default async function EditPostPage({ params }: Props) {
           <span className="text-gray-400 text-lg font-normal ml-3">{t("postSubtitle")}</span>
         </h1>
       </div>
-      <PostForm post={post} tags={tags.map((t) => t.sport)} />
+      <PostForm
+        post={post}
+        tags={tags.map((t) => t.sport)}
+        deleteButton={
+          <BlogDeleteButtonFull
+            postId={post.id}
+            postTitle={post.titleEn}
+            isPublished={post.status === "published"}
+          />
+        }
+      />
     </div>
   );
 }

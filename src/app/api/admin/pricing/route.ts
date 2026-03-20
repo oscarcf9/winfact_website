@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Create pricing plan error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to create plan" },
+      { error: "An error occurred while processing your request" },
       { status: 500 }
     );
   }

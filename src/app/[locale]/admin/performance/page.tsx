@@ -1,38 +1,42 @@
 import { db } from "@/db";
-import { picks } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { TrendingUp, Trophy, BarChart3, Percent, Activity } from "lucide-react";
+import { picks, users, performanceCache } from "@/db/schema";
+import { eq, and, ne, sql, inArray } from "drizzle-orm";
+import { TrendingUp, Trophy, BarChart3, Percent, Activity, Clock } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { PerformanceCharts } from "@/components/admin/performance-charts";
+import { refreshPerformanceCache } from "@/lib/refresh-performance";
+import { RefreshCacheButton } from "./refresh-cache-button";
 
 export default async function AdminPerformancePage() {
   const t = await getTranslations("admin.performancePage");
   const ta = await getTranslations("admin.analytics");
 
-  const settled = await db
+  // Try to read from cache first
+  let [overallCache] = await db
     .select()
-    .from(picks)
-    .where(eq(picks.status, "settled"));
+    .from(performanceCache)
+    .where(and(eq(performanceCache.scope, "overall"), eq(performanceCache.period, "all_time")));
 
-  const wins = settled.filter((p) => p.result === "win").length;
-  const losses = settled.filter((p) => p.result === "loss").length;
-  const pushes = settled.filter((p) => p.result === "push").length;
+  // If cache is empty, populate it from raw picks
+  if (!overallCache) {
+    await refreshPerformanceCache();
+    [overallCache] = await db
+      .select()
+      .from(performanceCache)
+      .where(and(eq(performanceCache.scope, "overall"), eq(performanceCache.period, "all_time")));
+  }
+
+  const wins = overallCache?.wins ?? 0;
+  const losses = overallCache?.losses ?? 0;
+  const pushes = overallCache?.pushes ?? 0;
+  const unitsWon = overallCache?.unitsWon ?? 0;
+  const roiPct = overallCache?.roiPct ?? 0;
+  const clvAvg = overallCache?.clvAvg ?? 0;
+  const computedAt = overallCache?.computedAt ?? null;
+
   const winRate = wins + losses > 0 ? ((wins / (wins + losses)) * 100).toFixed(1) : "\u2014";
-
-  const unitsWon = settled.reduce((sum, p) => {
-    if (p.result === "win") return sum + (p.units ?? 0);
-    if (p.result === "loss") return sum - (p.units ?? 0);
-    return sum;
-  }, 0);
-
-  const totalRisked = settled
-    .filter((p) => p.result !== "push")
-    .reduce((sum, p) => sum + (p.units ?? 0), 0);
-  const roi = totalRisked > 0 ? ((unitsWon / totalRisked) * 100).toFixed(1) : "\u2014";
-
-  const avgClv = settled.filter((p) => p.clv != null).length > 0
-    ? (settled.reduce((sum, p) => sum + (p.clv || 0), 0) / settled.filter((p) => p.clv != null).length).toFixed(2)
-    : "\u2014";
+  const roi = roiPct !== 0 ? roiPct.toFixed(1) : "\u2014";
+  const avgClv = clvAvg !== 0 ? clvAvg.toFixed(2) : "\u2014";
 
   const statCards = [
     { icon: Percent, value: `${winRate}%`, label: t("winRate"), accent: "from-primary to-primary" },
@@ -42,7 +46,28 @@ export default async function AdminPerformancePage() {
     { icon: Activity, value: `${avgClv}%`, label: t("avgClv"), accent: "from-primary to-accent" },
   ];
 
-  // Serialize picks for client component
+  // Still need raw settled picks for the PerformanceCharts client component
+  // (charts need individual pick data for filtering, time series, etc.)
+  const settled = await db
+    .select()
+    .from(picks)
+    .where(eq(picks.status, "settled"));
+
+  // Get capper names for attribution (query only relevant users)
+  const capperIds = [...new Set(settled.map((p) => p.capperId).filter(Boolean))] as string[];
+  let capperMap: Map<string, string> = new Map();
+  if (capperIds.length > 0) {
+    const cappers = await db
+      .select({ id: users.id, name: users.name, email: users.email })
+      .from(users)
+      .where(inArray(users.id, capperIds));
+    capperMap = new Map(
+      cappers.map((c) => [c.id, c.name || c.email])
+    );
+  }
+
+  const capperList = Array.from(capperMap.entries()).map(([id, name]) => ({ id, name }));
+
   const serializedPicks = settled.map((p) => ({
     id: p.id,
     sport: p.sport,
@@ -59,15 +84,29 @@ export default async function AdminPerformancePage() {
     publishedAt: p.publishedAt,
     settledAt: p.settledAt,
     createdAt: p.createdAt,
+    capperId: p.capperId,
+    capperName: p.capperId ? capperMap.get(p.capperId) || null : null,
   }));
 
   return (
     <div className="space-y-8 animate-fade-up">
       {/* Header */}
-      <h1 className="font-heading font-bold text-2xl md:text-3xl tracking-tight">
-        <span className="text-primary">{t("title")}</span>
-        <span className="text-gray-400 text-lg font-normal ml-3">{ta("advancedAnalytics")}</span>
-      </h1>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="font-heading font-bold text-2xl md:text-3xl tracking-tight">
+          <span className="text-primary">{t("title")}</span>
+          {" "}
+          <span className="text-gray-400 text-lg font-normal ml-3">{ta("advancedAnalytics")}</span>
+        </h1>
+        <div className="flex items-center gap-3">
+          {computedAt && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-400">
+              <Clock className="h-3.5 w-3.5" />
+              Last refreshed: {new Date(computedAt).toLocaleString()}
+            </div>
+          )}
+          <RefreshCacheButton />
+        </div>
+      </div>
 
       {/* Stat Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -87,7 +126,7 @@ export default async function AdminPerformancePage() {
       </div>
 
       {/* Charts & Analytics */}
-      <PerformanceCharts picks={serializedPicks} />
+      <PerformanceCharts picks={serializedPicks} cappers={capperList} />
     </div>
   );
 }

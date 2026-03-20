@@ -275,9 +275,9 @@ export default async function SportPage({
                 {tPage("ctaButton")}
               </Button>
             </Link>
-            <Link href="/performance">
+            <Link href="/blog">
               <Button variant="outline" size="lg" className="border-white/30 text-white hover:bg-white/10 hover:text-white">
-                {tPerf("title")}
+                Free Picks &amp; Blog
               </Button>
             </Link>
           </div>

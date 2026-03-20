@@ -20,3 +20,7 @@ export { contentCalendar } from "./content-calendar";
 export { teamMembers, activityLog } from "./team-members";
 export { apiIntegrations, webhookLogs } from "./api-integrations";
 export { pricingPlans } from "./pricing-plans";
+export { rateLimits } from "./rate-limits";
+export { processedEvents } from "./processed-events";
+export { adminAuditLog } from "./admin-audit-log";
+export { pushTokens } from "./push-tokens";

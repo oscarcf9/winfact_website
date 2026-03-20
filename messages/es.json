@@ -1,4 +1,12 @@
 {
+  "errors": {
+    "serverError": "Algo sali\u00f3 mal",
+    "serverErrorDescription": "Ocurri\u00f3 un error inesperado. Por favor, int\u00e9ntalo de nuevo o contacta con soporte si el problema persiste.",
+    "tryAgain": "Intentar de nuevo",
+    "notFound": "P\u00e1gina no encontrada",
+    "notFoundDescription": "La p\u00e1gina que buscas no existe o ha sido movida.",
+    "goHome": "Ir al inicio"
+  },
   "nav": {
     "home": "Inicio",
     "howItWorks": "Cómo Funciona",
@@ -190,6 +198,7 @@
       "billing": "Facturación y Planes",
       "technical": "Técnico"
     },
+    "viewAll": "Ver Todas las Preguntas →",
     "items": [
       {
         "question": "¿Qué hace diferente a WinFact de otros servicios de handicapping?",
@@ -264,6 +273,7 @@
       "contact": "Contacto",
       "about": "Acerca de"
     },
+    "ageNotice": "18+ Solamente",
     "responsible": "Juego Responsable: No hay victorias garantizadas en las apuestas deportivas. Incluso nuestros picks más fuertes conllevan riesgo inherente. Siempre apuesta de forma responsable. Si tú o alguien que conoces tiene un problema de juego, llama al 1-800-GAMBLER.",
     "copyright": "\u00a9 {year} WinFact Picks. Todos los derechos reservados.",
     "privacy": "Política de Privacidad",
@@ -289,10 +299,15 @@
   "about": {
     "title": "Acerca de WinFact Picks",
     "subtitle": "De Miami. Basados en datos. Bilingües.",
+    "badge": "Sobre Nosotros",
+    "viewPricing": "Ver Precios",
     "mission": "Nuestra Misión",
     "missionText": "WinFact Picks fue fundado con una creencia simple: las apuestas deportivas deben tratarse como una inversión, no como un juego de azar. Usamos modelos estadísticos avanzados, análisis de mercado en tiempo real e inteligencia de dinero sharp para encontrar apuestas con valor esperado positivo.",
+    "dataOverOpinionsDetail": "Nunca nos basamos en corazonadas. Cada pick está respaldado por múltiples modelos estadísticos, datos de mercado en tiempo real e inteligencia de dinero sharp. Si los números no lo respaldan, no lo recomendamos.",
     "bilingual": "Ventaja Bilingüe",
+    "bilingualLabel": "Inglés y Español",
     "bilingualText": "Con sede en Miami, entendemos la diversa comunidad de apostadores. Por eso ofrecemos servicio completo en inglés y español — cada pick, cada análisis, cada pieza de contenido. Ningún otro servicio de handicapping ofrece este nivel de cobertura bilingüe.",
+    "bilingualDetail": "Cada pick, análisis y pieza de contenido está disponible tanto en inglés como en español. Nuestro equipo bilingüe se asegura de que nada se pierda en la traducción, para que obtengas la misma profundidad de análisis sin importar tu idioma preferido.",
     "transparency": "Transparencia Radical",
     "transparencyText": "Publicamos nuestro récord completo — victorias Y derrotas. Rastreamos CLV en cada pick. Mostramos nuestro ROI por deporte, por mes, por tipo de apuesta. Si tenemos una racha perdedora, la verás. Porque la confianza se gana con honestidad, no con exageración.",
     "values": [
@@ -365,7 +380,8 @@
         "reward": "Descuento VIP de por vida"
       }
     ],
-    "cta": "Empezar a Referir"
+    "cta": "Empezar a Referir",
+    "disclosure": "Divulgaci\u00f3n: WinFact compensa a los miembros que refieren exitosamente a clientes que pagan. Las recompensas se obtienen cuando un amigo referido se suscribe a un plan de pago. Esto constituye una conexi\u00f3n material seg\u00fan las directrices de la FTC."
   },
   "blog": {
     "title": "Picks Gratis e Insights",
@@ -382,6 +398,9 @@
     },
     "relatedPosts": "Artículos Relacionados",
     "noPosts": "No hay artículos aún. ¡Vuelve pronto!"
+  },
+  "metadata": {
+    "homeTitle": "WinFact Picks — Apuestas Inteligentes Basadas en Datos"
   },
   "sports": {
     "mlb": {
@@ -525,7 +544,10 @@
       "noGamesScheduled": "No hay juegos programados para hoy",
       "final": "Final",
       "activePicks": "Picks Activos",
-      "noActivePicks": "No hay picks activos en este momento"
+      "noActivePicks": "No hay picks activos en este momento",
+      "blogDraftsAwaiting": "borrador(es) de blog pendiente(s) de revisión",
+      "blogDraftsReview": "Posts auto-generados listos para tu revisión",
+      "blogDraftsAction": "Revisar ahora →"
     },
     "picks": {
       "title": "Picks",
@@ -632,9 +654,15 @@
       "saving": "Guardando...",
       "updatePick": "Actualizar Pick",
       "createPick": "Crear Pick",
+      "publishAndSend": "Publicar y Enviar",
       "cancel": "Cancelar",
       "failedToSave": "Error al guardar el pick",
-      "networkError": "Error de red"
+      "networkError": "Error de red",
+      "distribution": "Distribución",
+      "sendOnPublish": "Enviar al Publicar",
+      "distributionFreeDesc": "✓ Telegram (pick completo) · ✓ Email (todos los miembros free)",
+      "distributionVipDesc": "✓ Telegram (solo teaser) · ✓ Email (solo miembros VIP)",
+      "distributionNote": "El pick se distribuirá inmediatamente después de guardar."
     },
     "blog": {
       "title": "Blog",

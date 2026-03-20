@@ -106,11 +106,6 @@ export function Footer() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/performance" className="text-sm text-gray-400 hover:text-primary transition-colors footer-link">
-                    {t("links.performance")}
-                  </Link>
-                </li>
-                <li>
                   <Link href="/pricing" className="text-sm text-gray-400 hover:text-primary transition-colors footer-link">
                     {t("links.pricing")}
                   </Link>
@@ -174,7 +169,10 @@ export function Footer() {
         </div>
 
         {/* Responsible Gambling */}
-        <div className="border-t border-white/10 py-6">
+        <div className="border-t border-white/10 py-6 flex items-start gap-3">
+          <span className="shrink-0 inline-flex items-center justify-center rounded-md bg-white/10 text-white text-[10px] font-bold px-2 py-1 leading-none">
+            {t("ageNotice")}
+          </span>
           <p className="text-xs text-gray-500 leading-relaxed">
             {t("responsible")}
           </p>

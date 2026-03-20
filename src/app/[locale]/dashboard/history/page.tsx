@@ -3,6 +3,7 @@ import { getSettledPicks } from "@/db/queries/picks";
 import { getActiveSubscription } from "@/db/queries/subscriptions";
 import { getLocale } from "next-intl/server";
 import { PickHistory } from "@/components/dashboard/pick-history";
+import { isVipTier } from "@/lib/constants";
 
 export default async function PickHistoryPage() {
   const { userId } = await auth();
@@ -13,7 +14,7 @@ export default async function PickHistoryPage() {
     userId ? getActiveSubscription(userId) : null,
   ]);
 
-  const isVip = subscription?.tier === "vip_weekly" || subscription?.tier === "vip_monthly";
+  const isVip = isVipTier(subscription?.tier);
 
   // Serialize for client component
   const serializedPicks = allPicks.map((p) => ({

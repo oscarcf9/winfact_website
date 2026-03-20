@@ -30,6 +30,13 @@ export async function generateMetadata({
       canonical: "/refer",
       languages: { en: "/en/refer", es: "/es/refer" },
     },
+    openGraph: {
+      title: "Refer a Friend | WinFact Picks",
+      description:
+        "Earn rewards by referring friends to WinFact Picks. $10 credit per referral, free month at 5 referrals.",
+      type: "website",
+      images: [{ url: "/images/og-default.png" }],
+    },
   };
 }
 
@@ -206,6 +213,11 @@ export default function ReferPage() {
                 <span className="font-medium text-navy font-bold">Earn Big</span>
               </div>
             </div>
+
+            {/* FTC Affiliate Disclosure */}
+            <p className="text-center text-xs text-gray-400 mt-8 max-w-xl mx-auto">
+              {t("disclosure")}
+            </p>
           </Container>
         </Section>
 

@@ -159,33 +159,14 @@ export function PickHistory({ picks, locale, isVip }: Props) {
         </div>
       </div>
 
-      {/* Summary stat cards */}
+      {/* Summary — total picks only, no W-L-P breakdown */}
       <div
-        className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 animate-fade-up"
+        className="rounded-2xl border border-gray-200 bg-white shadow-sm px-5 py-4 animate-fade-up"
         style={{ animationDelay: "75ms" }}
       >
-        {statCards.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div
-              key={stat.label}
-              className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
-            >
-              <div className="h-1" style={{ backgroundColor: stat.color }} />
-              <div className="px-4 py-4">
-                <div className="mb-2 flex items-center gap-2">
-                  <Icon className="h-4 w-4" style={{ color: stat.color }} />
-                  <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                    {stat.label}
-                  </span>
-                </div>
-                <p className="font-mono text-2xl font-bold" style={{ color: stat.color }}>
-                  {stat.value}
-                </p>
-              </div>
-            </div>
-          );
-        })}
+        <p className="text-sm text-gray-500">
+          {filtered.length} settled pick{filtered.length !== 1 ? "s" : ""}
+        </p>
       </div>
 
       {/* Filters + Group Toggle */}
@@ -301,21 +282,6 @@ export function PickHistory({ picks, locale, isVip }: Props) {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    {/* Mini stats */}
-                    <div className="hidden sm:flex items-center gap-2 text-xs font-mono">
-                      <span className="text-[#22C55E] font-semibold">{groupStats.wins}W</span>
-                      <span className="text-[#EF4444] font-semibold">{groupStats.losses}L</span>
-                      {groupStats.pushes > 0 && (
-                        <span className="text-[#F59E0B] font-semibold">{groupStats.pushes}P</span>
-                      )}
-                      <span
-                        className={`font-bold ${groupStats.units >= 0 ? "text-[#22C55E]" : "text-[#EF4444]"}`}
-                      >
-                        {groupStats.units >= 0 ? "+" : ""}
-                        {groupStats.units.toFixed(1)}u
-                      </span>
-                    </div>
-
                     <ChevronDown
                       className={`h-4 w-4 text-gray-400 transition-transform ${
                         isCollapsed ? "" : "rotate-180"

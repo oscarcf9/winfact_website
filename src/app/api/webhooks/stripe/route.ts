@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server";
 import { getStripe, PLANS } from "@/lib/stripe";
 import { db } from "@/db";
-import { subscriptions, promoCodes, users } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { subscriptions, promoCodes, users, referrals, webhookLogs, processedEvents } from "@/db/schema";
+import { eq, and, sql } from "drizzle-orm";
 import Stripe from "stripe";
 import {
   welcomeEmail,
   paymentFailedEmail,
   cancellationEmail,
   upgradeConfirmationEmail,
+  trialEndingSoonEmail,
 } from "@/lib/emails";
-import { sendTransactionalEmail } from "@/lib/mailerlite";
+import { sendTransactionalEmail, moveSubscriberToVIP, moveSubscriberToFree } from "@/lib/mailerlite";
+import { notifyReferralMilestone, sendAdminNotification } from "@/lib/telegram";
+import { sanitizeWebhookPayload } from "@/lib/webhook-sanitizer";
 
 async function getUserEmail(clerkUserId: string): Promise<{ email: string; language: string }> {
   const [user] = await db
@@ -48,12 +51,42 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
           })
         : null;
 
-      const tmpl = welcomeEmail(planName, trialEnd);
+      const tmpl = welcomeEmail(planName, trialEnd, email);
       const html = language === "es" ? tmpl.htmlEs : tmpl.htmlEn;
       await sendTransactionalEmail(email, tmpl.subject, html);
     }
   } catch (emailError) {
     console.error("Failed to send welcome email:", emailError);
+  }
+
+  // Move subscriber to VIP MailerLite segment
+  try {
+    const { email: subEmail } = await getUserEmail(clerkUserId);
+    if (subEmail) {
+      moveSubscriberToVIP(subEmail).catch((err) =>
+        console.error("MailerLite VIP segment sync failed:", err)
+      );
+    }
+  } catch (segErr) {
+    console.error("Failed to sync MailerLite segment:", segErr);
+  }
+
+  // Send admin Telegram notification (fire-and-forget)
+  try {
+    const { email: notifEmail } = await getUserEmail(clerkUserId);
+    const plan = subscription.metadata.plan || "vip_monthly";
+    const planName = PLANS[plan as keyof typeof PLANS]?.name || "VIP";
+    const trialDays = subscription.trial_end ? "7-day trial" : "No trial";
+    sendAdminNotification(
+      `💰 *NEW VIP SUBSCRIBER*\n\n📧 ${notifEmail}\n📦 Plan: ${planName}\n🕐 ${trialDays}`
+    ).catch(() => {});
+  } catch {}
+
+  // Convert referral if this user was referred
+  try {
+    await convertReferralIfReferred(clerkUserId);
+  } catch (refError) {
+    console.error("Failed to process referral conversion:", refError);
   }
 }
 
@@ -84,7 +117,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
       const { email, language } = await getUserEmail(clerkUserId);
       if (email) {
         const planName = PLANS[newPlan as keyof typeof PLANS]?.name || "VIP";
-        const tmpl = upgradeConfirmationEmail(planName);
+        const tmpl = upgradeConfirmationEmail(planName, email);
         const html = language === "es" ? tmpl.htmlEs : tmpl.htmlEn;
         await sendTransactionalEmail(email, tmpl.subject, html);
       }
@@ -172,16 +205,15 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     .set({ status: "cancelled" })
     .where(eq(subscriptions.stripeSubscriptionId, subscription.id));
 
+  const clerkUserId =
+    subscription.metadata.clerkUserId ||
+    (await getClerkUserIdFromCustomer(subscription.customer as string));
+
   // Send cancellation email with win-back promo
   try {
-    const clerkUserId =
-      subscription.metadata.clerkUserId ||
-      (await getClerkUserIdFromCustomer(subscription.customer as string));
-
     if (clerkUserId) {
       const { email, language } = await getUserEmail(clerkUserId);
       if (email) {
-        // Get the cancellation date from subscription metadata
         const cancelAt = subscription.cancel_at || subscription.canceled_at;
         const accessEnd = cancelAt
           ? new Date(cancelAt * 1000).toLocaleDateString("en-US", {
@@ -191,9 +223,20 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
             })
           : "the end of your current period";
 
-        const tmpl = cancellationEmail(accessEnd, "PICK80");
+        const tmpl = cancellationEmail(accessEnd, "PICK80", email);
         const html = language === "es" ? tmpl.htmlEs : tmpl.htmlEn;
         await sendTransactionalEmail(email, tmpl.subject, html);
+
+        // Move subscriber back to FREE MailerLite segment
+        moveSubscriberToFree(email).catch((err) =>
+          console.error("MailerLite FREE segment sync failed:", err)
+        );
+
+        // Admin notification
+        const plan = subscription.metadata.plan || "VIP";
+        sendAdminNotification(
+          `⚠️ *SUBSCRIPTION CANCELLED*\n\n📧 ${email}\n📦 Plan: ${plan}\n📅 Access until: ${accessEnd}`
+        ).catch(() => {});
       }
     }
   } catch (emailError) {
@@ -230,9 +273,14 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
             ? `$${(invoice.amount_due / 100).toFixed(2)}`
             : "your subscription";
 
-          const tmpl = paymentFailedEmail(amount);
+          const tmpl = paymentFailedEmail(amount, email);
           const html = language === "es" ? tmpl.htmlEs : tmpl.htmlEn;
           await sendTransactionalEmail(email, tmpl.subject, html);
+
+          // Admin notification
+          sendAdminNotification(
+            `🚨 *PAYMENT FAILED*\n\n📧 ${email}\n💰 Amount: ${amount}`
+          ).catch(() => {});
         }
       }
     }
@@ -254,6 +302,114 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         .where(eq(promoCodes.code, promoCode));
     } catch (error) {
       console.error("Failed to increment promo redemptions:", error);
+    }
+  }
+}
+
+const REFERRAL_MILESTONES = [
+  { threshold: 1, reward: "credit_10", label: "$10 Credit" },
+  { threshold: 5, reward: "free_month", label: "1 Free Month VIP" },
+  { threshold: 10, reward: "vip_discount", label: "Permanent VIP Discount" },
+];
+
+/**
+ * When a referred user subscribes, mark their referral as converted
+ * and check if the referrer hit a reward milestone.
+ */
+async function convertReferralIfReferred(clerkUserId: string) {
+  // Get the subscriber's email
+  const [user] = await db
+    .select({ email: users.email, referredBy: users.referredBy })
+    .from(users)
+    .where(eq(users.id, clerkUserId))
+    .limit(1);
+
+  if (!user?.email) return;
+
+  // Primary: find pending referral by email
+  let [pendingRef] = await db
+    .select()
+    .from(referrals)
+    .where(
+      and(
+        eq(referrals.referredEmail, user.email),
+        eq(referrals.status, "pending")
+      )
+    )
+    .limit(1);
+
+  // Fallback: if no email match (user may have changed email), use referredBy field
+  if (!pendingRef && user.referredBy) {
+    [pendingRef] = await db
+      .select()
+      .from(referrals)
+      .where(
+        and(
+          eq(referrals.referrerId, user.referredBy),
+          eq(referrals.status, "pending")
+        )
+      )
+      .limit(1);
+
+    // Sync referral email to current email for future lookups
+    if (pendingRef) {
+      await db.update(referrals)
+        .set({ referredEmail: user.email })
+        .where(eq(referrals.id, pendingRef.id));
+    }
+  }
+
+  if (!pendingRef) return;
+
+  // Optimistic lock: only convert if still pending (prevents double-conversion race)
+  const now = new Date().toISOString();
+  const convertResult = await db
+    .update(referrals)
+    .set({ status: "converted", convertedAt: now })
+    .where(
+      and(
+        eq(referrals.id, pendingRef.id),
+        eq(referrals.status, "pending") // optimistic lock
+      )
+    );
+
+  // If no rows affected, another process already converted this referral
+  if (convertResult.rowsAffected === 0) return;
+
+  // Check referrer's total converted count for milestone notification
+  if (!pendingRef.referrerId) return;
+
+  const referrerRefs = await db
+    .select()
+    .from(referrals)
+    .where(eq(referrals.referrerId, pendingRef.referrerId));
+
+  // +1 because the current one was just converted
+  const convertedCount = referrerRefs.filter((r) => r.status === "converted").length + 1;
+  const appliedRewards = referrerRefs
+    .filter((r) => r.rewardApplied && r.rewardType)
+    .map((r) => r.rewardType!);
+
+  // Check if a new milestone was hit
+  const newMilestone = REFERRAL_MILESTONES.find(
+    (m) => convertedCount >= m.threshold && !appliedRewards.includes(m.reward)
+  );
+
+  if (newMilestone) {
+    // Get referrer info for notification
+    const [referrer] = await db
+      .select({ name: users.name, email: users.email })
+      .from(users)
+      .where(eq(users.id, pendingRef.referrerId))
+      .limit(1);
+
+    if (referrer) {
+      notifyReferralMilestone({
+        userName: referrer.name || "",
+        userEmail: referrer.email,
+        referralCount: convertedCount,
+        rewardLabel: newMilestone.label,
+      }).catch((err) => console.error("Referral milestone notification failed:", err));
     }
   }
 }
@@ -284,6 +440,19 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
+
+  // Deduplication: prevent processing the same event twice
+  const [existing] = await db
+    .select()
+    .from(processedEvents)
+    .where(eq(processedEvents.eventId, event.id))
+    .limit(1);
+
+  if (existing) {
+    return NextResponse.json({ received: true, duplicate: true });
+  }
+
+  const startTime = Date.now();
 
   try {
     switch (event.type) {
@@ -316,14 +485,91 @@ export async function POST(req: Request) {
           event.data.object as Stripe.Checkout.Session
         );
         break;
+
+      case "customer.subscription.trial_will_end": {
+        const trialSub = event.data.object as Stripe.Subscription;
+        const trialUserId =
+          trialSub.metadata.clerkUserId ||
+          (await getClerkUserIdFromCustomer(trialSub.customer as string));
+
+        if (trialUserId) {
+          try {
+            const { email, language } = await getUserEmail(trialUserId);
+            if (email) {
+              const trialEndDate = trialSub.trial_end
+                ? new Date(trialSub.trial_end * 1000).toLocaleDateString("en-US", {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })
+                : "soon";
+
+              const tmpl = trialEndingSoonEmail(3, trialEndDate, email);
+              const html = language === "es" ? tmpl.htmlEs : tmpl.htmlEn;
+              await sendTransactionalEmail(email, tmpl.subject, html);
+            }
+          } catch (emailError) {
+            console.error("Failed to send trial ending email:", emailError);
+          }
+        }
+        break;
+      }
+
+      case "invoice.payment_succeeded": {
+        const invoice = event.data.object as Stripe.Invoice;
+        console.log(
+          `[stripe] Payment succeeded: ${invoice.id}, amount: ${invoice.amount_paid}, customer: ${invoice.customer}`
+        );
+        break;
+      }
+
+      case "charge.refunded": {
+        const charge = event.data.object as Stripe.Charge;
+        console.log(
+          `[stripe] Refund processed: charge ${charge.id}, amount refunded: ${charge.amount_refunded}`
+        );
+        break;
+      }
     }
+
+    // Mark as processed AFTER successful processing
+    await db.insert(processedEvents).values({
+      eventId: event.id,
+      processedAt: Date.now(),
+    }).onConflictDoNothing();
+
   } catch (error) {
-    console.error(`Stripe webhook error for ${event.type}:`, error);
+    console.error(`Stripe webhook error for event ${event.id} (${event.type}):`, error);
+
+    // Do NOT insert into processedEvents — let Stripe retry
+    await db.insert(webhookLogs).values({
+      id: crypto.randomUUID(),
+      source: "stripe",
+      direction: "incoming",
+      endpoint: `/api/webhooks/stripe`,
+      method: "POST",
+      statusCode: 500,
+      payload: sanitizeWebhookPayload(event.data.object),
+      duration: Date.now() - startTime,
+    }).catch(() => {});
+
     return NextResponse.json(
       { error: "Webhook handler failed" },
       { status: 500 }
     );
   }
+
+  // Log successful webhook (sanitized — no PII stored)
+  await db.insert(webhookLogs).values({
+    id: crypto.randomUUID(),
+    source: "stripe",
+    direction: "incoming",
+    endpoint: `/api/webhooks/stripe`,
+    method: "POST",
+    statusCode: 200,
+    payload: sanitizeWebhookPayload({ type: event.type, objectId: (event.data.object as { id?: string }).id }),
+    duration: Date.now() - startTime,
+  }).catch(() => {});
 
   return NextResponse.json({ received: true });
 }

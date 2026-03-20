@@ -13,15 +13,22 @@ async function seed() {
   console.log("Seeding database...");
 
   // --- Admin User ---
-  await db.insert(schema.users).values({
-    id: "user_3Ajyd8LBieIdWv3OfXtGxkityo3",
-    email: "winfactpicks@gmail.com",
-    name: "WinFact Admin",
-    role: "admin",
-    language: "en",
-    referralCode: "WINFACT-ADMIN",
-  }).onConflictDoNothing();
-  console.log("  Inserted admin user");
+  // WARNING: These values must match your Clerk user. Set them in .env, not here.
+  const adminUserId = process.env.SEED_ADMIN_USER_ID;
+  const adminEmail = process.env.SEED_ADMIN_EMAIL;
+  if (!adminUserId || !adminEmail) {
+    console.warn("  Skipping admin user — set SEED_ADMIN_USER_ID and SEED_ADMIN_EMAIL in .env");
+  } else {
+    await db.insert(schema.users).values({
+      id: adminUserId,
+      email: adminEmail,
+      name: "WinFact Admin",
+      role: "admin",
+      language: "en",
+      referralCode: "WINFACT-ADMIN",
+    }).onConflictDoNothing();
+    console.log("  Inserted admin user");
+  }
 
   // --- Picks ---
   const samplePicks = [

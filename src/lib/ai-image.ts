@@ -1,8 +1,7 @@
 import OpenAI from "openai";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
 import { randomUUID } from "crypto";
 import { buildImagePrompt } from "./ai-blog-engine";
+import { uploadToR2, isR2Configured } from "./r2";
 
 let _openai: OpenAI | null = null;
 
@@ -14,18 +13,20 @@ function getOpenAI(): OpenAI {
 }
 
 type ImageResult = {
-  url: string; // local URL path like /uploads/abc.png
+  url: string;
   filename: string;
   error?: string;
 };
 
 export async function generateMatchupImage(
   matchup: string,
-  sport: string
+  sport: string,
+  teamAFullName?: string,
+  teamBFullName?: string
 ): Promise<ImageResult> {
   try {
     const openai = getOpenAI();
-    const prompt = buildImagePrompt(matchup, sport);
+    const prompt = buildImagePrompt(matchup, sport, teamAFullName, teamBFullName);
 
     const response = await openai.images.generate({
       model: "gpt-image-1",
@@ -40,15 +41,25 @@ export async function generateMatchupImage(
       return { url: "", filename: "", error: "No image data returned" };
     }
 
-    // Save to local uploads directory
     const filename = `matchup-${randomUUID()}.png`;
-    const uploadDir = join(process.cwd(), "public", "uploads");
-    await mkdir(uploadDir, { recursive: true });
-
     const buffer = Buffer.from(imageData.b64_json, "base64");
-    await writeFile(join(uploadDir, filename), buffer);
 
-    const url = `/uploads/${filename}`;
+    let url: string;
+
+    if (isR2Configured()) {
+      // Upload to Cloudflare R2
+      const key = `uploads/${filename}`;
+      url = await uploadToR2(key, buffer, "image/png");
+    } else {
+      // Fallback to local filesystem (development only)
+      const { writeFile, mkdir } = await import("fs/promises");
+      const { join } = await import("path");
+      const uploadDir = join(process.cwd(), "public", "uploads");
+      await mkdir(uploadDir, { recursive: true });
+      await writeFile(join(uploadDir, filename), buffer);
+      url = `/uploads/${filename}`;
+    }
+
     return { url, filename };
   } catch (error) {
     console.error("Image generation error:", error);

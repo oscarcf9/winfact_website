@@ -219,9 +219,9 @@ export default function HowItWorksPage() {
                     View Pricing Plans
                   </Button>
                 </Link>
-                <Link href="/performance">
+                <Link href="/blog">
                   <Button variant="ghost" size="lg" className="text-white hover:text-accent hover:bg-white/10">
-                    See Our Track Record
+                    Free Picks &amp; Blog
                   </Button>
                 </Link>
               </div>

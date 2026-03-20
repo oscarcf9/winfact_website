@@ -18,6 +18,7 @@ import {
   Save,
   Download,
   ListChecks,
+  Trash2,
 } from "lucide-react";
 import { QuickPickModal } from "@/components/admin/quick-pick-modal";
 
@@ -39,6 +40,8 @@ type Pick = {
   settledAt?: string | null;
   createdAt?: string | null;
   analysisEn?: string | null;
+  capperId?: string | null;
+  capperName?: string | null;
 };
 
 type Tab = "active" | "settled";
@@ -81,10 +84,12 @@ function EditPickModal({
   pick,
   onClose,
   onSaved,
+  onDelete,
 }: {
   pick: Pick;
   onClose: () => void;
   onSaved: () => void;
+  onDelete: (pick: Pick) => void;
 }) {
   const [saving, setSaving] = useState(false);
   const [pickText, setPickText] = useState(pick.pickText);
@@ -220,6 +225,14 @@ function EditPickModal({
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-100 cursor-pointer">
             Cancel
           </button>
+          <button
+            type="button"
+            onClick={() => { onClose(); onDelete(pick); }}
+            className="p-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
+            title="Delete pick"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </div>
@@ -275,6 +288,10 @@ export function PicksManager() {
   const [settlementLogs, setSettlementLogs] = useState<SettlementLog[]>([]);
   const [showLogs, setShowLogs] = useState(false);
   const [editingPick, setEditingPick] = useState<Pick | null>(null);
+
+  // Delete confirmation state
+  const [deletingPick, setDeletingPick] = useState<Pick | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Bulk edit state
   const [bulkMode, setBulkMode] = useState(false);
@@ -395,6 +412,23 @@ export function PicksManager() {
     setBulkMode(false);
   }
 
+  async function handleDelete() {
+    if (!deletingPick) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/picks/${deletingPick.id}`, { method: "DELETE" });
+      if (res.ok) {
+        setDeletingPick(null);
+        setEditingPick(null);
+        await fetchPicks();
+      }
+    } catch {
+      // silent
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const tabs: { key: Tab; label: string }[] = [
     { key: "active", label: t("active") },
     { key: "settled", label: t("history") },
@@ -422,6 +456,7 @@ export function PicksManager() {
       <div className="flex items-center justify-between">
         <h1 className="font-heading font-bold text-2xl md:text-3xl tracking-tight">
           <span className="text-primary">{t("title")}</span>
+          {" "}
           <span className="text-gray-400 text-lg font-normal ml-3">{tc("management")}</span>
         </h1>
         <div className="flex items-center gap-2">
@@ -586,6 +621,7 @@ export function PicksManager() {
                   <th className="text-center py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Odds</th>
                   <th className="text-center py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Units</th>
                   <th className="text-center py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tier</th>
+                  <th className="text-left py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Capper</th>
                   <th className="text-center py-2.5 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Result</th>
                   {!bulkMode && (
                     <th className="text-center py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider w-[100px]">Actions</th>
@@ -627,6 +663,9 @@ export function PicksManager() {
                           {pick.tier === "vip" ? "VIP" : "FREE"}
                         </span>
                       </td>
+                      <td className="py-2 px-3 text-left text-xs text-gray-500 truncate max-w-[100px]">
+                        {pick.capperName || <span className="text-gray-300">&mdash;</span>}
+                      </td>
                       <td className="py-2 px-4 text-center">
                         {bulkMode ? (
                           /* ─── Bulk edit: always show inline W/L/P picker ─── */
@@ -666,14 +705,24 @@ export function PicksManager() {
                       </td>
                       {!bulkMode && (
                         <td className="py-2 px-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => setEditingPick(pick)}
-                            className="p-1 rounded text-gray-400 hover:text-accent hover:bg-accent/10 transition-all cursor-pointer opacity-0 group-hover:opacity-100"
-                            title={tc("edit")}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
+                          <div className="flex items-center justify-center gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => setEditingPick(pick)}
+                              className="p-1 rounded text-gray-400 hover:text-accent hover:bg-accent/10 transition-all cursor-pointer opacity-0 group-hover:opacity-100"
+                              title={tc("edit")}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeletingPick(pick)}
+                              className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer opacity-0 group-hover:opacity-100"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -696,6 +745,11 @@ export function PicksManager() {
                 <span className={`text-[10px] font-bold ${pick.tier === "vip" ? "text-accent" : "text-gray-400"}`}>
                   {pick.tier === "vip" ? "VIP" : "FREE"}
                 </span>
+                {pick.capperName && (
+                  <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+                    {pick.capperName}
+                  </span>
+                )}
 
                 {/* Matchup + Pick */}
                 <div className="flex-1 min-w-0">
@@ -735,13 +789,20 @@ export function PicksManager() {
                   )}
                 </div>
 
-                {/* Edit */}
+                {/* Edit / Delete */}
                 <button
                   type="button"
                   onClick={() => setEditingPick(pick)}
                   className="p-1 rounded text-gray-400 hover:text-accent hover:bg-accent/10 transition-all cursor-pointer opacity-0 group-hover:opacity-100"
                 >
                   <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeletingPick(pick)}
+                  className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer opacity-0 group-hover:opacity-100"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
@@ -779,7 +840,57 @@ export function PicksManager() {
 
       {/* Edit Pick Modal */}
       {editingPick && (
-        <EditPickModal pick={editingPick} onClose={() => setEditingPick(null)} onSaved={() => fetchPicks()} />
+        <EditPickModal pick={editingPick} onClose={() => setEditingPick(null)} onSaved={() => fetchPicks()} onDelete={(p) => setDeletingPick(p)} />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {deletingPick && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget && !deleting) setDeletingPick(null); }}
+        >
+          <div className="absolute inset-0 bg-navy/40 backdrop-blur-sm" />
+          <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+            <div className="p-5 text-center">
+              <div className="mx-auto w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-3">
+                <Trash2 className="h-6 w-6 text-red-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-navy mb-1">Delete Pick</h3>
+              <p className="text-sm text-gray-500 mb-1">
+                <span className="font-medium text-navy">{deletingPick.matchup}</span>
+              </p>
+              <p className="text-xs text-gray-400 font-mono mb-3">{deletingPick.pickText}</p>
+              {deletingPick.status === "settled" && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 mb-3">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                  <p className="text-xs text-amber-700 text-left">
+                    This pick is already settled. Deleting it will affect historical performance stats.
+                  </p>
+                </div>
+              )}
+              <p className="text-xs text-gray-400">This action cannot be undone.</p>
+            </div>
+            <div className="px-5 py-3 border-t border-gray-200 bg-gray-50/50 flex gap-2">
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Delete
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeletingPick(null)}
+                disabled={deleting}
+                className="flex-1 px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-100 cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

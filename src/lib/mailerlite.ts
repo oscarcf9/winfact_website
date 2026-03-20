@@ -138,6 +138,44 @@ export async function getSubscriberCount(groupId: string): Promise<number> {
   }
 }
 
+const MAILERLITE_TRANSACTIONAL_GROUP_ID = process.env.MAILERLITE_TRANSACTIONAL_GROUP_ID || "";
+
+/**
+ * Get or create the persistent transactional group.
+ * Uses a single shared group to avoid orphaned group bloat.
+ */
+let _transactionalGroupId: string | null = null;
+
+async function getTransactionalGroupId(): Promise<string | null> {
+  // Use env var if set
+  if (MAILERLITE_TRANSACTIONAL_GROUP_ID) return MAILERLITE_TRANSACTIONAL_GROUP_ID;
+
+  // Cache in memory for the duration of this serverless invocation
+  if (_transactionalGroupId) return _transactionalGroupId;
+
+  try {
+    // Try to find existing group
+    const groups = await mailerliteFetch("/groups?filter[name]=winfact_transactional&limit=1");
+    if (groups.data?.length > 0) {
+      _transactionalGroupId = groups.data[0].id;
+      return _transactionalGroupId;
+    }
+
+    // Create it if it doesn't exist
+    const created = await mailerliteFetch("/groups", {
+      method: "POST",
+      body: JSON.stringify({ name: "winfact_transactional" }),
+    });
+    if (created.data?.id) {
+      _transactionalGroupId = created.data.id;
+      return _transactionalGroupId;
+    }
+  } catch {
+    // Fall through
+  }
+  return null;
+}
+
 export async function sendTransactionalEmail(
   email: string,
   subject: string,
@@ -147,37 +185,42 @@ export async function sendTransactionalEmail(
     return { ok: false, error: "MailerLite not configured" };
   }
 
+  // Check if user has opted out of emails
   try {
-    // MailerLite doesn't have a direct transactional email API in the standard plan.
-    // We create a single-subscriber campaign or use the automation/subscriber approach.
-    // For now, we use a campaign targeting a single subscriber by email.
+    const { db } = await import("@/db");
+    const { users } = await import("@/db/schema");
+    const { eq } = await import("drizzle-orm");
+    const [user] = await db
+      .select({ emailOptOut: users.emailOptOut })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+    if (user?.emailOptOut) {
+      return { ok: false, error: "User has opted out of emails" };
+    }
+  } catch {
+    // If check fails, continue sending (don't block transactional emails on DB errors)
+  }
 
-    // First ensure subscriber exists
+  try {
+    // Ensure subscriber exists
     await mailerliteFetch("/subscribers", {
       method: "POST",
-      body: JSON.stringify({
-        email,
-        status: "active",
-      }),
+      body: JSON.stringify({ email, status: "active" }),
     });
 
-    // Create a single-subscriber campaign by creating a temporary group
-    const groupName = `transactional_${Date.now()}`;
-    const group = await mailerliteFetch("/groups", {
-      method: "POST",
-      body: JSON.stringify({ name: groupName }),
-    });
-
-    if (!group.data?.id) {
-      return { ok: false, error: "Failed to create email group" };
+    // Use a single persistent group instead of creating a new one each time
+    const groupId = await getTransactionalGroupId();
+    if (!groupId) {
+      return { ok: false, error: "Failed to get transactional email group" };
     }
 
-    // Add subscriber to group
-    await mailerliteFetch(`/subscribers/${encodeURIComponent(email)}/groups/${group.data.id}`, {
+    // Add subscriber to the transactional group
+    await mailerliteFetch(`/subscribers/${encodeURIComponent(email)}/groups/${groupId}`, {
       method: "POST",
     });
 
-    // Create and send campaign
+    // Create and send campaign targeting the transactional group
     const campaign = await mailerliteFetch("/campaigns", {
       method: "POST",
       body: JSON.stringify({
@@ -191,7 +234,7 @@ export async function sendTransactionalEmail(
             content: htmlContent,
           },
         ],
-        groups: [group.data.id],
+        groups: [groupId],
       }),
     });
 
@@ -199,12 +242,152 @@ export async function sendTransactionalEmail(
       await mailerliteFetch(`/campaigns/${campaign.data.id}/actions/send`, {
         method: "POST",
       });
+
+      // Remove subscriber from transactional group after send to keep it clean
+      await mailerliteFetch(
+        `/groups/${groupId}/subscribers/${encodeURIComponent(email)}`,
+        { method: "DELETE" }
+      ).catch(() => {});
+
       return { ok: true };
     }
 
     return { ok: false, error: campaign.message || "Failed to send email" };
   } catch (error) {
     return { ok: false, error: String(error) };
+  }
+}
+
+/**
+ * Clean up orphaned MailerLite groups (empty transactional_* groups from old code).
+ * Safe to run periodically via cron.
+ */
+export async function cleanupOrphanedGroups(): Promise<{ deleted: number; errors: number }> {
+  if (!MAILERLITE_API_KEY) return { deleted: 0, errors: 0 };
+
+  const keepers = new Set([
+    "VIP Subscribers", "Free Subscribers", "All Subscribers", "winfact_transactional",
+  ]);
+  let deleted = 0;
+  let errors = 0;
+  let cursor: string | null = null;
+
+  // Paginate through all groups
+  for (let page = 0; page < 20; page++) {
+    const url = cursor ? `/groups?limit=50&cursor=${cursor}` : "/groups?limit=50";
+    const response = await mailerliteFetch(url);
+    const groups = response.data || [];
+    if (groups.length === 0) break;
+
+    for (const group of groups) {
+      // Delete orphaned transactional groups (name starts with "transactional_" and has 0 subscribers)
+      if (!keepers.has(group.name) && group.name?.startsWith("transactional_") && group.active_count === 0) {
+        try {
+          await mailerliteFetch(`/groups/${group.id}`, { method: "DELETE" });
+          deleted++;
+        } catch {
+          errors++;
+        }
+      }
+    }
+
+    cursor = response.meta?.next_cursor;
+    if (!cursor) break;
+  }
+
+  return { deleted, errors };
+}
+
+/**
+ * Move a subscriber to the VIP group (and remove from FREE group).
+ * Called when a subscription is created/activated.
+ */
+export async function moveSubscriberToVIP(email: string): Promise<void> {
+  if (!MAILERLITE_API_KEY) return;
+  try {
+    // Ensure subscriber exists
+    await mailerliteFetch("/subscribers", {
+      method: "POST",
+      body: JSON.stringify({ email, status: "active" }),
+    });
+
+    // Add to VIP group
+    if (MAILERLITE_VIP_GROUP_ID) {
+      await mailerliteFetch(
+        `/subscribers/${encodeURIComponent(email)}/groups/${MAILERLITE_VIP_GROUP_ID}`,
+        { method: "POST" }
+      );
+    }
+
+    // Remove from FREE group
+    if (MAILERLITE_FREE_GROUP_ID) {
+      await mailerliteFetch(
+        `/groups/${MAILERLITE_FREE_GROUP_ID}/subscribers/${encodeURIComponent(email)}`,
+        { method: "DELETE" }
+      );
+    }
+  } catch (error) {
+    console.error("Failed to move subscriber to VIP:", error);
+  }
+}
+
+/**
+ * Move a subscriber back to the FREE group (and remove from VIP group).
+ * Called when a subscription is cancelled/expired.
+ */
+export async function moveSubscriberToFree(email: string): Promise<void> {
+  if (!MAILERLITE_API_KEY) return;
+  try {
+    // Ensure subscriber exists
+    await mailerliteFetch("/subscribers", {
+      method: "POST",
+      body: JSON.stringify({ email, status: "active" }),
+    });
+
+    // Add to FREE group
+    if (MAILERLITE_FREE_GROUP_ID) {
+      await mailerliteFetch(
+        `/subscribers/${encodeURIComponent(email)}/groups/${MAILERLITE_FREE_GROUP_ID}`,
+        { method: "POST" }
+      );
+    }
+
+    // Remove from VIP group
+    if (MAILERLITE_VIP_GROUP_ID) {
+      await mailerliteFetch(
+        `/groups/${MAILERLITE_VIP_GROUP_ID}/subscribers/${encodeURIComponent(email)}`,
+        { method: "DELETE" }
+      );
+    }
+  } catch (error) {
+    console.error("Failed to move subscriber to Free:", error);
+  }
+}
+
+/**
+ * Add a subscriber to the FREE group.
+ * Called on initial free signup.
+ */
+export async function addSubscriberToFreeGroup(email: string, name?: string | null): Promise<void> {
+  if (!MAILERLITE_API_KEY || !MAILERLITE_FREE_GROUP_ID) return;
+  try {
+    // Create/update subscriber
+    await mailerliteFetch("/subscribers", {
+      method: "POST",
+      body: JSON.stringify({
+        email,
+        status: "active",
+        ...(name ? { fields: { name } } : {}),
+      }),
+    });
+
+    // Add to FREE group
+    await mailerliteFetch(
+      `/subscribers/${encodeURIComponent(email)}/groups/${MAILERLITE_FREE_GROUP_ID}`,
+      { method: "POST" }
+    );
+  } catch (error) {
+    console.error("Failed to add subscriber to free group:", error);
   }
 }
 

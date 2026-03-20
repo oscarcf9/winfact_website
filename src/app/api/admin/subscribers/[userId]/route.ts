@@ -4,6 +4,8 @@ import { db } from "@/db";
 import { users, subscriptions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getStripe, PLANS } from "@/lib/stripe";
+import { rateLimit } from "@/lib/rate-limit";
+import { logAdminAction } from "@/lib/audit";
 
 type Params = { params: Promise<{ userId: string }> };
 
@@ -32,6 +34,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 export async function POST(req: NextRequest, { params }: Params) {
   const admin = await requireAdmin();
   if (admin.error) return admin.error;
+
+  // Rate limit: 10 admin actions per minute (protects financial operations)
+  const { success } = await rateLimit(req, { prefix: "admin-action", maxRequests: 10, windowMs: 60_000 });
+  if (!success) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
 
   try {
     const { userId } = await params;
@@ -197,6 +205,12 @@ export async function POST(req: NextRequest, { params }: Params) {
           return NextResponse.json({ error: "No payment found to refund" }, { status: 400 });
         }
 
+        // Guard against double-refunding: check if this invoice was already refunded
+        const maxRefundable = latestInvoice.amount_paid || 0;
+        if (maxRefundable <= 0) {
+          return NextResponse.json({ error: "Invoice has no paid amount to refund" }, { status: 400 });
+        }
+
         // Find payment intent from invoice payments
         let paymentIntentId: string | null = null;
 
@@ -214,16 +228,51 @@ export async function POST(req: NextRequest, { params }: Params) {
           return NextResponse.json({ error: "No payment intent found for refund" }, { status: 400 });
         }
 
+        // Check existing refunds on this payment intent to prevent over-refunding
+        const paymentIntent = await getStripe().paymentIntents.retrieve(paymentIntentId);
+        const alreadyRefunded = paymentIntent.amount_received - (paymentIntent.amount_received - (paymentIntent.amount || 0));
+        const existingRefunds = await getStripe().refunds.list({ payment_intent: paymentIntentId, limit: 100 });
+        const totalRefunded = existingRefunds.data
+          .filter((r) => r.status !== "failed" && r.status !== "canceled")
+          .reduce((sum, r) => sum + r.amount, 0);
+        const remainingRefundable = maxRefundable - totalRefunded;
+
+        if (remainingRefundable <= 0) {
+          return NextResponse.json({ error: "This payment has already been fully refunded" }, { status: 400 });
+        }
+
         const refundParams: { payment_intent: string; amount?: number } = {
           payment_intent: paymentIntentId,
         };
 
-        // Partial refund if amount specified (in cents)
+        // Validate refund amount if specified
         if (body.amount) {
-          refundParams.amount = Math.round(body.amount * 100);
+          const refundAmountCents = Math.round(body.amount * 100);
+
+          if (refundAmountCents <= 0) {
+            return NextResponse.json({ error: "Invalid refund amount" }, { status: 400 });
+          }
+
+          if (refundAmountCents > remainingRefundable) {
+            return NextResponse.json(
+              { error: `Refund amount exceeds maximum refundable. Maximum: $${(remainingRefundable / 100).toFixed(2)}` },
+              { status: 400 }
+            );
+          }
+
+          refundParams.amount = refundAmountCents;
         }
 
         const refund = await getStripe().refunds.create(refundParams);
+
+        await logAdminAction({
+          adminUserId: admin.userId,
+          action: "subscriber_refunded",
+          targetType: "subscriber",
+          targetId: userId,
+          details: { refundId: refund.id, amount: refund.amount / 100, subscriptionId: sub.stripeSubscriptionId },
+          request: req,
+        });
 
         return NextResponse.json({
           ok: true,
@@ -239,7 +288,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   } catch (error) {
     console.error("Subscriber action error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Action failed" },
+      { error: "Action failed" },
       { status: 500 }
     );
   }

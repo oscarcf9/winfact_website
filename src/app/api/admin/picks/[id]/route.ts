@@ -4,6 +4,9 @@ import { db } from "@/db";
 import { picks } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { refreshPerformanceCache } from "@/lib/refresh-performance";
+import { distributePickOnPublish } from "@/lib/delivery";
+import { logAdminAction } from "@/lib/audit";
+import { updatePickSchema } from "@/lib/validations";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -15,7 +18,12 @@ export async function PUT(req: NextRequest, context: RouteContext) {
 
   try {
     const { id } = await context.params;
-    const data = await req.json();
+    const body = await req.json();
+    const parsed = updatePickSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten() }, { status: 400 });
+    }
+    const data = parsed.data;
     const now = new Date().toISOString();
 
     // Get current pick to check status transitions
@@ -68,6 +76,40 @@ export async function PUT(req: NextRequest, context: RouteContext) {
       await refreshPerformanceCache();
     }
 
+    // Determine audit action based on status transition
+    const auditAction = data.status === "settled" ? "pick_settled"
+      : data.status === "published" && current.status !== "published" ? "pick_published"
+      : "pick_updated";
+    await logAdminAction({
+      adminUserId: admin.userId,
+      action: auditAction,
+      targetType: "pick",
+      targetId: id,
+      details: {
+        sport: data.sport,
+        newStatus: data.status,
+        previousStatus: current.status,
+        ...(data.result ? { result: data.result } : {}),
+      },
+      request: req,
+    });
+
+    // Fire-and-forget distribution when publishing for the first time
+    if (data.status === "published" && current.status !== "published" && data.distribute) {
+      distributePickOnPublish(id, {
+        sport: data.sport || current.sport,
+        matchup: data.matchup || current.matchup,
+        pickText: data.pickText || current.pickText,
+        odds: data.odds ?? current.odds ?? null,
+        units: data.units ?? current.units ?? null,
+        confidence: data.confidence ?? current.confidence ?? null,
+        analysisEn: data.analysisEn ?? current.analysisEn ?? null,
+        analysisEs: data.analysisEs ?? current.analysisEs ?? null,
+        tier: data.tier || current.tier || "vip",
+        modelEdge: data.modelEdge ?? current.modelEdge ?? null,
+      }).catch((err) => console.error("Distribution failed (non-blocking):", err));
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Update pick error:", error);
@@ -82,6 +124,15 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
     await db.delete(picks).where(eq(picks.id, id));
+
+    await logAdminAction({
+      adminUserId: admin.userId,
+      action: "pick_deleted",
+      targetType: "pick",
+      targetId: id,
+      request: req,
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Delete pick error:", error);

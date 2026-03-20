@@ -7,9 +7,14 @@ import { renewalReminderEmail } from "@/lib/emails";
 import { sendTransactionalEmail } from "@/lib/mailerlite";
 
 export async function GET(req: Request) {
-  // Verify cron secret to prevent unauthorized access
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret || cronSecret.length < 16) {
+    console.error("CRON_SECRET is not configured or too short");
+    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+  }
+
   const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -59,7 +64,7 @@ export async function GET(req: Request) {
           })
         : "soon";
 
-      const tmpl = renewalReminderEmail(planName, renewalDate, amount);
+      const tmpl = renewalReminderEmail(planName, renewalDate, amount, user.email);
       const html = user.language === "es" ? tmpl.htmlEs : tmpl.htmlEn;
 
       try {

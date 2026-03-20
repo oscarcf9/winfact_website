@@ -2,11 +2,27 @@
   "crons": [
     {
       "path": "/api/cron/settle-picks",
-      "schedule": "0 19-23 * * *"
+      "schedule": "0 19-23,0-5 * * *"
+    },
+    {
+      "path": "/api/cron/settle-picks",
+      "schedule": "0 13-14 * * *"
     },
     {
       "path": "/api/cron/renewal-reminders",
       "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/process-delivery-queue",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/trial-reminders",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/publish-scheduled",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

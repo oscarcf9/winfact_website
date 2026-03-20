@@ -4,10 +4,13 @@ import { db } from "@/db";
 import { posts, postTags, media } from "@/db/schema";
 import { generateGameBlog } from "@/lib/ai-blog-engine";
 import { generateMatchupImage } from "@/lib/ai-image";
+import { notifyBlogDraftReady } from "@/lib/telegram";
+import { enrichPickData } from "@/lib/blog-enrichment";
 
 /**
  * POST /api/admin/auto-blog
  * Generates a full blog post + AI image for a pick, saves as draft.
+ * Now enriches the blog with real data from ESPN + The Odds API.
  * Body: { pickId, sport, league, matchup, pickText, gameDate, odds, units, confidence, tier, analysisEn }
  */
 export async function POST(req: NextRequest) {
@@ -24,9 +27,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Run blog generation and image generation in parallel
-    const [blogResult, imageResult] = await Promise.all([
-      generateGameBlog({
+    const startTime = Date.now();
+
+    // Step 1: Fetch enrichment data from ESPN + The Odds API
+    let enrichment: Awaited<ReturnType<typeof enrichPickData>> | null = null;
+    try {
+      enrichment = await enrichPickData({
         sport: data.sport,
         league: data.league || null,
         matchup: data.matchup,
@@ -35,11 +41,47 @@ export async function POST(req: NextRequest) {
         odds: data.odds || null,
         units: data.units || null,
         confidence: data.confidence || null,
-        tier: data.tier || "vip",
         analysisEn: data.analysisEn || null,
-      }),
-      generateMatchupImage(data.matchup, data.league || data.sport),
+      });
+      console.log(
+        "[auto-blog] Enrichment complete:",
+        enrichment.fetchLog.map((l) => `${l.field}: ${l.status}`).join(", ")
+      );
+    } catch (err) {
+      console.error("[auto-blog] Enrichment failed, continuing without data:", err);
+    }
+
+    const enrichmentMs = Date.now() - startTime;
+
+    // Step 2: Run blog generation and image generation in parallel
+    const [blogResult, imageResult] = await Promise.all([
+      generateGameBlog(
+        {
+          sport: data.sport,
+          league: data.league || null,
+          matchup: data.matchup,
+          pickText: data.pickText || "",
+          gameDate: data.gameDate || new Date().toISOString().split("T")[0],
+          odds: data.odds || null,
+          units: data.units || null,
+          confidence: data.confidence || null,
+          tier: data.tier || "vip",
+          analysisEn: data.analysisEn || null,
+        },
+        enrichment?.dataBlock // Inject real data into blog prompt
+      ),
+      generateMatchupImage(
+        data.matchup,
+        data.league || data.sport,
+        enrichment?.teamAFullName,
+        enrichment?.teamBFullName
+      ),
     ]);
+
+    const totalMs = Date.now() - startTime;
+    console.log(
+      `[auto-blog] Generation complete in ${totalMs}ms (enrichment: ${enrichmentMs}ms, generation: ${totalMs - enrichmentMs}ms)`
+    );
 
     if (blogResult.error && !blogResult.bodyEn) {
       return NextResponse.json(
@@ -96,6 +138,14 @@ export async function POST(req: NextRequest) {
       await db.insert(postTags).values([{ postId, sport: sportTag }]);
     }
 
+    // Notify admin via Telegram (fire-and-forget)
+    notifyBlogDraftReady({
+      title: blogResult.titleEn || data.matchup,
+      sport: data.sport,
+      matchup: data.matchup,
+      slug,
+    }).catch((err) => console.error("Blog draft notification failed:", err));
+
     return NextResponse.json({
       postId,
       slug,
@@ -103,6 +153,14 @@ export async function POST(req: NextRequest) {
       featuredImage,
       imageError: imageResult.error || null,
       blogError: blogResult.error || null,
+      enrichment: enrichment
+        ? {
+            fieldsOk: enrichment.fetchLog.filter((l) => l.status === "ok").length,
+            fieldsUnavailable: enrichment.fetchLog.filter((l) => l.status === "unavailable").length,
+            log: enrichment.fetchLog,
+          }
+        : null,
+      timing: { enrichmentMs, totalMs },
     });
   } catch (error) {
     console.error("Auto-blog error:", error);

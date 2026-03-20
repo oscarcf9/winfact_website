@@ -3,7 +3,7 @@ import { getSiteContent } from "@/db/queries/site-content";
 
 export async function GET() {
   try {
-    const [enabled, textEn, textEs, ctaEn, ctaEs, link, expiresAt, style] = await Promise.all([
+    const [enabled, textEn, textEs, ctaEn, ctaEs, link, expiresAt, style, promoCode] = await Promise.all([
       getSiteContent("announcement_bar_enabled"),
       getSiteContent("announcement_bar_text_en"),
       getSiteContent("announcement_bar_text_es"),
@@ -12,6 +12,7 @@ export async function GET() {
       getSiteContent("announcement_bar_link"),
       getSiteContent("announcement_bar_expires_at"),
       getSiteContent("announcement_bar_style"),
+      getSiteContent("announcement_bar_promo_code"),
     ]);
 
     // Check if explicitly disabled
@@ -39,6 +40,7 @@ export async function GET() {
       ctaEs: ctaEs || null,
       link: link || "/pricing",
       style: style || "default",
+      promoCode: promoCode || null,
     });
   } catch {
     return NextResponse.json({ visible: true, hasContent: false });

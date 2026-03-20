@@ -4,6 +4,7 @@ import { desc, eq } from "drizzle-orm";
 import { Link } from "@/i18n/navigation";
 import { Plus, FileText } from "lucide-react";
 import { getTranslations } from "next-intl/server";
+import { BlogDeleteButton } from "@/components/admin/blog-delete-button";
 
 type Props = {
   searchParams: Promise<{ status?: string }>;
@@ -30,6 +31,7 @@ export default async function AdminBlogPage({ searchParams }: Props) {
       <div className="flex items-center justify-between">
         <h1 className="font-heading font-bold text-2xl md:text-3xl tracking-tight">
           <span className="text-primary">{t("title")}</span>
+          {" "}
           <span className="text-gray-400 text-lg font-normal ml-3">{tc("management")}</span>
         </h1>
         <Link
@@ -98,12 +100,19 @@ export default async function AdminBlogPage({ searchParams }: Props) {
                     {post.publishedAt ? new Date(post.publishedAt).toLocaleDateString() : "\u2014"}
                   </td>
                   <td className="py-3 px-6 text-right">
-                    <Link
-                      href={`/admin/blog/${post.id}`}
-                      className="text-accent/70 hover:text-accent text-sm transition-colors"
-                    >
-                      {tc("edit")}
-                    </Link>
+                    <div className="flex items-center justify-end gap-1">
+                      <Link
+                        href={`/admin/blog/${post.id}`}
+                        className="text-accent/70 hover:text-accent text-sm transition-colors"
+                      >
+                        {tc("edit")}
+                      </Link>
+                      <BlogDeleteButton
+                        postId={post.id}
+                        postTitle={post.titleEn}
+                        isPublished={post.status === "published"}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}

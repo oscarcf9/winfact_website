@@ -1,6 +1,6 @@
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_FREE_CHAT_ID = process.env.TELEGRAM_FREE_CHAT_ID || "";
-const TELEGRAM_VIP_CHAT_ID = process.env.TELEGRAM_VIP_CHAT_ID || "";
+const TELEGRAM_ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || "";
 
 const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 
@@ -88,23 +88,55 @@ export async function sendTelegramMessage(
   }
 }
 
+const VIP_TEASER_TEMPLATES = [
+  (sport: string, siteUrl: string) =>
+    `🔒 *NEW VIP PICK AVAILABLE*\n\n🏟 *${sport}* action just locked in by our analysts.\n\n📊 Our model found an edge — VIP members, check your dashboard.\n\n👉 Already a member? [View pick](${siteUrl}/dashboard)\n⬆️ Want access? [Upgrade now](${siteUrl}/pricing)\n\n#WinFactPicks #VIP #${sport}`,
+  (sport: string, siteUrl: string) =>
+    `🔥 *VIP PICK JUST DROPPED*\n\n🏟 Our analysts locked in a *${sport}* play with a strong model edge.\n\n💎 VIP members — your pick is live on the dashboard.\n\n👉 [Check your dashboard](${siteUrl}/dashboard)\n⬆️ Not a member yet? [Join VIP](${siteUrl}/pricing)\n\n#WinFactPicks #VIP #${sport}`,
+  (sport: string, siteUrl: string) =>
+    `🎯 *ALERT: New VIP Pick*\n\n🏟 *${sport}* — our model just flagged a high-value play.\n\n🔒 Full details available exclusively for VIP members.\n\n👉 [Open dashboard](${siteUrl}/dashboard)\n⬆️ [Upgrade to VIP](${siteUrl}/pricing)\n\n#WinFactPicks #VIP #${sport}`,
+  (sport: string, siteUrl: string) =>
+    `💰 *VIP PLAY LOCKED IN*\n\n🏟 *${sport}* edge detected. Our analysts have made their move.\n\n📈 VIP members — head to your dashboard for full details.\n\n👉 [View pick](${siteUrl}/dashboard)\n⬆️ [Get VIP access](${siteUrl}/pricing)\n\n#WinFactPicks #VIP #${sport}`,
+  (sport: string, siteUrl: string) =>
+    `⚡ *NEW VIP PICK ALERT*\n\n🏟 A *${sport}* VIP pick just went live.\n\n🔒 Matchup, odds, and full analysis — available on your dashboard.\n\n👉 [Go to dashboard](${siteUrl}/dashboard)\n⬆️ [Become a VIP member](${siteUrl}/pricing)\n\n#WinFactPicks #VIP #${sport}`,
+];
+
+function formatVipTeaserMessage(pick: Pick): string {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://winfactpicks.com";
+  const idx = Math.floor(Math.random() * VIP_TEASER_TEMPLATES.length);
+  return VIP_TEASER_TEMPLATES[idx](pick.sport, siteUrl);
+}
+
 export async function sendPickToTelegram(
   pick: Pick,
   channel: "telegram_free" | "telegram_vip"
 ): Promise<{ ok: boolean; messageId?: number; error?: string }> {
-  const chatId = channel === "telegram_free" ? TELEGRAM_FREE_CHAT_ID : TELEGRAM_VIP_CHAT_ID;
-  if (!chatId || !TELEGRAM_BOT_TOKEN) {
+  // All picks go to the free community group (VIP picks as teasers only)
+  if (!TELEGRAM_FREE_CHAT_ID || !TELEGRAM_BOT_TOKEN) {
     return { ok: false, error: "Telegram not configured" };
   }
   const message = formatPickMessage(pick);
-  return sendTelegramMessage(chatId, message);
+  return sendTelegramMessage(TELEGRAM_FREE_CHAT_ID, message);
+}
+
+/**
+ * Send a VIP teaser to Telegram free group (no pick details revealed).
+ */
+export async function sendVipTeaserToTelegram(
+  pick: Pick
+): Promise<{ ok: boolean; messageId?: number; error?: string }> {
+  if (!TELEGRAM_FREE_CHAT_ID || !TELEGRAM_BOT_TOKEN) {
+    return { ok: false, error: "Telegram not configured" };
+  }
+  const message = formatVipTeaserMessage(pick);
+  return sendTelegramMessage(TELEGRAM_FREE_CHAT_ID, message);
 }
 
 export async function sendResultToTelegram(
   pick: Pick & { result: string },
   channel: "telegram_free" | "telegram_vip"
 ): Promise<{ ok: boolean; messageId?: number; error?: string }> {
-  const chatId = channel === "telegram_free" ? TELEGRAM_FREE_CHAT_ID : TELEGRAM_VIP_CHAT_ID;
+  const chatId = TELEGRAM_FREE_CHAT_ID;
   if (!chatId || !TELEGRAM_BOT_TOKEN) {
     return { ok: false, error: "Telegram not configured" };
   }
@@ -126,4 +158,62 @@ export async function testTelegramConnection(): Promise<{ ok: boolean; botName?:
   }
 }
 
-export { formatPickMessage, formatResultMessage };
+/**
+ * Send a notification to the admin's personal Telegram chat.
+ * Used for blog draft alerts, system notifications, etc.
+ */
+export async function sendAdminNotification(
+  text: string
+): Promise<{ ok: boolean; error?: string }> {
+  if (!TELEGRAM_ADMIN_CHAT_ID || !TELEGRAM_BOT_TOKEN) {
+    return { ok: false, error: "Admin Telegram chat not configured" };
+  }
+  return sendTelegramMessage(TELEGRAM_ADMIN_CHAT_ID, text);
+}
+
+/**
+ * Notify admin that a new auto-generated blog draft is ready for review.
+ */
+export async function notifyBlogDraftReady(params: {
+  title: string;
+  sport: string;
+  matchup: string;
+  slug: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://winfactpicks.com";
+  const editUrl = `${siteUrl}/admin/blog/${params.slug}`;
+
+  const message =
+    `📝 *NEW BLOG DRAFT READY FOR REVIEW*\n\n` +
+    `📰 *Title:* ${params.title}\n` +
+    `🏟 *Sport:* ${params.sport}\n` +
+    `📋 *Matchup:* ${params.matchup}\n\n` +
+    `👉 [Review & publish](${editUrl})`;
+
+  return sendAdminNotification(message);
+}
+
+/**
+ * Notify admin when a user hits a referral reward milestone.
+ */
+export async function notifyReferralMilestone(params: {
+  userName: string;
+  userEmail: string;
+  referralCount: number;
+  rewardLabel: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://winfactpicks.com";
+  const adminUrl = `${siteUrl}/admin/referrals`;
+
+  const message =
+    `🎁 *REFERRAL MILESTONE REACHED*\n\n` +
+    `👤 *${params.userName || params.userEmail}*\n` +
+    `📧 ${params.userEmail}\n` +
+    `🔢 ${params.referralCount} converted referral${params.referralCount !== 1 ? "s" : ""}\n` +
+    `🏆 Reward pending: *${params.rewardLabel}*\n\n` +
+    `👉 [Review & approve](${adminUrl})`;
+
+  return sendAdminNotification(message);
+}
+
+export { formatPickMessage, formatResultMessage, formatVipTeaserMessage };

@@ -6,17 +6,29 @@ import { db } from "@/db";
 import { users, promoCodes } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { SITE_URL } from "@/lib/constants";
+import { rateLimit } from "@/lib/rate-limit";
+import { checkoutSchema } from "@/lib/validations";
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit: 5 checkout attempts per minute per IP
+    const { success } = await rateLimit(req, { prefix: "checkout", maxRequests: 5, windowMs: 60_000 });
+    if (!success) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
+
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
-    const plan = body.plan as PlanKey;
-    const promoCode = body.promoCode as string | undefined;
+    const parsed = checkoutSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten() }, { status: 400 });
+    }
+    const plan = parsed.data.plan as PlanKey;
+    const promoCode = parsed.data.promoCode;
 
     // Try DB first, then fallback to static PLANS
     const selectedPlan = await getPlanByKey(plan);
@@ -51,6 +63,7 @@ export async function POST(req: NextRequest) {
       customer: customerId,
       mode: "subscription",
       payment_method_types: ["card"],
+      automatic_tax: { enabled: true },
       line_items: [
         {
           price: selectedPlan.priceId,
@@ -66,19 +79,37 @@ export async function POST(req: NextRequest) {
       metadata: { clerkUserId: userId, plan },
     };
 
-    // Apply promo code if provided
+    // Apply promo code if provided — validate limits server-side before creating session
     if (promoCode) {
+      const upperCode = promoCode.toUpperCase();
+
       // First try to find in app DB for the Stripe promotion code ID
       const [appPromo] = await db
         .select()
         .from(promoCodes)
         .where(
           and(
-            eq(promoCodes.code, promoCode.toUpperCase()),
+            eq(promoCodes.code, upperCode),
             eq(promoCodes.isActive, true)
           )
         )
         .limit(1);
+
+      // Server-side validation of promo code limits
+      if (appPromo) {
+        // Check expiration
+        if (appPromo.validUntil && new Date(appPromo.validUntil) < new Date()) {
+          return NextResponse.json({ error: "Promo code has expired" }, { status: 400 });
+        }
+        // Check validFrom — prevent future promos from being used early
+        if (appPromo.validFrom && new Date(appPromo.validFrom) > new Date()) {
+          return NextResponse.json({ error: "Promo code is not yet active" }, { status: 400 });
+        }
+        // Check max redemptions
+        if (appPromo.maxRedemptions && (appPromo.currentRedemptions || 0) >= appPromo.maxRedemptions) {
+          return NextResponse.json({ error: "Promo code usage limit reached" }, { status: 400 });
+        }
+      }
 
       let stripePromoId: string | null = null;
 
@@ -87,7 +118,7 @@ export async function POST(req: NextRequest) {
       } else {
         // Fallback: search Stripe directly for codes not created via admin
         const promotionCodes = await getStripe().promotionCodes.list({
-          code: promoCode,
+          code: upperCode,
           active: true,
           limit: 1,
         });
@@ -103,7 +134,7 @@ export async function POST(req: NextRequest) {
         // Remove trial if discount is applied
         delete sessionParams.subscription_data!.trial_period_days;
         // Store promo code in metadata for webhook to increment redemptions
-        sessionParams.metadata!.promoCode = promoCode.toUpperCase();
+        sessionParams.metadata!.promoCode = upperCode;
       }
     }
 

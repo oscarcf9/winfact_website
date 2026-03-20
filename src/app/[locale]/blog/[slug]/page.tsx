@@ -16,11 +16,14 @@ import { JsonLd, articleJsonLd, breadcrumbJsonLd } from "@/components/seo/json-l
 import {
   getPostBySlug,
   getPostTags,
+  getPostTagsBatch,
   getRelatedPosts,
   getAllPublishedSlugs,
 } from "@/db/queries/posts";
 import { samplePosts } from "@/data/sample-posts";
 import { SITE_URL } from "@/lib/constants";
+
+export const revalidate = 3600;
 
 export async function generateStaticParams() {
   const slugs = await getAllPublishedSlugs();
@@ -132,13 +135,12 @@ export default async function BlogPostPage({
     const sports = tags.map((t) => t.sport);
     const dbRelated = await getRelatedPosts(dbPost.slug, sports, 3);
 
-    // Build related posts with tags
-    const relatedWithTags = await Promise.all(
-      dbRelated.map(async (rp) => {
-        const rpTags = await getPostTags(rp.id);
-        return { ...rp, sports: rpTags.map((t) => t.sport) };
-      })
-    );
+    // Build related posts with tags (batch to avoid N+1)
+    const relatedTagsMap = await getPostTagsBatch(dbRelated.map((rp) => rp.id));
+    const relatedWithTags = dbRelated.map((rp) => ({
+      ...rp,
+      sports: relatedTagsMap.get(rp.id) ?? [],
+    }));
 
     const title = locale === "es" && dbPost.titleEs ? dbPost.titleEs : dbPost.titleEn;
     const body = locale === "es" && dbPost.bodyEs ? dbPost.bodyEs : dbPost.bodyEn;

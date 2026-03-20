@@ -1,51 +1,104 @@
 import { db } from "@/db";
 import { users, subscriptions } from "@/db/schema";
-import { desc } from "drizzle-orm";
-import { Users, UserCheck, Clock, UserX } from "lucide-react";
+import { desc, eq, sql, and, isNull } from "drizzle-orm";
+import { Users, UserCheck, Clock, UserX, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { SubscriberActionMenu, ExportButton } from "@/components/admin/subscriber-actions";
 
-type Props = { searchParams: Promise<{ status?: string }> };
+type Props = { searchParams: Promise<{ status?: string; page?: string }> };
 
 export default async function AdminSubscribersPage({ searchParams }: Props) {
   const t = await getTranslations("admin.subscribers");
   const params = await searchParams;
+  const pageSize = 50;
+  const page = Math.max(1, parseInt(params.page || "1"));
+  const offset = (page - 1) * pageSize;
 
-  const allUsers = await db
-    .select()
-    .from(users)
-    .orderBy(desc(users.createdAt))
-    .limit(200);
+  // ── Stat cards: full COUNT queries (no LIMIT) ──
+  const [totalUsersRow] = await db.select({ count: sql<number>`count(*)` }).from(users);
+  const [activeRow] = await db.select({ count: sql<number>`count(*)` }).from(subscriptions).where(eq(subscriptions.status, "active"));
+  const [trialingRow] = await db.select({ count: sql<number>`count(*)` }).from(subscriptions).where(eq(subscriptions.status, "trialing"));
+  const [cancelledRow] = await db.select({ count: sql<number>`count(*)` }).from(subscriptions).where(eq(subscriptions.status, "cancelled"));
+  const [pastDueRow] = await db.select({ count: sql<number>`count(*)` }).from(subscriptions).where(eq(subscriptions.status, "past_due"));
 
-  const allSubs = await db.select().from(subscriptions);
-
-  const subsByUser = new Map<string, typeof allSubs[0]>();
-  for (const sub of allSubs) {
-    if (sub.userId) subsByUser.set(sub.userId, sub);
-  }
-
-  const usersWithSubs = allUsers.map((user) => ({
-    ...user,
-    subscription: subsByUser.get(user.id) ?? null,
-  }));
-
-  const filtered = params.status
-    ? usersWithSubs.filter((u) => {
-        if (params.status === "none") return !u.subscription;
-        return u.subscription?.status === params.status;
-      })
-    : usersWithSubs;
-
-  const totalActive = usersWithSubs.filter((u) => u.subscription?.status === "active").length;
-  const totalTrialing = usersWithSubs.filter((u) => u.subscription?.status === "trialing").length;
-  const totalCancelled = usersWithSubs.filter((u) => u.subscription?.status === "cancelled").length;
+  const totalUsers = totalUsersRow?.count ?? 0;
+  const totalActive = activeRow?.count ?? 0;
+  const totalTrialing = trialingRow?.count ?? 0;
+  const totalCancelled = cancelledRow?.count ?? 0;
+  const totalPastDue = pastDueRow?.count ?? 0;
 
   const statCards = [
-    { icon: Users, value: allUsers.length, label: t("totalUsers"), accent: "from-primary to-primary" },
+    { icon: Users, value: totalUsers, label: t("totalUsers"), accent: "from-primary to-primary" },
     { icon: UserCheck, value: totalActive, label: t("active"), accent: "from-success to-success" },
     { icon: Clock, value: totalTrialing, label: t("trialing"), accent: "from-accent to-accent" },
+    { icon: AlertTriangle, value: totalPastDue, label: "Past Due", accent: "from-warning to-warning" },
     { icon: UserX, value: totalCancelled, label: t("cancelled"), accent: "from-danger to-danger" },
   ];
+
+  // ── Build filtered query for list + count ──
+  // Determine the filtered total and paginated rows based on status filter
+  let filteredTotal: number;
+  let filteredRows: { user: typeof users.$inferSelect; subscription: typeof subscriptions.$inferSelect | null }[];
+
+  if (params.status === "none") {
+    // Users with no subscription at all
+    const [countRow] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(users)
+      .leftJoin(subscriptions, eq(users.id, subscriptions.userId))
+      .where(isNull(subscriptions.id));
+    filteredTotal = countRow?.count ?? 0;
+
+    const rows = await db
+      .select({ user: users, subscription: subscriptions })
+      .from(users)
+      .leftJoin(subscriptions, eq(users.id, subscriptions.userId))
+      .where(isNull(subscriptions.id))
+      .orderBy(desc(users.createdAt))
+      .limit(pageSize)
+      .offset(offset);
+    filteredRows = rows;
+  } else if (params.status) {
+    // Filter by subscription status
+    const statusFilter = params.status as "active" | "trialing" | "past_due" | "cancelled" | "expired";
+    const [countRow] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(users)
+      .innerJoin(subscriptions, and(eq(users.id, subscriptions.userId), eq(subscriptions.status, statusFilter)));
+    filteredTotal = countRow?.count ?? 0;
+
+    const rows = await db
+      .select({ user: users, subscription: subscriptions })
+      .from(users)
+      .innerJoin(subscriptions, and(eq(users.id, subscriptions.userId), eq(subscriptions.status, statusFilter)))
+      .orderBy(desc(users.createdAt))
+      .limit(pageSize)
+      .offset(offset);
+    filteredRows = rows;
+  } else {
+    // All users
+    filteredTotal = totalUsers;
+    const rows = await db
+      .select({ user: users, subscription: subscriptions })
+      .from(users)
+      .leftJoin(subscriptions, eq(users.id, subscriptions.userId))
+      .orderBy(desc(users.createdAt))
+      .limit(pageSize)
+      .offset(offset);
+    filteredRows = rows;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(filteredTotal / pageSize));
+  const showingFrom = filteredTotal === 0 ? 0 : offset + 1;
+  const showingTo = Math.min(offset + pageSize, filteredTotal);
+
+  // Build pagination href helper
+  function pageHref(p: number) {
+    const sp = new URLSearchParams();
+    if (params.status) sp.set("status", params.status);
+    sp.set("page", String(p));
+    return `?${sp.toString()}`;
+  }
 
   const statusFilters = ["All", "active", "trialing", "past_due", "cancelled", "none"];
 
@@ -60,7 +113,7 @@ export default async function AdminSubscribersPage({ searchParams }: Props) {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         {statCards.map((card) => (
           <div
             key={card.label}
@@ -112,48 +165,52 @@ export default async function AdminSubscribersPage({ searchParams }: Props) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((user) => (
-                <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                  <td className="py-3 px-6 text-gray-700">{user.email}</td>
-                  <td className="py-3 px-6 text-gray-500">{user.name || "\u2014"}</td>
-                  <td className="py-3 px-6 text-center">
-                    <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      user.role === "admin"
-                        ? "bg-accent/15 text-accent border border-accent/20"
-                        : "bg-gray-100 text-gray-500 border border-gray-200"
-                    }`}>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="py-3 px-6 text-center font-mono text-xs text-gray-500">
-                    {user.subscription?.tier?.replace(/_/g, " ") || "\u2014"}
-                  </td>
-                  <td className="py-3 px-6 text-center">
-                    {user.subscription ? (
+              {filteredRows.map((row) => {
+                const user = row.user;
+                const sub = row.subscription;
+                return (
+                  <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                    <td className="py-3 px-6 text-gray-700">{user.email}</td>
+                    <td className="py-3 px-6 text-gray-500">{user.name || "\u2014"}</td>
+                    <td className="py-3 px-6 text-center">
                       <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${
-                        user.subscription.status === "active"
-                          ? "bg-success/15 text-success border border-success/20"
-                          : user.subscription.status === "trialing"
-                            ? "bg-primary/15 text-primary border border-primary/20"
-                            : user.subscription.status === "past_due"
-                              ? "bg-warning/15 text-warning border border-warning/20"
-                              : "bg-danger/15 text-danger border border-danger/20"
+                        user.role === "admin"
+                          ? "bg-accent/15 text-accent border border-accent/20"
+                          : "bg-gray-100 text-gray-500 border border-gray-200"
                       }`}>
-                        {user.subscription.status}
+                        {user.role}
                       </span>
-                    ) : (
-                      <span className="text-gray-300 text-xs">{"\u2014"}</span>
-                    )}
-                  </td>
-                  <td className="py-3 px-6 text-center text-xs text-gray-400">
-                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "\u2014"}
-                  </td>
-                  <td className="py-3 px-3 text-right">
-                    <SubscriberActionMenu user={user} />
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
+                    </td>
+                    <td className="py-3 px-6 text-center font-mono text-xs text-gray-500">
+                      {sub?.tier?.replace(/_/g, " ") || "\u2014"}
+                    </td>
+                    <td className="py-3 px-6 text-center">
+                      {sub ? (
+                        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${
+                          sub.status === "active"
+                            ? "bg-success/15 text-success border border-success/20"
+                            : sub.status === "trialing"
+                              ? "bg-primary/15 text-primary border border-primary/20"
+                              : sub.status === "past_due"
+                                ? "bg-warning/15 text-warning border border-warning/20"
+                                : "bg-danger/15 text-danger border border-danger/20"
+                        }`}>
+                          {sub.status}
+                        </span>
+                      ) : (
+                        <span className="text-gray-300 text-xs">{"\u2014"}</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-6 text-center text-xs text-gray-400">
+                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "\u2014"}
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <SubscriberActionMenu user={{ ...user, subscription: sub ? { id: sub.id, tier: sub.tier, status: sub.status, stripeSubscriptionId: sub.stripeSubscriptionId, currentPeriodEnd: sub.currentPeriodEnd } : null }} />
+                    </td>
+                  </tr>
+                );
+              })}
+              {filteredRows.length === 0 && (
                 <tr>
                   <td colSpan={7} className="py-12 text-center">
                     <Users className="h-10 w-10 text-gray-200 mx-auto mb-3" />
@@ -164,6 +221,50 @@ export default async function AdminSubscribersPage({ searchParams }: Props) {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {filteredTotal > 0 && (
+          <div className="flex items-center justify-between px-6 py-3 border-t border-gray-100 bg-gray-50/50">
+            <p className="text-xs text-gray-500">
+              Showing <span className="font-semibold text-navy">{showingFrom}-{showingTo}</span> of{" "}
+              <span className="font-semibold text-navy">{filteredTotal}</span> subscribers
+            </p>
+            <div className="flex items-center gap-2">
+              {page > 1 ? (
+                <a
+                  href={pageHref(page - 1)}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-100 transition-all"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Previous
+                </a>
+              ) : (
+                <span className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-300 bg-gray-50 border border-gray-100 cursor-not-allowed">
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Previous
+                </span>
+              )}
+              <span className="text-xs text-gray-500 px-2">
+                Page <span className="font-semibold text-navy">{page}</span> of{" "}
+                <span className="font-semibold text-navy">{totalPages}</span>
+              </span>
+              {page < totalPages ? (
+                <a
+                  href={pageHref(page + 1)}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-100 transition-all"
+                >
+                  Next
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </a>
+              ) : (
+                <span className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-300 bg-gray-50 border border-gray-100 cursor-not-allowed">
+                  Next
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

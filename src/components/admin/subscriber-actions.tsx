@@ -10,6 +10,7 @@ import {
   CreditCard,
   Download,
   StickyNote,
+  Mail,
   X,
   Check,
   Loader2,
@@ -126,6 +127,12 @@ export function SubscriberActionMenu({ user }: Props) {
             </button>
           )}
           <button
+            onClick={() => { setModal("email"); setOpen(false); }}
+            className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
+          >
+            <Mail className="h-3.5 w-3.5" /> Send Email
+          </button>
+          <button
             onClick={() => { setModal("notes"); setOpen(false); }}
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
           >
@@ -148,6 +155,7 @@ export function SubscriberActionMenu({ user }: Props) {
                 {modal === "change_tier" && "Change Plan"}
                 {modal === "extend" && "Extend Period"}
                 {modal === "refund" && "Issue Refund"}
+                {modal === "email" && "Send Email"}
                 {modal === "notes" && "Subscriber Notes"}
               </h3>
               <button onClick={() => { setModal(null); setFeedback(null); }} className="p-1 hover:bg-gray-100 rounded cursor-pointer">
@@ -203,6 +211,10 @@ export function SubscriberActionMenu({ user }: Props) {
 
             {modal === "refund" && (
               <RefundModal loading={loading} onSubmit={(amount) => doAction("refund", amount ? { amount } : {})} />
+            )}
+
+            {modal === "email" && (
+              <EmailModal userId={user.id} email={user.email} onClose={() => setModal(null)} />
             )}
 
             {modal === "notes" && (
@@ -360,6 +372,96 @@ function RefundModal({ loading, onSubmit }: { loading: boolean; onSubmit: (amoun
       >
         {loading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : "Issue Refund"}
       </button>
+    </div>
+  );
+}
+
+function EmailModal({ userId, email, onClose }: { userId: string; email: string; onClose: () => void }) {
+  const [subject, setSubject] = useState("Message from WinFact Picks");
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+  const [sent, setSent] = useState(false);
+
+  async function handleSend() {
+    if (!subject.trim() || !message.trim()) return;
+    setSending(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/subscribers/${userId}/email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject: subject.trim(), message: message.trim() }),
+      });
+      if (res.ok) {
+        setSent(true);
+        setTimeout(() => onClose(), 1500);
+      } else if (res.status === 429) {
+        setError("Too many emails sent. Try again in a minute.");
+      } else {
+        const data = await res.json();
+        setError(data.error || "Failed to send email");
+      }
+    } catch {
+      setError("Network error");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (sent) {
+    return (
+      <div className="text-center py-4">
+        <div className="mx-auto w-10 h-10 rounded-full bg-success/10 flex items-center justify-center mb-3">
+          <Check className="h-5 w-5 text-success" />
+        </div>
+        <p className="text-sm font-medium text-navy">Email sent to {email}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {error && (
+        <div className="mb-3 p-3 rounded-xl text-sm bg-danger/10 text-danger border border-danger/20 flex items-center gap-2">
+          <X className="h-4 w-4 shrink-0" />
+          {error}
+        </div>
+      )}
+      <div className="space-y-3 mb-4">
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Subject</label>
+          <input
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-navy focus:outline-none focus:border-primary/50"
+            placeholder="Email subject..."
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Message</label>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            rows={4}
+            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-navy focus:outline-none focus:border-primary/50 resize-y"
+            placeholder="Write your message..."
+          />
+        </div>
+      </div>
+      <div className="flex gap-3">
+        <button
+          onClick={handleSend}
+          disabled={sending || !subject.trim() || !message.trim()}
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary to-accent text-white text-sm font-medium disabled:opacity-50 cursor-pointer"
+        >
+          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+          {sending ? "Sending..." : "Send"}
+        </button>
+        <button onClick={onClose} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-sm cursor-pointer">
+          Cancel
+        </button>
+      </div>
     </div>
   );
 }

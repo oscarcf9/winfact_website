@@ -14,7 +14,16 @@ import {
   Share2,
   Sparkles,
   Crown,
+  DollarSign,
+  Tag,
+  Check,
 } from "lucide-react";
+
+const MILESTONES = [
+  { threshold: 1, reward: "credit_10", label: "$10 Credit", icon: DollarSign, gradient: "from-green-500 to-emerald-500" },
+  { threshold: 5, reward: "free_month", label: "1 Free Month VIP", icon: Crown, gradient: "from-amber-400 to-yellow-500" },
+  { threshold: 10, reward: "vip_discount", label: "Permanent VIP Discount", icon: Tag, gradient: "from-purple-500 to-indigo-500" },
+];
 
 export default async function ReferralsPage() {
   const { userId } = await auth();
@@ -51,8 +60,14 @@ export default async function ReferralsPage() {
   const totalReferred = userReferrals.length;
   const converted = userReferrals.filter((r) => r.status === "converted").length;
   const rewardsEarned = userReferrals.filter((r) => r.rewardApplied).length;
+  const appliedRewardTypes = userReferrals
+    .filter((r) => r.rewardApplied && r.rewardType)
+    .map((r) => r.rewardType!);
   const referralCode = user?.referralCode || "---";
   const referralLink = `https://winfactpicks.com/sign-up?ref=${referralCode}`;
+
+  // Determine next milestone
+  const nextMilestone = MILESTONES.find((m) => converted < m.threshold);
 
   return (
     <div className="space-y-8">
@@ -81,7 +96,6 @@ export default async function ReferralsPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Total Referred */}
         <Card className="relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary to-secondary" />
           <CardContent className="p-5">
@@ -99,7 +113,6 @@ export default async function ReferralsPage() {
           </CardContent>
         </Card>
 
-        {/* Converted */}
         <Card className="relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-success to-emerald-400" />
           <CardContent className="p-5">
@@ -117,7 +130,6 @@ export default async function ReferralsPage() {
           </CardContent>
         </Card>
 
-        {/* Rewards Earned */}
         <Card className="relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent to-cyan-400" />
           <CardContent className="p-5">
@@ -135,6 +147,82 @@ export default async function ReferralsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Reward Progress */}
+      <Card>
+        <CardContent className="p-6">
+          <h2 className="font-heading font-bold text-lg text-navy mb-5">
+            Reward Milestones
+          </h2>
+          <div className="space-y-4">
+            {MILESTONES.map((m, i) => {
+              const earned = appliedRewardTypes.includes(m.reward);
+              const reachedThreshold = converted >= m.threshold;
+              const isNext = nextMilestone?.reward === m.reward;
+              const progress = Math.min(converted / m.threshold, 1);
+              const Icon = m.icon;
+
+              return (
+                <div
+                  key={m.reward}
+                  className={`relative rounded-xl border p-4 transition-all ${
+                    earned
+                      ? "border-green-200 bg-green-50/50"
+                      : isNext
+                        ? "border-primary/30 bg-primary/[0.02]"
+                        : "border-gray-200 bg-white"
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    {/* Icon */}
+                    <div className={`flex items-center justify-center h-10 w-10 rounded-xl shrink-0 ${
+                      earned
+                        ? "bg-green-500 text-white"
+                        : `bg-gradient-to-br ${m.gradient} text-white opacity-${reachedThreshold ? "100" : "40"}`
+                    }`}>
+                      {earned ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-navy">{m.label}</span>
+                          {earned && (
+                            <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                              EARNED
+                            </span>
+                          )}
+                          {reachedThreshold && !earned && (
+                            <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">
+                              PENDING APPROVAL
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-400">
+                          {converted}/{m.threshold} referral{m.threshold !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+
+                      {/* Progress bar */}
+                      <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-700 ${
+                            earned
+                              ? "bg-green-500"
+                              : `bg-gradient-to-r ${m.gradient}`
+                          }`}
+                          style={{ width: `${progress * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Referral Link */}
       <Card className={isVip ? "ring-1 ring-amber-300/40" : ""}>
@@ -182,8 +270,8 @@ export default async function ReferralsPage() {
               },
               {
                 step: "3",
-                title: "Both Earn Rewards",
-                desc: "You get a free week added, and your friend gets 20% off their first month.",
+                title: "Earn Rewards",
+                desc: "Hit milestones to earn credits, free months, and permanent discounts.",
                 icon: Gift,
                 gradient: "from-accent to-cyan-400",
               },
@@ -273,7 +361,10 @@ export default async function ReferralsPage() {
                       <td className="py-2.5 px-3">
                         {ref.rewardApplied ? (
                           <span className="text-xs font-semibold text-accent">
-                            Applied
+                            {ref.rewardType === "credit_10" ? "$10 Credit" :
+                             ref.rewardType === "free_month" ? "Free Month" :
+                             ref.rewardType === "vip_discount" ? "VIP Discount" :
+                             "Applied"}
                           </span>
                         ) : (
                           <span className="text-xs text-gray-400">---</span>

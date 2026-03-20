@@ -1,0 +1,23 @@
+import type { ReactNode } from "react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Contact Us",
+  description:
+    "Get in touch with WinFact Picks. Questions about our data-driven sports picks, subscriptions, or partnership inquiries.",
+  openGraph: {
+    title: "Contact WinFact Picks",
+    description:
+      "Questions about our data-driven sports picks? Reach out to our team.",
+    type: "website",
+    images: [{ url: "/images/og-default.png" }],
+  },
+  alternates: {
+    canonical: "/contact",
+    languages: { en: "/en/contact", es: "/es/contact" },
+  },
+};
+
+export default function ContactLayout({ children }: { children: ReactNode }) {
+  return children;
+}

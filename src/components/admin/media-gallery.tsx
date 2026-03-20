@@ -194,7 +194,7 @@ export function MediaGallery() {
               Drag and drop files here, or click Upload
             </p>
             <p className="text-xs text-gray-400 mt-1">
-              PNG, JPG, WebP, GIF up to 5MB each
+              PNG, JPG, WebP, GIF up to 10MB each
             </p>
           </div>
         </div>

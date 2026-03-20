@@ -1,4 +1,4 @@
-import { sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, index } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const posts = sqliteTable("posts", {
@@ -23,7 +23,12 @@ export const posts = sqliteTable("posts", {
   author: text("author").default("WinFact"),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
-});
+}, (table) => ([
+  index("idx_posts_status").on(table.status),
+  index("idx_posts_category").on(table.category),
+  index("idx_posts_published_at").on(table.publishedAt),
+  index("idx_posts_status_published").on(table.status, table.publishedAt),
+]));
 
 export const postTags = sqliteTable("post_tags", {
   postId: text("post_id")

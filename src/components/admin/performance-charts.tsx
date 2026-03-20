@@ -39,10 +39,18 @@ type SettledPick = {
   publishedAt?: string | null;
   settledAt?: string | null;
   createdAt?: string | null;
+  capperId?: string | null;
+  capperName?: string | null;
+};
+
+type Capper = {
+  id: string;
+  name: string;
 };
 
 type Props = {
   picks: SettledPick[];
+  cappers?: Capper[];
 };
 
 const SPORT_COLORS: Record<string, string> = {
@@ -63,9 +71,10 @@ const CHART_COLORS = {
   grid: "#f3f4f6",
 };
 
-export function PerformanceCharts({ picks }: Props) {
+export function PerformanceCharts({ picks, cappers = [] }: Props) {
   const t = useTranslations("admin.analytics");
   const [sportFilter, setSportFilter] = useState("All");
+  const [capperFilter, setCapperFilter] = useState("All");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
@@ -81,6 +90,9 @@ export function PerformanceCharts({ picks }: Props) {
     if (sportFilter !== "All") {
       result = result.filter((p) => p.sport === sportFilter);
     }
+    if (capperFilter !== "All") {
+      result = result.filter((p) => p.capperId === capperFilter);
+    }
     if (dateFrom) {
       result = result.filter((p) => {
         const d = p.settledAt || p.publishedAt || p.createdAt || "";
@@ -94,7 +106,7 @@ export function PerformanceCharts({ picks }: Props) {
       });
     }
     return result;
-  }, [picks, sportFilter, dateFrom, dateTo]);
+  }, [picks, sportFilter, capperFilter, dateFrom, dateTo]);
 
   // ─── Monthly Performance (Line Chart) ─────────────────────
   const monthlyData = useMemo(() => {
@@ -267,6 +279,20 @@ export function PerformanceCharts({ picks }: Props) {
             </button>
           ))}
         </div>
+
+        {/* Capper filter */}
+        {cappers.length > 0 && (
+          <select
+            value={capperFilter}
+            onChange={(e) => setCapperFilter(e.target.value)}
+            className="px-3 py-1.5 rounded-full text-xs font-medium bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 cursor-pointer focus:outline-none focus:border-primary/30"
+          >
+            <option value="All">All Cappers</option>
+            {cappers.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        )}
 
         {/* Date range */}
         <div className="flex items-center gap-1.5 ml-auto">

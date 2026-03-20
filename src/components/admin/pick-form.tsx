@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Save, X, ChevronDown } from "lucide-react";
+import { Save, X, ChevronDown, Send, Radio } from "lucide-react";
 
 const SPORTS = ["MLB", "NFL", "NBA", "NHL", "Soccer", "NCAA"];
 const CONFIDENCE_LEVELS = ["standard", "strong", "top"];
@@ -51,6 +51,9 @@ export function PickForm({ pick, defaults }: Props) {
   const isEdit = !!pick;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [sendOnPublish, setSendOnPublish] = useState(true);
+  const [currentStatus, setCurrentStatus] = useState(pick?.status || "draft");
+  const [currentTier, setCurrentTier] = useState(pick?.tier || "vip");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -76,6 +79,11 @@ export function PickForm({ pick, defaults }: Props) {
     if (form.get("status") === "settled" && form.get("result")) {
       data.result = form.get("result");
       data.closingOdds = form.get("closingOdds") ? Number(form.get("closingOdds")) : null;
+    }
+
+    // Include distribution flag when publishing
+    if (data.status === "published" && sendOnPublish) {
+      data.distribute = true;
     }
 
     try {
@@ -195,7 +203,7 @@ export function PickForm({ pick, defaults }: Props) {
               </div>
               <div className="relative">
                 <label className={labelClass}>{t("tierLabel")}</label>
-                <select name="tier" defaultValue={pick?.tier || "vip"} className={selectClass}>
+                <select name="tier" defaultValue={pick?.tier || "vip"} onChange={(e) => setCurrentTier(e.target.value)} className={selectClass}>
                   <option value="free">{t("free")}</option>
                   <option value="vip">{t("vip")}</option>
                 </select>
@@ -225,7 +233,7 @@ export function PickForm({ pick, defaults }: Props) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="relative">
                 <label className={labelClass}>{t("statusLabel")}</label>
-                <select name="status" defaultValue={pick?.status || "draft"} className={selectClass}>
+                <select name="status" defaultValue={pick?.status || "draft"} onChange={(e) => setCurrentStatus(e.target.value)} className={selectClass}>
                   <option value="draft">{t("draft")}</option>
                   <option value="published">{t("published")}</option>
                   <option value="settled">{t("settled")}</option>
@@ -252,6 +260,50 @@ export function PickForm({ pick, defaults }: Props) {
             </div>
           )}
 
+          {/* Distribution */}
+          {currentStatus === "published" && !(isEdit && pick?.status === "published") && (
+            <div>
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">{t("distribution")}</h3>
+              <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 space-y-3">
+                {/* Send on Publish toggle */}
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <Send className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium text-navy">{t("sendOnPublish")}</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={sendOnPublish}
+                    onClick={() => setSendOnPublish(!sendOnPublish)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 cursor-pointer ${sendOnPublish ? "bg-primary" : "bg-gray-200"}`}
+                  >
+                    <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${sendOnPublish ? "translate-x-5" : "translate-x-0"}`} />
+                  </button>
+                </label>
+
+                {/* Channel indicators */}
+                {sendOnPublish && (
+                  <div className="pt-2 border-t border-gray-200">
+                    <div className="flex items-start gap-2">
+                      <Radio className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
+                      <div className="text-sm text-gray-600">
+                        {currentTier === "free" ? (
+                          <p>{t("distributionFreeDesc")}</p>
+                        ) : (
+                          <p>{t("distributionVipDesc")}</p>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">
+                      {t("distributionNote")}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Actions */}
           <div className="flex gap-3 pt-6 border-t border-gray-200">
             <button
@@ -259,8 +311,17 @@ export function PickForm({ pick, defaults }: Props) {
               disabled={loading}
               className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-primary to-accent text-white text-sm font-medium hover:shadow-lg hover:shadow-primary/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              <Save className="h-4 w-4" />
-              {loading ? t("saving") : isEdit ? t("updatePick") : t("createPick")}
+              {currentStatus === "published" && sendOnPublish && !(isEdit && pick?.status === "published") ? (
+                <>
+                  <Send className="h-4 w-4" />
+                  {loading ? t("saving") : t("publishAndSend")}
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  {loading ? t("saving") : isEdit ? t("updatePick") : t("createPick")}
+                </>
+              )}
             </button>
             <button
               type="button"

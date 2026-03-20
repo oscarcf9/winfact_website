@@ -6,6 +6,12 @@ import { eq } from "drizzle-orm";
 
 type Params = { params: Promise<{ id: string }> };
 
+// Whitelist of user-editable calendar fields
+const ALLOWED_FIELDS = [
+  "title", "type", "stage", "scheduledDate", "assignedTo",
+  "linkedPostId", "linkedPickId", "template", "notes", "sport",
+] as const;
+
 export async function PUT(req: NextRequest, { params }: Params) {
   const admin = await requireAdmin();
   if (admin.error) return admin.error;
@@ -14,10 +20,16 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const { id } = await params;
     const data = await req.json();
 
-    await db.update(contentCalendar).set({
-      ...data,
-      updatedAt: new Date().toISOString(),
-    }).where(eq(contentCalendar.id, id));
+    // Only pick allowed fields from request body
+    const update: Record<string, unknown> = {};
+    for (const key of ALLOWED_FIELDS) {
+      if (key in data) {
+        update[key] = data[key];
+      }
+    }
+    update.updatedAt = new Date().toISOString();
+
+    await db.update(contentCalendar).set(update).where(eq(contentCalendar.id, id));
 
     return NextResponse.json({ ok: true });
   } catch {

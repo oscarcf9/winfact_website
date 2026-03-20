@@ -55,7 +55,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   } catch (error) {
     console.error("Update pricing plan error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to update plan" },
+      { error: "An error occurred while processing your request" },
       { status: 500 }
     );
   }

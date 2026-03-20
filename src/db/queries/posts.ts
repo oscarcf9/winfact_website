@@ -33,11 +33,38 @@ export async function getPostBySlug(slug: string) {
   return result[0] ?? null;
 }
 
+/** Fetch any post by ID regardless of status (for admin preview). */
+export async function getPostById(id: string) {
+  const result = await db
+    .select()
+    .from(posts)
+    .where(eq(posts.id, id))
+    .limit(1);
+  return result[0] ?? null;
+}
+
 export async function getPostTags(postId: string) {
   return db
     .select({ sport: postTags.sport })
     .from(postTags)
     .where(eq(postTags.postId, postId));
+}
+
+export async function getPostTagsBatch(postIds: string[]) {
+  if (postIds.length === 0) return new Map<string, string[]>();
+
+  const allTags = await db
+    .select({ postId: postTags.postId, sport: postTags.sport })
+    .from(postTags)
+    .where(inArray(postTags.postId, postIds));
+
+  const tagsByPostId = new Map<string, string[]>();
+  for (const tag of allTags) {
+    const existing = tagsByPostId.get(tag.postId) ?? [];
+    existing.push(tag.sport);
+    tagsByPostId.set(tag.postId, existing);
+  }
+  return tagsByPostId;
 }
 
 export async function getRelatedPosts(

@@ -7,9 +7,7 @@ import { evaluatePick } from "@/lib/pick-settler";
 import { teamsMatch } from "@/lib/team-normalizer";
 import type { ESPNGame } from "@/lib/espn";
 import { refreshPerformanceCache } from "@/lib/refresh-performance";
-
-// Vercel cron secret for security
-const CRON_SECRET = process.env.CRON_SECRET || "";
+import { sendAdminNotification } from "@/lib/telegram";
 
 type SettlementLog = {
   pickId: string;
@@ -26,12 +24,20 @@ type SettlementLog = {
 };
 
 export async function GET(req: Request) {
-  // Verify cron secret (Vercel sends this header)
-  if (CRON_SECRET) {
-    const authHeader = req.headers.get("authorization");
-    if (authHeader !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    console.error("CRON_SECRET environment variable is not set");
+    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
+  }
+
+  if (cronSecret.length < 16) {
+    console.error("CRON_SECRET is too short (minimum 16 characters)");
+    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
+  }
+
+  const authHeader = req.headers.get("authorization");
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const logs: SettlementLog[] = [];
@@ -72,8 +78,21 @@ export async function GET(req: Request) {
 
       // Fetch scoreboard (cached per sport+date)
       if (!scoreboardCache.has(key)) {
-        const games = await fetchScoreboard(sport, date);
-        scoreboardCache.set(key, games);
+        try {
+          const games = await fetchScoreboard(sport, date);
+          scoreboardCache.set(key, games);
+        } catch (espnError) {
+          console.error(`ESPN API failure for ${sport} on ${date}:`, espnError);
+          sendAdminNotification(
+            `⚠️ *ESPN API FAILURE*\n\n` +
+            `Sport: ${sport}\n` +
+            `Date: ${date}\n` +
+            `Error: ${espnError instanceof Error ? espnError.message : "Unknown error"}\n` +
+            `Affected picks: ${sportPicks.length}\n\n` +
+            `These picks were skipped and will retry next cron run.`
+          ).catch(() => {});
+          continue;
+        }
       }
 
       const games = scoreboardCache.get(key) || [];
@@ -161,7 +180,7 @@ export async function GET(req: Request) {
   } catch (error) {
     console.error("Cron settle-picks error:", error);
     return NextResponse.json(
-      { error: "Settlement failed", detail: String(error) },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

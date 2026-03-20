@@ -1,10 +1,67 @@
-import { SignUp } from "@clerk/nextjs";
+"use client";
+
+import { SignUp, useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { BarChart3, Zap, Shield, Bell } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
+
+function ReferralCapture() {
+  const { user, isLoaded } = useUser();
+  const searchParams = useSearchParams();
+  const captured = useRef(false);
+
+  useEffect(() => {
+    if (!isLoaded || !user || captured.current) return;
+    captured.current = true;
+
+    // Get ref code: URL param > localStorage > cookie (priority order)
+    const refFromUrl = searchParams.get("ref");
+    const refFromStorage = localStorage.getItem("wf_referral_code");
+    const refFromCookie = document.cookie
+      .split("; ")
+      .find((c) => c.startsWith("wf_ref="))
+      ?.split("=")[1];
+    const refCode = refFromUrl || refFromStorage || refFromCookie;
+
+    if (refCode) {
+      // Also save to localStorage as backup for dashboard fallback
+      if (!localStorage.getItem("wf_referral_code")) {
+        localStorage.setItem("wf_referral_code", refCode);
+      }
+
+      // Store in Clerk metadata as backup for server-side capture
+      user.update({
+        unsafeMetadata: { ...user.unsafeMetadata, referralCode: refCode },
+      }).catch(() => {});
+
+      // Primary path: link referral via API
+      fetch("/api/user/set-referral", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ referralCode: refCode }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.ok || data.alreadyReferred) {
+            localStorage.removeItem("wf_referral_code");
+            document.cookie = "wf_ref=; path=/; max-age=0";
+          }
+        })
+        .catch(() => {
+          // Best-effort — dashboard fallback will retry
+        });
+    }
+  }, [isLoaded, user, searchParams]);
+
+  return null;
+}
 
 export default function SignUpPage() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
+      <ReferralCapture />
+
       {/* Left — Branding Panel */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-navy overflow-hidden">
         {/* Background decoration */}

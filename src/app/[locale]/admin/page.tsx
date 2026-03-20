@@ -12,6 +12,7 @@ import {
   Send,
   Activity,
   Brain,
+  PenLine,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { TodaysGames } from "@/components/admin/todays-games";
@@ -22,7 +23,7 @@ async function getAdminStats() {
   const now = new Date();
   const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
 
-  const [subscriberCount, picksThisMonth, postCount] = await Promise.all([
+  const [subscriberCount, picksThisMonth, postCount, draftPostCount, allActiveSubs] = await Promise.all([
     db
       .select({ count: count() })
       .from(subscriptions)
@@ -38,9 +39,26 @@ async function getAdminStats() {
       .from(posts)
       .where(eq(posts.status, "published"))
       .then((r) => r[0]?.count ?? 0),
+    db
+      .select({ count: count() })
+      .from(posts)
+      .where(eq(posts.status, "draft"))
+      .then((r) => r[0]?.count ?? 0),
+    db
+      .select({ tier: subscriptions.tier })
+      .from(subscriptions)
+      .where(sql`${subscriptions.status} IN ('active', 'trialing')`),
   ]);
 
-  return { subscriberCount, picksThisMonth, postCount };
+  // Calculate MRR from active subscriptions
+  const mrr = allActiveSubs.reduce((sum, s) => {
+    if (s.tier === "vip_weekly") return sum + (45 * 4.33);
+    if (s.tier === "vip_monthly") return sum + 120;
+    if (s.tier === "season_pass") return sum + (599 / 6); // ~6 month season amortized
+    return sum;
+  }, 0);
+
+  return { subscriberCount, picksThisMonth, postCount, draftPostCount, mrr };
 }
 
 function getGreeting(t: (key: string) => string) {
@@ -66,7 +84,7 @@ export default async function AdminDashboardPage() {
     subscribers: String(stats.subscriberCount),
     picks: String(stats.picksThisMonth),
     posts: String(stats.postCount),
-    revenue: "\u2014",
+    revenue: stats.mrr > 0 ? `$${Math.round(stats.mrr).toLocaleString("en-US")}` : "$0",
   };
 
   const quickActions = [
@@ -125,6 +143,25 @@ export default async function AdminDashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Pending Blog Drafts */}
+      {stats.draftPostCount > 0 && (
+        <Link
+          href="/admin/blog?status=draft"
+          className="flex items-center gap-3 px-5 py-3.5 rounded-xl bg-amber-50 border border-amber-200/60 hover:bg-amber-100/60 transition-colors group"
+        >
+          <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center">
+            <PenLine className="h-4 w-4 text-amber-600" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-amber-900">
+              {stats.draftPostCount} {t("blogDraftsAwaiting")}
+            </p>
+            <p className="text-xs text-amber-600/80">{t("blogDraftsReview")}</p>
+          </div>
+          <span className="text-xs font-medium text-amber-600 group-hover:underline">{t("blogDraftsAction")}</span>
+        </Link>
+      )}
 
       {/* Main content: Today's Games + Active Picks */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
