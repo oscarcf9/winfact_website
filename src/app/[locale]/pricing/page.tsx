@@ -68,14 +68,9 @@ export default function PricingPage() {
           <Heading as="h1" size="h1" className="text-white mb-4">
             {t("title")}
           </Heading>
-          <p className="text-gray-300 text-lg md:text-xl max-w-2xl mx-auto mb-8">
+          <p className="text-gray-300 text-lg md:text-xl max-w-2xl mx-auto">
             {t("subtitle")}
           </p>
-          <Link href="#plans">
-            <Button variant="primary" size="xl">
-              View Plans
-            </Button>
-          </Link>
         </PageHero>
 
         {/* Pricing Tiers + Promo Code (client component with shared state) */}

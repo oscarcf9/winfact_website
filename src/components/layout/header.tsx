@@ -119,7 +119,7 @@ export function Header() {
               >
                 {t("login")}
               </Link>
-              <Link href="/sign-up">
+              <Link href="/pricing">
                 <Button size="sm">{t("getStarted")}</Button>
               </Link>
             </>

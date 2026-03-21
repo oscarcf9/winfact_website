@@ -14,7 +14,6 @@ import { PageHero } from "@/components/ui/page-hero";
 import { AnimatedSection } from "@/components/ui/animated-section";
 import { Link } from "@/i18n/navigation";
 import { getPublishedPosts, getPostTagsBatch } from "@/db/queries/posts";
-import { samplePosts } from "@/data/sample-posts";
 
 export const revalidate = 3600;
 
@@ -202,18 +201,6 @@ export default async function BlogPage({
       })(),
       publishedAt: p.publishedAt ?? p.createdAt ?? new Date().toISOString(),
       author: p.author ?? "WinFact",
-    }));
-  } else {
-    // Fall back to sample data
-    posts = samplePosts.map((p) => ({
-      slug: p.slug,
-      title: p.titleKey,
-      category: p.category,
-      sports: p.sport,
-      excerpt: p.excerpt,
-      readingTime: p.readingTime,
-      publishedAt: p.publishedAt,
-      author: p.author,
     }));
   }
 
