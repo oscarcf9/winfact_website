@@ -27,6 +27,15 @@ export async function generateMetadata({
       canonical: "/disclaimer",
       languages: { en: "/en/disclaimer", es: "/es/disclaimer" },
     },
+    openGraph: {
+      title: "Disclaimer | WinFact Picks",
+      description: t("subtitle"),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "Disclaimer | WinFact Picks",
+      description: t("subtitle"),
+    },
   };
 }
 

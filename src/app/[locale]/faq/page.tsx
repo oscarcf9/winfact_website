@@ -24,7 +24,7 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "faq" });
 
   return {
-    title: "FAQ",
+    title: "Frequently Asked Questions",
     description: `${t("subtitle")}. Find answers about our picks, billing, plans, and technical details.`,
     alternates: {
       canonical: "/faq",
@@ -33,6 +33,11 @@ export async function generateMetadata({
     openGraph: {
       title: "Frequently Asked Questions | WinFact Picks",
       description: t("subtitle"),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "Frequently Asked Questions | WinFact Picks",
+      description: `${t("subtitle")}. Find answers about our picks, billing, plans, and technical details.`,
     },
   };
 }

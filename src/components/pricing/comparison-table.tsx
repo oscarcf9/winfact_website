@@ -15,7 +15,7 @@ const COMPARISON_FEATURES = [
   { key: "Performance Dashboard", free: false, weekly: false, monthly: true },
   { key: "Pick History & Filters", free: false, weekly: false, monthly: true },
   { key: "Priority Support", free: false, weekly: false, monthly: true },
-  { key: "Free Trial (7 days)", free: false, weekly: true, monthly: true },
+  { key: "PICK80 Promo (80% off)", free: false, weekly: true, monthly: true },
   { key: "Sport Analysis Newsletter", free: true, weekly: true, monthly: true },
 ] as const;
 

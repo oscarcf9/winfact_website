@@ -4,6 +4,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { ReferralPostSignup } from "@/components/referral-capture";
+import { PendingCheckout } from "@/components/dashboard/pending-checkout";
 import { getActiveSubscription } from "@/db/queries/subscriptions";
 import { isVipTier } from "@/lib/constants";
 import { db } from "@/db";
@@ -55,6 +56,7 @@ export default async function DashboardLayout({ children }: Props) {
   return (
     <div className="min-h-screen bg-gray-50">
       <ReferralPostSignup />
+      <PendingCheckout />
       <DashboardSidebar isVip={isVip} tier={tier} />
 
       {/* Main content */}

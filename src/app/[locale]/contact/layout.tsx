@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Contact Us",
+  title: "Contact WinFact Picks — Get In Touch",
   description:
     "Get in touch with WinFact Picks. Questions about our data-driven sports picks, subscriptions, or partnership inquiries.",
   openGraph: {
@@ -11,6 +11,12 @@ export const metadata: Metadata = {
       "Questions about our data-driven sports picks? Reach out to our team.",
     type: "website",
     images: [{ url: "/images/og-default.png" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Contact WinFact Picks — Get In Touch",
+    description:
+      "Get in touch with WinFact Picks. Questions about our data-driven sports picks, subscriptions, or partnership inquiries.",
   },
   alternates: {
     canonical: "/contact",

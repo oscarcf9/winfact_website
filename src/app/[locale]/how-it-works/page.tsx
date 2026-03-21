@@ -94,6 +94,11 @@ export async function generateMetadata({
       title: "How It Works | WinFact Picks",
       description: t("pageSubtitle"),
     },
+    twitter: {
+      card: "summary_large_image",
+      title: "How It Works | WinFact Picks",
+      description: `${t("pageSubtitle")} Learn about our data-driven process for generating winning sports betting picks.`,
+    },
   };
 }
 

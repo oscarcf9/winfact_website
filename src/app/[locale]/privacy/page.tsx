@@ -27,6 +27,15 @@ export async function generateMetadata({
       canonical: "/privacy",
       languages: { en: "/en/privacy", es: "/es/privacy" },
     },
+    openGraph: {
+      title: "Privacy Policy | WinFact Picks",
+      description: t("subtitle"),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "Privacy Policy | WinFact Picks",
+      description: t("subtitle"),
+    },
   };
 }
 

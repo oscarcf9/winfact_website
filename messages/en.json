@@ -137,7 +137,7 @@
   },
   "pricing": {
     "title": "Choose Your Plan",
-    "subtitle": "Start with a 7-day free trial on any VIP plan",
+    "subtitle": "Use code PICK80 for 80% off your first month",
     "tiers": [
       {
         "name": "Free",
@@ -162,9 +162,9 @@
           "All sports covered",
           "In-depth analysis (EN/ES)",
           "Mobile App + Dashboard access",
-          "7-day free trial"
+          "Cancel anytime"
         ],
-        "cta": "Start Free Trial"
+        "cta": "Subscribe Now"
       },
       {
         "name": "VIP Monthly",
@@ -177,9 +177,9 @@
           "Pick history & filters",
           "Priority support",
           "Best value — save 33%",
-          "7-day free trial"
+          "Cancel anytime"
         ],
-        "cta": "Start Free Trial",
+        "cta": "Subscribe Now",
         "badge": "Most Popular"
       }
     ],
@@ -187,7 +187,7 @@
     "promoPlaceholder": "Enter promo code",
     "promoApply": "Apply",
     "comparisonTitle": "Compare Plans",
-    "guarantee": "7-day free trial on all VIP plans. Cancel anytime."
+    "guarantee": "Cancel anytime. Use code PICK80 for 80% off your first month."
   },
   "faq": {
     "title": "Frequently Asked Questions",
@@ -232,7 +232,7 @@
       },
       {
         "question": "Can I cancel anytime?",
-        "answer": "Absolutely. All VIP plans come with a 7-day free trial. You can cancel anytime from your account settings or Stripe customer portal. No questions asked, no hidden fees.",
+        "answer": "Absolutely. You can cancel anytime from your account settings or Stripe customer portal. No questions asked, no hidden fees. Use code PICK80 for 80% off your first month.",
         "category": "billing"
       },
       {
@@ -453,7 +453,7 @@
     "faqTitle": "Frequently Asked Questions",
     "ctaTitle": "Get {sport} Picks Today",
     "ctaSubtitle": "Join VIP for full access to all {sport} analysis and picks.",
-    "ctaButton": "Start Free Trial"
+    "ctaButton": "Subscribe Now"
   },
   "admin": {
     "sidebar": {
@@ -471,6 +471,7 @@
         "media": "Media",
         "siteContent": "Site Content",
         "calendar": "Calendar",
+        "importData": "Import Data",
         "distribution": "Distribution",
         "intelligence": "Intelligence",
         "aiAssistant": "AI Assistant",

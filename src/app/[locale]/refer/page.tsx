@@ -37,6 +37,11 @@ export async function generateMetadata({
       type: "website",
       images: [{ url: "/images/og-default.png" }],
     },
+    twitter: {
+      card: "summary_large_image",
+      title: "Refer a Friend | WinFact Picks",
+      description: t("subtitle"),
+    },
   };
 }
 

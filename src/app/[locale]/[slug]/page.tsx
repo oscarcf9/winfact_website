@@ -69,6 +69,11 @@ export async function generateMetadata({
       description,
       url: `${SITE_URL}/${locale}/${slug}`,
     },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
   };
 }
 

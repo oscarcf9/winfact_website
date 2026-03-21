@@ -75,7 +75,7 @@ export function MemberTodaysGames() {
       const res = await fetch("/api/games/scoreboard");
       if (res.ok) {
         const json = await res.json();
-        setData(json);
+        setData(Array.isArray(json) ? json : json.leagues || []);
       }
     } catch {
       // silent

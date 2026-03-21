@@ -28,6 +28,7 @@ import {
   Users2,
   ChevronDown,
   Globe,
+  Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useCallback } from "react";
@@ -42,6 +43,7 @@ const NAV_SECTIONS = [
       { href: "/admin/media", labelKey: "media", icon: Image, exact: false },
       { href: "/admin/content", labelKey: "siteContent", icon: Settings, exact: false },
       { href: "/admin/calendar", labelKey: "calendar", icon: Calendar, exact: false },
+      { href: "/admin/imports", labelKey: "importData", icon: Upload, exact: false },
     ],
   },
   {

@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       customer: customerId,
       mode: "subscription",
       payment_method_types: ["card"],
-      automatic_tax: { enabled: true },
+      // automatic_tax: { enabled: true }, // Enable after setting head office address in Stripe dashboard
       line_items: [
         {
           price: selectedPlan.priceId,
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       success_url: `${SITE_URL}/en/dashboard?checkout=success`,
       cancel_url: `${SITE_URL}/en/pricing?checkout=cancelled`,
       subscription_data: {
-        trial_period_days: selectedPlan.trialDays,
+        ...(selectedPlan.trialDays > 0 ? { trial_period_days: selectedPlan.trialDays } : {}),
         metadata: { clerkUserId: userId, plan },
       },
       metadata: { clerkUserId: userId, plan },

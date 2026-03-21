@@ -25,14 +25,14 @@ export const PLANS: Record<string, {
     priceId: process.env.STRIPE_VIP_WEEKLY_PRICE_ID!,
     price: 45,
     interval: "week",
-    trialDays: 7,
+    trialDays: 0,
   },
   vip_monthly: {
     name: "VIP Monthly",
     priceId: process.env.STRIPE_VIP_MONTHLY_PRICE_ID!,
     price: 120,
     interval: "month",
-    trialDays: 7,
+    trialDays: 0,
   },
 };
 

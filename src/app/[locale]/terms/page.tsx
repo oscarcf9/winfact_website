@@ -27,6 +27,15 @@ export async function generateMetadata({
       canonical: "/terms",
       languages: { en: "/en/terms", es: "/es/terms" },
     },
+    openGraph: {
+      title: "Terms of Service | WinFact Picks",
+      description: t("subtitle"),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "Terms of Service | WinFact Picks",
+      description: t("subtitle"),
+    },
   };
 }
 

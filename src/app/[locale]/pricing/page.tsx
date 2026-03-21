@@ -36,6 +36,11 @@ export async function generateMetadata({
       title: "Pricing & Plans | WinFact Picks",
       description: `${t("subtitle")}. Choose your plan and start winning with data.`,
     },
+    twitter: {
+      card: "summary_large_image",
+      title: "Pricing & Plans | WinFact Picks",
+      description: `${t("subtitle")}. Choose from Free, VIP Weekly, or VIP Monthly subscription options for data-driven sports betting picks.`,
+    },
   };
 }
 

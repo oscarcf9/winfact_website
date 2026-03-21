@@ -154,6 +154,13 @@ export default async function RootLayout({ children }: Props) {
   return (
     <ClerkProvider appearance={clerkAppearance} ui={ui}>
       <html lang={locale} className={`${sora.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
+        <head>
+          <meta name="theme-color" content="#0B1F3B" />
+          <meta name="apple-mobile-web-app-capable" content="yes" />
+          <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+          <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+          <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+        </head>
         <body className="font-sans antialiased bg-white text-foreground" suppressHydrationWarning>
           {children}
         </body>

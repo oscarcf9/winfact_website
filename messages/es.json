@@ -137,7 +137,7 @@
   },
   "pricing": {
     "title": "Elige Tu Plan",
-    "subtitle": "Comienza con una prueba gratis de 7 días en cualquier plan VIP",
+    "subtitle": "Usa el código PICK80 para 80% de descuento en tu primer mes",
     "tiers": [
       {
         "name": "Gratis",
@@ -162,9 +162,9 @@
           "Todos los deportes cubiertos",
           "Análisis detallado (ES/EN)",
           "App Móvil + Panel de acceso",
-          "Prueba gratis de 7 días"
+          "Cancela cuando quieras"
         ],
-        "cta": "Comenzar Prueba Gratis"
+        "cta": "Suscribirse Ahora"
       },
       {
         "name": "VIP Mensual",
@@ -177,9 +177,9 @@
           "Historial y filtros de picks",
           "Soporte prioritario",
           "Mejor valor — ahorra 33%",
-          "Prueba gratis de 7 días"
+          "Cancela cuando quieras"
         ],
-        "cta": "Comenzar Prueba Gratis",
+        "cta": "Suscribirse Ahora",
         "badge": "Más Popular"
       }
     ],
@@ -187,7 +187,7 @@
     "promoPlaceholder": "Ingresa código promocional",
     "promoApply": "Aplicar",
     "comparisonTitle": "Comparar Planes",
-    "guarantee": "7 días de prueba gratis en todos los planes VIP. Cancela cuando quieras."
+    "guarantee": "Cancela cuando quieras. Usa el código PICK80 para 80% de descuento en tu primer mes."
   },
   "faq": {
     "title": "Preguntas Frecuentes",
@@ -232,7 +232,7 @@
       },
       {
         "question": "¿Puedo cancelar en cualquier momento?",
-        "answer": "Absolutamente. Todos los planes VIP incluyen una prueba gratis de 7 días. Puedes cancelar en cualquier momento desde tu configuración de cuenta o el portal de cliente de Stripe. Sin preguntas, sin cargos ocultos.",
+        "answer": "Absolutamente. Puedes cancelar en cualquier momento desde tu configuración de cuenta o el portal de cliente de Stripe. Sin preguntas, sin cargos ocultos. Usa el código PICK80 para 80% de descuento en tu primer mes.",
         "category": "billing"
       },
       {
@@ -453,7 +453,7 @@
     "faqTitle": "Preguntas Frecuentes",
     "ctaTitle": "Obtén Picks de {sport} Hoy",
     "ctaSubtitle": "Únete a VIP para acceso completo a todos los análisis y picks de {sport}.",
-    "ctaButton": "Comenzar Prueba Gratis"
+    "ctaButton": "Suscribirse Ahora"
   },
   "admin": {
     "sidebar": {
@@ -471,6 +471,7 @@
         "media": "Medios",
         "siteContent": "Contenido del Sitio",
         "calendar": "Calendario",
+        "importData": "Importar Datos",
         "distribution": "Distribución",
         "intelligence": "Inteligencia",
         "aiAssistant": "Asistente IA",

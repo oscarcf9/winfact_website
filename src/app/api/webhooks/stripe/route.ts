@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStripe, PLANS } from "@/lib/stripe";
 import { db } from "@/db";
-import { subscriptions, promoCodes, users, referrals, webhookLogs, processedEvents } from "@/db/schema";
+import { subscriptions, promoCodes, users, referrals, webhookLogs, processedEvents, revenueEvents } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import Stripe from "stripe";
 import {
@@ -36,6 +36,24 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
 
   // Upsert subscription record
   await upsertSubscription(subscription, clerkUserId);
+
+  // Track revenue event
+  const plan = subscription.metadata.plan || "vip_monthly";
+  const monthlyAmount = plan === "vip_weekly" ? 45 * 4.33 : 120;
+  try {
+    await db.insert(revenueEvents).values({
+      id: crypto.randomUUID(),
+      userId: clerkUserId,
+      type: "new_mrr",
+      amount: monthlyAmount,
+      tier: plan,
+      stripeEventId: subscription.id,
+      promoCode: subscription.metadata.promoCode || null,
+      source: subscription.metadata.referralCode ? "referral" : "organic",
+    });
+  } catch (revErr) {
+    console.error("Failed to track revenue event:", revErr);
+  }
 
   // Send welcome email
   try {
@@ -208,6 +226,23 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   const clerkUserId =
     subscription.metadata.clerkUserId ||
     (await getClerkUserIdFromCustomer(subscription.customer as string));
+
+  // Track churn revenue event
+  const plan = subscription.metadata.plan || "vip_monthly";
+  const monthlyAmount = plan === "vip_weekly" ? 45 * 4.33 : 120;
+  try {
+    await db.insert(revenueEvents).values({
+      id: crypto.randomUUID(),
+      userId: clerkUserId || null,
+      type: "churn",
+      amount: -monthlyAmount,
+      tier: plan,
+      stripeEventId: subscription.id,
+      source: "organic",
+    });
+  } catch (revErr) {
+    console.error("Failed to track churn event:", revErr);
+  }
 
   // Send cancellation email with win-back promo
   try {
@@ -520,14 +555,43 @@ export async function POST(req: Request) {
         console.log(
           `[stripe] Payment succeeded: ${invoice.id}, amount: ${invoice.amount_paid}, customer: ${invoice.customer}`
         );
+        // Track payment in revenue events (for renewal payments, not first payment which is tracked via subscription.created)
+        if (invoice.billing_reason === "subscription_cycle") {
+          const customerId = invoice.customer as string;
+          const userId = await getClerkUserIdFromCustomer(customerId);
+          if (userId) {
+            const amountDollars = (invoice.amount_paid || 0) / 100;
+            await db.insert(revenueEvents).values({
+              id: crypto.randomUUID(),
+              userId,
+              type: "new_mrr",
+              amount: amountDollars,
+              tier: invoice.lines?.data?.[0]?.price?.lookup_key || null,
+              stripeEventId: invoice.id,
+              source: "organic",
+            }).catch((err) => console.error("Failed to track renewal payment:", err));
+          }
+        }
         break;
       }
 
       case "charge.refunded": {
         const charge = event.data.object as Stripe.Charge;
+        const refundAmount = (charge.amount_refunded || 0) / 100;
         console.log(
-          `[stripe] Refund processed: charge ${charge.id}, amount refunded: ${charge.amount_refunded}`
+          `[stripe] Refund processed: charge ${charge.id}, amount refunded: $${refundAmount}`
         );
+        // Track refund in revenue events
+        const refundCustomerId = charge.customer as string;
+        const refundUserId = refundCustomerId ? await getClerkUserIdFromCustomer(refundCustomerId) : null;
+        await db.insert(revenueEvents).values({
+          id: crypto.randomUUID(),
+          userId: refundUserId || null,
+          type: "churn",
+          amount: -refundAmount,
+          stripeEventId: charge.id,
+          source: "organic",
+        }).catch((err) => console.error("Failed to track refund event:", err));
         break;
       }
     }

@@ -1,7 +1,8 @@
 import { SignIn } from "@clerk/nextjs";
 import Link from "next/link";
 
-export default function SignInPage() {
+export default async function SignInPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Left — Branding Panel */}
@@ -69,7 +70,7 @@ export default function SignInPage() {
         {/* Custom footer */}
         <p className="mt-8 text-sm text-gray-500 text-center">
           Don&apos;t have an account?{" "}
-          <Link href="/sign-up" className="text-primary hover:text-secondary font-medium">
+          <Link href={`/${locale}/sign-up`} className="text-primary hover:text-secondary font-medium">
             Sign up
           </Link>
         </p>

@@ -33,6 +33,15 @@ export async function generateMetadata({
         es: "/es/responsible-gambling",
       },
     },
+    openGraph: {
+      title: "Responsible Gambling | WinFact Picks",
+      description: t("subtitle"),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "Responsible Gambling | WinFact Picks",
+      description: t("subtitle"),
+    },
   };
 }
 
