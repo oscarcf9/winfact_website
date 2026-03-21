@@ -311,38 +311,12 @@ html {
 .admin-dark { color-scheme: dark; }
 .admin-dark .min-h-screen { background: var(--admin-bg) !important; color: var(--admin-text) !important; }
 
-/* Sidebar - desktop and mobile */
-.admin-dark aside,
-.admin-dark aside *,
+/* Sidebar */
+.admin-sidebar { background: #ffffff; }
+.admin-dark .admin-sidebar { background: var(--admin-bg-sidebar) !important; }
 .admin-dark [style*="background-color: #ffffff"],
 .admin-dark [style*="background-color:#ffffff"] {
-  border-color: var(--admin-border) !important;
-}
-.admin-dark aside {
   background: var(--admin-bg-sidebar) !important;
-}
-.admin-dark aside .bg-white,
-.admin-dark aside .bg-gray-100 {
-  background: transparent !important;
-}
-.admin-dark aside .border-b,
-.admin-dark aside .border-t,
-.admin-dark aside .border-r {
-  border-color: var(--admin-border) !important;
-}
-/* Sidebar nav items */
-.admin-dark aside .text-gray-600 { color: var(--admin-text-secondary) !important; }
-.admin-dark aside .text-gray-400 { color: var(--admin-text-tertiary) !important; }
-.admin-dark aside .text-navy { color: var(--admin-text) !important; }
-.admin-dark aside .bg-primary\/10 { background: var(--admin-primary-subtle) !important; }
-.admin-dark aside .hover\:bg-gray-100:hover { background: var(--admin-bg-sidebar-hover) !important; }
-/* Sidebar locale toggle */
-.admin-dark aside .bg-gray-100,
-.admin-dark aside .rounded-lg.bg-gray-100 {
-  background: var(--admin-bg-card-hover) !important;
-}
-.admin-dark aside .bg-white.shadow-sm {
-  background: var(--admin-bg-elevated) !important;
 }
 
 /* Cards & surfaces */
