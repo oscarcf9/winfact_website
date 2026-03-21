@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { AdminSidebar } from "@/components/admin/sidebar";
+import { AdminThemeProvider } from "@/components/admin/dark-mode-provider";
 
 type Props = {
   children: ReactNode;
@@ -28,11 +29,13 @@ export default async function AdminLayout({ children }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-foreground">
-      <AdminSidebar />
-      <div className="lg:pl-64 relative">
-        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+    <AdminThemeProvider>
+      <div className="min-h-screen bg-[#F8FAFC] text-foreground">
+        <AdminSidebar />
+        <div className="lg:pl-64 relative">
+          <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+        </div>
       </div>
-    </div>
+    </AdminThemeProvider>
   );
 }

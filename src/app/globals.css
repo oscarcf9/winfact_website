@@ -274,3 +274,150 @@ html {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Admin Dark Mode ─────────────────────────────── */
+.admin-dark {
+  --admin-bg: #0f1419;
+  --admin-surface: #1a1f2e;
+  --admin-surface-2: #232938;
+  --admin-border: #2a3040;
+  --admin-text: #e4e7ec;
+  --admin-text-muted: #8b95a5;
+  --admin-text-faint: #5a6474;
+}
+
+.admin-dark,
+.admin-dark main,
+.admin-dark aside,
+.admin-dark nav {
+  color-scheme: dark;
+}
+
+/* Layout & backgrounds */
+.admin-dark .min-h-screen { background-color: var(--admin-bg) !important; color: var(--admin-text) !important; }
+.admin-dark aside { background-color: var(--admin-surface) !important; border-color: var(--admin-border) !important; }
+.admin-dark .lg\:pl-64 main { background-color: var(--admin-bg) !important; }
+
+/* Cards, tables, panels */
+.admin-dark [class*="rounded"][class*="border"][class*="bg-white"],
+.admin-dark [class*="rounded"][class*="shadow"][class*="bg-white"],
+.admin-dark .bg-white {
+  background-color: var(--admin-surface) !important;
+  border-color: var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+
+/* Gray backgrounds */
+.admin-dark .bg-gray-50,
+.admin-dark .bg-gray-100,
+.admin-dark .bg-\[rgb\(248\,250\,252\)\],
+.admin-dark .bg-\[\#F8FAFC\] {
+  background-color: var(--admin-surface-2) !important;
+}
+
+/* Text colors */
+.admin-dark .text-navy,
+.admin-dark .text-\[\#0B1F3B\],
+.admin-dark .text-foreground,
+.admin-dark .text-gray-900,
+.admin-dark .text-gray-800,
+.admin-dark .text-gray-700 {
+  color: var(--admin-text) !important;
+}
+
+.admin-dark .text-gray-600,
+.admin-dark .text-gray-500 {
+  color: var(--admin-text-muted) !important;
+}
+
+.admin-dark .text-gray-400,
+.admin-dark .text-gray-300 {
+  color: var(--admin-text-faint) !important;
+}
+
+/* Borders */
+.admin-dark .border-gray-200,
+.admin-dark .border-gray-100,
+.admin-dark .border-gray-50 {
+  border-color: var(--admin-border) !important;
+}
+
+.admin-dark .divide-gray-50 > * + *,
+.admin-dark .divide-gray-100 > * + *,
+.admin-dark .divide-gray-200 > * + * {
+  border-color: var(--admin-border) !important;
+}
+
+/* Table */
+.admin-dark table { color: var(--admin-text) !important; }
+.admin-dark th { color: var(--admin-text-muted) !important; background-color: var(--admin-surface-2) !important; }
+.admin-dark td { color: var(--admin-text) !important; border-color: var(--admin-border) !important; }
+.admin-dark tr:hover { background-color: var(--admin-surface-2) !important; }
+.admin-dark tbody tr { border-color: var(--admin-border) !important; }
+
+/* Inputs */
+.admin-dark input,
+.admin-dark textarea,
+.admin-dark select {
+  background-color: var(--admin-surface-2) !important;
+  border-color: var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+
+/* Buttons */
+.admin-dark .hover\:bg-gray-100:hover,
+.admin-dark .hover\:bg-gray-50:hover {
+  background-color: var(--admin-surface-2) !important;
+}
+
+/* Sidebar nav items */
+.admin-dark .text-gray-600.hover\:text-gray-900:hover {
+  color: var(--admin-text) !important;
+}
+.admin-dark .hover\:bg-gray-100:hover {
+  background-color: rgba(255,255,255,0.05) !important;
+}
+
+/* Mobile header & sidebar */
+.admin-dark .lg\:hidden.sticky { background-color: var(--admin-surface) !important; border-color: var(--admin-border) !important; }
+.admin-dark [style*="background-color: rgb(255, 255, 255)"],
+.admin-dark [style*="background-color:#ffffff"] {
+  background-color: var(--admin-surface) !important;
+}
+
+/* Stat cards colored tops */
+.admin-dark .bg-primary\/10 { background-color: rgba(17,104,217,0.15) !important; }
+
+/* Toggle button */
+.admin-dark .admin-theme-toggle {
+  background-color: var(--admin-surface-2);
+  color: var(--admin-text-muted);
+}
+.admin-dark .admin-theme-toggle:hover {
+  background-color: rgba(255,255,255,0.1);
+  color: var(--admin-text);
+}
+.admin-light .admin-theme-toggle {
+  background-color: #f1f5f9;
+  color: #64748b;
+}
+.admin-light .admin-theme-toggle:hover {
+  background-color: #e2e8f0;
+  color: #334155;
+}
+
+/* Scrollbar */
+.admin-dark ::-webkit-scrollbar { width: 6px; }
+.admin-dark ::-webkit-scrollbar-track { background: var(--admin-bg); }
+.admin-dark ::-webkit-scrollbar-thumb { background: var(--admin-border); border-radius: 3px; }
+
+/* Headings */
+.admin-dark h1, .admin-dark h2, .admin-dark h3, .admin-dark h4 {
+  color: var(--admin-text) !important;
+}
+
+/* Badges stay colorful */
+.admin-dark .bg-green-50 { background-color: rgba(34,197,94,0.1) !important; }
+.admin-dark .bg-yellow-50 { background-color: rgba(245,158,11,0.1) !important; }
+.admin-dark .bg-red-50 { background-color: rgba(239,68,68,0.1) !important; }
+.admin-dark .bg-blue-50 { background-color: rgba(17,104,217,0.1) !important; }
