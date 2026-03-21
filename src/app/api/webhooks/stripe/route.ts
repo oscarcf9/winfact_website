@@ -566,7 +566,7 @@ export async function POST(req: Request) {
               userId,
               type: "new_mrr",
               amount: amountDollars,
-              tier: invoice.lines?.data?.[0]?.price?.lookup_key || null,
+              tier: (invoice.lines?.data?.[0] as unknown as { price?: { lookup_key?: string } })?.price?.lookup_key || null,
               stripeEventId: invoice.id,
               source: "organic",
             }).catch((err) => console.error("Failed to track renewal payment:", err));
