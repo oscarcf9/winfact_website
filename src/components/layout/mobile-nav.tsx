@@ -29,9 +29,10 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
 
       {/* Drawer */}
       <div
-        className={`fixed top-0 right-0 z-50 h-full w-80 max-w-[85vw] bg-white shadow-2xl transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 right-0 z-50 h-full w-80 max-w-[85vw] shadow-2xl transform transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
+        style={{ backgroundColor: "#ffffff" }}
       >
         <div className="flex items-center justify-between border-b p-4">
           <span className="font-heading text-lg font-bold text-navy">Menu</span>
