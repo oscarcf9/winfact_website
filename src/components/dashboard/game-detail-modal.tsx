@@ -107,7 +107,7 @@ function StatusBadge({ status, detail }: { status: string; detail: string }) {
   }
   return (
     <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-semibold">
-      {detail || t("scheduled")}
+      {detail || "Scheduled"}
     </span>
   );
 }
