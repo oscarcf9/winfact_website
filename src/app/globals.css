@@ -381,7 +381,8 @@ html {
 /* Mobile header & sidebar */
 .admin-dark .lg\:hidden.sticky { background-color: var(--admin-surface) !important; border-color: var(--admin-border) !important; }
 .admin-dark [style*="background-color: rgb(255, 255, 255)"],
-.admin-dark [style*="background-color:#ffffff"] {
+.admin-dark [style*="background-color:#ffffff"],
+.admin-dark [style*="background-color: #ffffff"] {
   background-color: var(--admin-surface) !important;
 }
 

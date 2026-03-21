@@ -30,10 +30,10 @@ export default async function AdminLayout({ children }: Props) {
 
   return (
     <AdminThemeProvider>
-      <div className="min-h-screen bg-[#F8FAFC] text-foreground">
+      <div className="min-h-screen bg-[#F8FAFC] text-foreground overflow-x-hidden">
         <AdminSidebar />
-        <div className="lg:pl-64 relative">
-          <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+        <div className="lg:pl-64 relative overflow-x-hidden">
+          <main className="p-4 sm:p-6 lg:p-8 overflow-x-hidden">{children}</main>
         </div>
       </div>
     </AdminThemeProvider>

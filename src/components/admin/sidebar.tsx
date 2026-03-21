@@ -277,7 +277,7 @@ export function AdminSidebar() {
       </aside>
 
       {/* Mobile header */}
-      <div className="lg:hidden sticky top-0 z-40 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+      <div className="lg:hidden sticky top-0 z-40 border-b border-gray-200 px-4 py-3 flex items-center justify-between" style={{ backgroundColor: "#ffffff" }}>
         <div className="flex items-center gap-2">
           <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
             <span className="text-white font-bold text-xs">W</span>
@@ -305,7 +305,7 @@ export function AdminSidebar() {
             className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm lg:hidden"
             onClick={() => setMobileOpen(false)}
           />
-          <div className="fixed top-0 left-0 z-40 w-72 h-full bg-white border-r border-gray-200 lg:hidden flex flex-col shadow-xl">
+          <div className="fixed top-0 left-0 z-40 w-72 h-full border-r border-gray-200 lg:hidden flex flex-col shadow-xl" style={{ backgroundColor: "#ffffff" }}>
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
@@ -323,15 +323,21 @@ export function AdminSidebar() {
             <nav className="flex-1 py-4 overflow-y-auto">
               {navContent(() => setMobileOpen(false))}
             </nav>
-            <div className="p-4 border-t border-gray-200 flex items-center justify-between">
-              <UserButton />
-              <Link
-                href="/"
-                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <Home className="h-3.5 w-3.5" />
-                View Site
-              </Link>
+            <div className="p-4 border-t border-gray-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <AdminThemeToggle />
+                <LocaleToggle />
+              </div>
+              <div className="flex items-center justify-between">
+                <UserButton />
+                <Link
+                  href="/"
+                  className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <Home className="h-3.5 w-3.5" />
+                  View Site
+                </Link>
+              </div>
             </div>
           </div>
         </>

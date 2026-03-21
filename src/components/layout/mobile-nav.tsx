@@ -32,9 +32,9 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
         className={`fixed top-0 right-0 z-50 h-full w-80 max-w-[85vw] shadow-2xl transform transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
-        style={{ backgroundColor: "#ffffff" }}
+        style={{ backgroundColor: "#ffffff", WebkitBackfaceVisibility: "hidden" }}
       >
-        <div className="flex items-center justify-between border-b p-4">
+        <div className="flex items-center justify-between border-b border-gray-200 p-4" style={{ backgroundColor: "#ffffff" }}>
           <span className="font-heading text-lg font-bold text-navy">Menu</span>
           <button
             onClick={onClose}
@@ -45,7 +45,7 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
           </button>
         </div>
 
-        <nav className="flex flex-col p-4">
+        <nav className="flex flex-col p-4 flex-1" style={{ backgroundColor: "#ffffff" }}>
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
@@ -79,7 +79,7 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
           </Link>
         </nav>
 
-        <div className="border-t p-4 space-y-3">
+        <div className="border-t border-gray-200 p-4 space-y-3" style={{ backgroundColor: "#ffffff" }}>
           <LanguageSwitcher className="w-full justify-center" />
           {isSignedIn ? (
             <div className="space-y-3">
