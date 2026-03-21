@@ -90,7 +90,7 @@ async function handleSubscriberImport(rows: Record<string, string>[]) {
         await db.insert(subscriptions).values({
           id: crypto.randomUUID(),
           userId,
-          tier: mappedTier,
+          tier: mappedTier as "free" | "vip_weekly" | "vip_monthly" | "season_pass",
           status: mappedStatus as "active" | "trialing" | "past_due" | "cancelled" | "expired",
           currentPeriodStart: new Date().toISOString(),
           currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
