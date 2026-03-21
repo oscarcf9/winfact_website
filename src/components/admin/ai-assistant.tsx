@@ -361,6 +361,10 @@ export function AIAssistant({ initialTab, prefill }: Props) {
                 {Object.entries(result).map(([key, value]) => {
                   if (!value) return null;
                   const label = outputLabels[key] || key;
+                  // Convert **bold** to <strong> and preserve line breaks
+                  const formatted = value
+                    .replace(/\*\*(.*?)\*\*/g, '<strong class="text-navy font-semibold">$1</strong>')
+                    .replace(/\n/g, "<br/>");
                   return (
                     <div key={key}>
                       <div className="flex items-center justify-between mb-1.5">
@@ -373,9 +377,10 @@ export function AIAssistant({ initialTab, prefill }: Props) {
                           {copied === key ? t("copied") : t("copy")}
                         </button>
                       </div>
-                      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                        {value}
-                      </div>
+                      <div
+                        className="bg-gray-50 border border-gray-200 rounded-xl p-5 text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: formatted }}
+                      />
                     </div>
                   );
                 })}

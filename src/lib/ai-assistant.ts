@@ -24,32 +24,44 @@ export async function generatePickAnalysis(
 ): Promise<{ en: string; es: string; error?: string }> {
   try {
     const client = getClient();
-    const prompt = `You are a professional sports betting analyst for WinFact Picks. Generate a concise, data-driven analysis for this pick:
+    const prompt = `You are the head analyst at WinFact Picks, a premium sports betting advisory service. Produce a professional pick analysis.
 
-Sport: ${context.sport}
-Matchup: ${context.matchup}
-${context.odds ? `Odds: ${context.odds > 0 ? "+" : ""}${context.odds}` : ""}
-${context.modelEdge ? `Model Edge: ${context.modelEdge}%` : ""}
-${context.injuries ? `Injuries: ${context.injuries}` : ""}
-${context.lineHistory ? `Line History: ${context.lineHistory}` : ""}
-${context.sharpAction ? `Sharp Action: ${context.sharpAction}` : ""}
+GAME INFO:
+- Sport: ${context.sport}
+- Matchup: ${context.matchup}
+${context.odds ? `- Current Odds: ${context.odds > 0 ? "+" : ""}${context.odds}` : ""}
+${context.modelEdge ? `- Model Edge: ${context.modelEdge}%` : ""}
+${context.injuries ? `- Key Injuries: ${context.injuries}` : ""}
+${context.lineHistory ? `- Line Movement: ${context.lineHistory}` : ""}
+${context.sharpAction ? `- Sharp Action: ${context.sharpAction}` : ""}
 
-Write 2-3 sentences. Be specific and analytical. Focus on why this is a good bet.
-Then provide the Spanish translation.
+Write a structured analysis in this EXACT format (use the headers exactly as shown):
 
-Format:
-EN: [English analysis]
-ES: [Spanish analysis]`;
+EN:
+**Pick:** [The specific bet recommendation]
+**Confidence:** [Standard / Strong / Top Play]
+
+**Why We Like This:**
+[2-3 sentences on the key factors driving this pick. Be specific about matchup advantages, trends, or situational spots.]
+
+**Key Factor:**
+[1 sentence on the single most important reason this bet has value]
+
+**Risk:**
+[1 sentence on what could go wrong]
+
+ES:
+[Same structure fully translated to natural Spanish - not robotic translation]`;
 
     const response = await client.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 500,
+      max_tokens: 800,
       messages: [{ role: "user", content: prompt }],
     });
 
     const text = response.content[0].type === "text" ? response.content[0].text : "";
-    const enMatch = text.match(/EN:\s*(.*?)(?=\nES:|$)/s);
-    const esMatch = text.match(/ES:\s*(.*?)$/s);
+    const enMatch = text.match(/EN:\s*([\s\S]*?)(?=\nES:)/);
+    const esMatch = text.match(/ES:\s*([\s\S]*?)$/);
 
     return {
       en: enMatch?.[1]?.trim() || text,
@@ -67,21 +79,28 @@ export async function generateBlogPost(
 ): Promise<{ titleEn: string; titleEs: string; bodyEn: string; bodyEs: string; error?: string }> {
   try {
     const client = getClient();
-    const prompt = `You are a content writer for WinFact Picks, a data-driven sports betting platform. Write a blog post about:
+    const prompt = `You are a sports content writer for WinFact Picks, a bilingual (EN/ES) sports betting platform.
 
-Topic: ${topic}
+Write a blog post about: ${topic}
 Sport: ${sport}
-Target Keywords: ${keywords.join(", ")}
+SEO Keywords: ${keywords.join(", ")}
 
-Write an engaging, SEO-optimized blog post (500-800 words). Include data points, trends, and actionable insights for sports bettors.
+Requirements:
+- 500-800 words
+- Engaging, conversational tone (not robotic or overly formal)
+- Include real betting angles and actionable takeaways
+- Use subheadings to break up sections
+- End with a clear call-to-action for WinFact VIP
+- No em dashes, no "leverage", no "utilize", no "it's worth noting"
+- Write like a sharp bettor talking to other sharp bettors
 
-Format your response as:
-TITLE_EN: [English title]
-TITLE_ES: [Spanish title]
+Format your response EXACTLY as:
+TITLE_EN: [Compelling English title - under 70 chars]
+TITLE_ES: [Natural Spanish title - not a robotic translation]
 BODY_EN:
-[English body in Markdown]
+[English body in HTML - use <h2>, <h3>, <p>, <strong>, <ul>/<li> tags]
 BODY_ES:
-[Spanish body in Markdown]`;
+[Spanish body in HTML - natural Spanish, same structure]`;
 
     const response = await client.messages.create({
       model: "claude-sonnet-4-20250514",
@@ -117,26 +136,41 @@ export async function generateWeeklyRecap(
 
     const wins = picks.filter((p) => p.result === "win").length;
     const losses = picks.filter((p) => p.result === "loss").length;
+    const pushes = picks.filter((p) => p.result === "push").length;
     const units = picks.reduce((sum, p) => {
       if (p.result === "win") return sum + p.units;
       if (p.result === "loss") return sum - p.units;
       return sum;
     }, 0);
 
-    const prompt = `Generate a concise weekly recap newsletter for WinFact Picks subscribers.
+    const prompt = `Write a weekly recap for WinFact Picks subscribers. Conversational, confident tone.
 
-Record: ${wins}-${losses}
-Units: ${units >= 0 ? "+" : ""}${units.toFixed(1)}
+RESULTS:
+Record: ${wins}-${losses}${pushes > 0 ? `-${pushes}` : ""}
+Units: ${units >= 0 ? "+" : ""}${units.toFixed(1)}u
 ROI: ${picks.length > 0 ? ((units / picks.reduce((s, p) => s + p.units, 0)) * 100).toFixed(1) : 0}%
 
-Picks:
-${picksStr}
+PICKS:
+${picksStr || "No picks this week."}
 
-Write an engaging 200-300 word recap. Highlight key wins, analyze the week's performance, and preview next week.
+Write 200-300 words. Structure:
+
+**Week in Review:**
+[Summary of the week's performance, highlight biggest wins]
+
+**What Worked:**
+[What betting angles hit this week]
+
+**Looking Ahead:**
+[Brief preview of what's coming next week]
+
+Keep it real, no fluff. Write like you're texting a friend who bets, not writing a corporate newsletter.
 
 Format:
-EN: [English recap]
-ES: [Spanish recap]`;
+EN:
+[English recap with **bold** headers]
+ES:
+[Spanish recap - natural, not robotic]`;
 
     const response = await client.messages.create({
       model: "claude-sonnet-4-20250514",
@@ -164,24 +198,35 @@ export async function generateInjuryImpact(
 ): Promise<{ impact: string; spreadAdjustment: number; error?: string }> {
   try {
     const client = getClient();
-    const prompt = `You are a sports analytics expert. Analyze this injury report and estimate point spread impact:
+    const prompt = `You are a sports analytics expert at WinFact Picks. Analyze this injury report and estimate the betting impact.
 
 Sport: ${sport}
 Matchup: ${matchup}
-Injury Report: ${injuryReport}
+Injury Report:
+${injuryReport}
 
-Respond with:
-IMPACT: [1-2 sentence analysis]
-SPREAD_ADJUSTMENT: [number, positive favors home, negative favors away, e.g., -1.5]`;
+Respond in this EXACT format:
+
+IMPACT:
+**Severity:** [Low / Medium / High / Critical]
+**Line Impact:** [How many points this shifts the spread, e.g., +1.5 means home team benefits by 1.5 points]
+
+**Breakdown:**
+[2-3 sentences analyzing how each injury affects the game. Be specific about roles, minutes, and replacement quality.]
+
+**Betting Angle:**
+[1-2 sentences on how to bet around these injuries]
+
+SPREAD_ADJUSTMENT: [number only, positive favors home, negative favors away]`;
 
     const response = await client.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 300,
+      max_tokens: 500,
       messages: [{ role: "user", content: prompt }],
     });
 
     const text = response.content[0].type === "text" ? response.content[0].text : "";
-    const impactMatch = text.match(/IMPACT:\s*(.*?)(?=\n|$)/);
+    const impactMatch = text.match(/IMPACT:\s*([\s\S]*?)(?=SPREAD_ADJUSTMENT:)/);
     const adjMatch = text.match(/SPREAD_ADJUSTMENT:\s*([-\d.]+)/);
 
     return {
