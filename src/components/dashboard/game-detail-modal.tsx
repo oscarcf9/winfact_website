@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   X,
   Loader2,
@@ -106,7 +107,7 @@ function StatusBadge({ status, detail }: { status: string; detail: string }) {
   }
   return (
     <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-semibold">
-      {detail || "Scheduled"}
+      {detail || t("scheduled")}
     </span>
   );
 }
@@ -155,6 +156,7 @@ function Section({ title, icon: Icon, children }: { title: string; icon: React.E
 
 // ─── Main Component ────────────────────────────────────────
 export function GameDetailModal({ league, eventId, homeTeam, awayTeam, onClose }: Props) {
+  const t = useTranslations("admin.dashboard.gameDetail");
   const [data, setData] = useState<GameDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -286,7 +288,7 @@ export function GameDetailModal({ league, eventId, homeTeam, awayTeam, onClose }
           <div className="p-6 space-y-6">
             {/* Team Records */}
             {summary && (summary.homeTeam.homeRecord || summary.awayTeam.awayRecord) && (
-              <Section title="Records" icon={BarChart3}>
+              <Section title={t("records")} icon={BarChart3}>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="rounded-xl border border-gray-200 p-3">
                     <p className="text-sm font-semibold text-[#0B1F3B] mb-2">{summary.awayTeam.name}</p>
@@ -344,7 +346,7 @@ export function GameDetailModal({ league, eventId, homeTeam, awayTeam, onClose }
 
             {/* Odds Comparison */}
             {odds && odds.bookmakers.length > 0 && (
-              <Section title="Odds Comparison" icon={BarChart3}>
+              <Section title={t("oddsComparison")} icon={BarChart3}>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -408,7 +410,7 @@ export function GameDetailModal({ league, eventId, homeTeam, awayTeam, onClose }
 
             {/* Injuries */}
             {summary && (summary.homeInjuries.length > 0 || summary.awayInjuries.length > 0) && (
-              <Section title="Injury Report" icon={AlertTriangle}>
+              <Section title={t("injuryReport")} icon={AlertTriangle}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {summary.awayInjuries.length > 0 && (
                     <div>
@@ -446,7 +448,7 @@ export function GameDetailModal({ league, eventId, homeTeam, awayTeam, onClose }
 
             {/* Headlines */}
             {summary && summary.headlines.length > 0 && (
-              <Section title="News" icon={Newspaper}>
+              <Section title={t("news")} icon={Newspaper}>
                 <ul className="space-y-2">
                   {summary.headlines.map((h, i) => (
                     <li key={i} className="text-sm text-gray-600 flex items-start gap-2">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Loader2, RefreshCw, Circle, ExternalLink } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { GameDetailModal } from "./game-detail-modal";
 
 type Game = {
@@ -55,7 +56,41 @@ function StatusDot({ status }: { status: "pre" | "in" | "post" }) {
   return <Circle className="h-2 w-2 fill-blue-300 text-blue-300" />;
 }
 
+function translateStatus(status: string, t: ReturnType<typeof useTranslations>): string {
+  // Try direct match first
+  const key = `gameStatus.${status}` as Parameters<typeof t>[0];
+  const translated = t.has(key) ? t(key) : null;
+  if (translated && translated !== key) return translated;
+
+  // Try matching parts (e.g., "3:41 - 3rd Quarter" → "3:41 - 3er Cuarto")
+  const patterns: [RegExp, string][] = [
+    [/Halftime/i, t("gameStatus.halftime")],
+    [/Final/i, t("gameStatus.final")],
+    [/Overtime/i, t("gameStatus.Overtime")],
+    [/1st Quarter/i, t("gameStatus.1st Quarter")],
+    [/2nd Quarter/i, t("gameStatus.2nd Quarter")],
+    [/3rd Quarter/i, t("gameStatus.3rd Quarter")],
+    [/4th Quarter/i, t("gameStatus.4th Quarter")],
+    [/1st Period/i, t("gameStatus.1st Period")],
+    [/2nd Period/i, t("gameStatus.2nd Period")],
+    [/3rd Period/i, t("gameStatus.3rd Period")],
+    [/1st Half/i, t("gameStatus.1st Half")],
+    [/2nd Half/i, t("gameStatus.2nd Half")],
+    [/^Top /i, t("gameStatus.Top") + " "],
+    [/^Bottom /i, t("gameStatus.Bottom") + " "],
+    [/^End /i, t("gameStatus.End") + " "],
+    [/^Mid /i, t("gameStatus.Mid") + " "],
+  ];
+
+  let result = status;
+  for (const [pattern, replacement] of patterns) {
+    result = result.replace(pattern, replacement);
+  }
+  return result;
+}
+
 export function MemberTodaysGames() {
+  const t = useTranslations("admin.dashboard");
   const [data, setData] = useState<LeagueGames[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -125,10 +160,10 @@ export function MemberTodaysGames() {
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h2 className="font-bold text-base text-[#0B1F3B]">
-              Today&apos;s Games
+              {t("todaysGames")}
             </h2>
             <span className="text-xs text-gray-400 font-mono">
-              {totalGames} games
+              {totalGames} {t("games")}
             </span>
             {liveGames > 0 && (
               <button
@@ -141,7 +176,7 @@ export function MemberTodaysGames() {
                 }`}
               >
                 <Circle className="h-1.5 w-1.5 fill-current animate-pulse" />
-                {liveGames} live
+                {liveGames} {t("live")}
               </button>
             )}
           </div>
@@ -167,7 +202,7 @@ export function MemberTodaysGames() {
                   : "bg-gray-100 text-gray-500 hover:bg-gray-200"
               }`}
             >
-              All ({totalGames})
+              {t("all")} ({totalGames})
             </button>
             {leagues.map((league) => {
               const count = data.find((d) => d.league === league)?.games.length || 0;
@@ -192,7 +227,7 @@ export function MemberTodaysGames() {
         {/* Games list */}
         {data.length === 0 ? (
           <div className="px-5 py-12 text-center">
-            <p className="text-gray-400 text-sm">No games scheduled today</p>
+            <p className="text-gray-400 text-sm">{t("noGamesScheduled")}</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-50 max-h-[600px] overflow-y-auto">
@@ -207,7 +242,7 @@ export function MemberTodaysGames() {
                     {leagueData.league}
                   </span>
                   <span className="text-xs text-gray-400">
-                    {leagueData.games.length} games
+                    {leagueData.games.length} {t("games")}
                   </span>
                 </div>
 
@@ -288,11 +323,11 @@ export function MemberTodaysGames() {
                           </span>
                         ) : game.status === "in" ? (
                           <span className="text-xs font-semibold text-green-600">
-                            {game.statusDetail}
+                            {translateStatus(game.statusDetail, t)}
                           </span>
                         ) : (
                           <span className="text-xs text-gray-400 font-medium">
-                            Final
+                            {t("final")}
                           </span>
                         )}
                       </div>
