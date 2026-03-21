@@ -248,14 +248,8 @@ export function AdminSidebar() {
         {/* Bottom */}
         <div className="p-4 border-t border-gray-200 space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Globe className="h-3.5 w-3.5 text-gray-400" />
-              <span className="text-xs text-gray-400">Language</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <AdminThemeToggle />
-              <LocaleToggle />
-            </div>
+            <AdminThemeToggle />
+            <LocaleToggle />
           </div>
           <div className="flex items-center justify-between">
             <UserButton
