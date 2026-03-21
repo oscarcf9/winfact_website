@@ -181,7 +181,7 @@ export default async function BlogPage({
   }));
 
   // Map DB posts to BlogPost shape, or fall back to sample data
-  let posts: BlogPost[];
+  let posts: BlogPost[] = [];
 
   if (postsWithTags.length > 0) {
     posts = postsWithTags.map((p) => ({
