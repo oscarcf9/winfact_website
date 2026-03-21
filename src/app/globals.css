@@ -451,3 +451,136 @@ html {
 /* Prose (AI output) */
 .admin-dark .prose { color: var(--admin-text-secondary) !important; }
 .admin-dark .prose strong { color: var(--admin-text) !important; }
+
+/* Toggle button styles */
+.admin-dark .admin-theme-toggle {
+  background: var(--admin-bg-card-hover);
+  color: var(--admin-text-secondary);
+}
+.admin-dark .admin-theme-toggle:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--admin-text);
+}
+.admin-light .admin-theme-toggle {
+  background: #f1f5f9;
+  color: #64748b;
+}
+.admin-light .admin-theme-toggle:hover {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+/* ── Catch-all gray area fixes ── */
+/* Any remaining gray/light backgrounds */
+.admin-dark .bg-slate-50,
+.admin-dark .bg-slate-100,
+.admin-dark .bg-zinc-50,
+.admin-dark .bg-zinc-100,
+.admin-dark .bg-neutral-50,
+.admin-dark .bg-neutral-100,
+.admin-dark .bg-stone-50,
+.admin-dark .bg-stone-100,
+.admin-dark [class*="bg-gray"],
+.admin-dark [class*="bg-slate"] {
+  background: var(--admin-bg-card) !important;
+}
+
+/* Gradient backgrounds that might show gray */
+.admin-dark .bg-gradient-to-r,
+.admin-dark .bg-gradient-to-b,
+.admin-dark .bg-gradient-to-br {
+  /* Don't override primary gradients, only gray ones */
+}
+
+/* Shadow cards that inherit white bg */
+.admin-dark [class*="shadow"] {
+  --tw-shadow-color: rgba(0,0,0,0.3) !important;
+}
+
+/* Any div/section with hardcoded white-ish background */
+.admin-dark .bg-\[rgb\(248\,250\,252\)\],
+.admin-dark .bg-\[\#f8fafc\],
+.admin-dark .bg-\[\#F8FAFC\],
+.admin-dark .bg-\[\#ffffff\],
+.admin-dark .bg-\[\#FFFFFF\],
+.admin-dark .bg-\[\#f9fafb\],
+.admin-dark .bg-\[\#F9FAFB\],
+.admin-dark .bg-\[\#f1f5f9\],
+.admin-dark .bg-\[\#F1F5F9\],
+.admin-dark .bg-\[\#e2e8f0\] {
+  background: var(--admin-bg-card) !important;
+}
+
+/* Stat card colored top borders — keep colorful but darken base */
+.admin-dark .border-t-primary,
+.admin-dark .border-t-green-500,
+.admin-dark .border-t-yellow-500,
+.admin-dark .border-t-red-500,
+.admin-dark .border-t-blue-500 {
+  border-top-color: inherit;
+}
+
+/* Modals/overlays */
+.admin-dark [role="dialog"],
+.admin-dark [class*="modal"],
+.admin-dark [class*="popover"],
+.admin-dark [class*="dropdown"] {
+  background: var(--admin-bg-elevated) !important;
+  border-color: var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+
+/* Links in admin */
+.admin-dark a:not([class*="text-primary"]):not([class*="text-accent"]):not([class*="text-white"]) {
+  color: var(--admin-text-secondary);
+}
+.admin-dark a:hover {
+  color: var(--admin-text);
+}
+
+/* Paragraph text */
+.admin-dark p {
+  color: inherit;
+}
+
+/* Span text */
+.admin-dark span {
+  color: inherit;
+}
+
+/* Code/mono elements */
+.admin-dark code {
+  background: var(--admin-bg-input) !important;
+  color: var(--admin-text) !important;
+}
+
+/* Tab/pill active states — keep existing blue, but fix inactive */
+.admin-dark [class*="rounded-full"][class*="bg-gray"] {
+  background: var(--admin-bg-card-hover) !important;
+  border-color: var(--admin-border) !important;
+}
+
+/* Fix any remaining white text-on-white issues */
+.admin-dark .text-white {
+  color: #ffffff !important;
+}
+
+/* Empty state icons */
+.admin-dark .text-gray-200 {
+  color: var(--admin-text-tertiary) !important;
+}
+
+/* Chart/graph backgrounds */
+.admin-dark svg text {
+  fill: var(--admin-text-tertiary) !important;
+}
+
+/* Dashed borders (import drop zone) */
+.admin-dark .border-dashed {
+  border-color: var(--admin-border) !important;
+}
+
+/* Fix locale toggle in dark mode */
+.admin-dark .bg-gray-100 {
+  background: var(--admin-bg-card-hover) !important;
+}
