@@ -32,7 +32,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useCallback } from "react";
-import { AdminThemeToggle } from "./dark-mode-provider";
+
 
 const NAV_SECTIONS = [
   {
@@ -248,7 +248,6 @@ export function AdminSidebar() {
         {/* Bottom */}
         <div className="p-4 border-t border-gray-200 space-y-3">
           <div className="flex items-center justify-between">
-            <AdminThemeToggle />
             <LocaleToggle />
           </div>
           <div className="flex items-center justify-between">
@@ -319,7 +318,6 @@ export function AdminSidebar() {
             </nav>
             <div className="p-4 border-t border-gray-200 space-y-3">
               <div className="flex items-center justify-between">
-                <AdminThemeToggle />
                 <LocaleToggle />
               </div>
               <div className="flex items-center justify-between">
