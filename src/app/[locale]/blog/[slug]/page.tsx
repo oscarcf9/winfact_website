@@ -68,13 +68,6 @@ export async function generateMetadata({
   }
 
   return {};
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-    },
-  };
 }
 
 function formatDate(dateString: string): string {
