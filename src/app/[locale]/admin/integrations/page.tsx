@@ -10,7 +10,19 @@ export default async function AdminIntegrationsPage() {
   const integrations = await db.select().from(apiIntegrations);
   const recentWebhooks = await db.select().from(webhookLogs).orderBy(desc(webhookLogs.createdAt)).limit(50);
 
-  const connected = integrations.filter((i) => i.status === "connected").length;
+  // Auto-detect from env vars (fallback when DB table is empty)
+  const envStatus: Record<string, "connected" | "disconnected"> = {
+    odds: process.env.ODDS_API_KEY ? "connected" : "disconnected",
+    telegram: process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_FREE_CHAT_ID ? "connected" : "disconnected",
+    email: process.env.MAILERLITE_API_KEY ? "connected" : "disconnected",
+    stripe: process.env.STRIPE_SECRET_KEY ? "connected" : "disconnected",
+    clerk: process.env.CLERK_SECRET_KEY ? "connected" : "disconnected",
+    ai: process.env.ANTHROPIC_API_KEY ? "connected" : "disconnected",
+  };
+
+  const dbConnected = integrations.filter((i) => i.status === "connected").length;
+  const envConnected = Object.values(envStatus).filter((s) => s === "connected").length;
+  const connected = Math.max(dbConnected, envConnected);
   const errored = integrations.filter((i) => i.status === "error").length;
 
   const statusColors: Record<string, string> = {
@@ -31,8 +43,8 @@ export default async function AdminIntegrationsPage() {
     { name: t("theOddsApi"), type: "odds", description: t("theOddsApiDesc") },
     { name: t("telegramBot"), type: "telegram", description: t("telegramBotDesc") },
     { name: t("mailerLite"), type: "email", description: t("mailerLiteDesc") },
-    { name: t("stripeService"), type: "analytics", description: t("stripeServiceDesc") },
-    { name: t("clerk"), type: "analytics", description: t("clerkDesc") },
+    { name: t("stripeService"), type: "stripe", description: t("stripeServiceDesc") },
+    { name: t("clerk"), type: "clerk", description: t("clerkDesc") },
     { name: t("claudeAi"), type: "ai", description: t("claudeAiDesc") },
   ];
 
@@ -68,7 +80,7 @@ export default async function AdminIntegrationsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {defaultIntegrations.map((def) => {
           const integration = intMap.get(def.name);
-          const status = integration?.status || "disconnected";
+          const status = integration?.status || envStatus[def.type] || "disconnected";
           const StatusIcon = statusIcons[status] || WifiOff;
 
           return (
