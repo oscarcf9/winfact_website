@@ -35,6 +35,7 @@ export async function PUT(req: NextRequest, context: RouteContext) {
       league: data.league,
       matchup: data.matchup,
       pickText: data.pickText,
+      gameDate: data.gameDate,
       odds: data.odds,
       units: data.units,
       modelEdge: data.modelEdge,

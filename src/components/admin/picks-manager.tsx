@@ -99,6 +99,9 @@ function EditPickModal({
 }) {
   const tc = useTranslations("admin.common");
   const [saving, setSaving] = useState(false);
+  const [gameDate, setGameDate] = useState(pick.gameDate || "");
+  const [sport, setSport] = useState(pick.sport);
+  const [matchup, setMatchup] = useState(pick.matchup);
   const [pickText, setPickText] = useState(pick.pickText);
   const [odds, setOdds] = useState(pick.odds != null ? String(pick.odds) : "");
   const [units, setUnits] = useState(pick.units != null ? String(pick.units) : "");
@@ -113,9 +116,10 @@ function EditPickModal({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sport: pick.sport,
-          matchup: pick.matchup,
+          sport,
+          matchup,
           pickText,
+          gameDate: gameDate || null,
           odds: odds ? Number(odds) : null,
           units: units ? Number(units) : null,
           stars: stars || null,
@@ -146,7 +150,7 @@ function EditPickModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
           <div>
-            <p className="text-[10px] font-bold text-primary uppercase tracking-wider">{pick.sport}</p>
+            <p className="text-[10px] font-bold text-primary uppercase tracking-wider">{tc("edit")}</p>
             <p className="text-sm font-semibold text-navy">{pick.matchup}</p>
           </div>
           <button type="button" onClick={onClose} className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer">
@@ -154,7 +158,28 @@ function EditPickModal({
           </button>
         </div>
 
-        <div className="p-5 space-y-3">
+        <div className="p-5 space-y-3 max-h-[60vh] overflow-y-auto">
+          {/* Date + Sport */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">{tc("date")}</label>
+              <input type="date" value={gameDate} onChange={(e) => setGameDate(e.target.value)} className={inputClass} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">{tc("sport")}</label>
+              <select value={sport} onChange={(e) => setSport(e.target.value)} className={inputClass}>
+                {["MLB", "NFL", "NBA", "NHL", "Soccer", "NCAA"].map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {/* Matchup */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{tc("matchup")}</label>
+            <input value={matchup} onChange={(e) => setMatchup(e.target.value)} className={inputClass} />
+          </div>
+          {/* Pick */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">{tc("pick")}</label>
             <input value={pickText} onChange={(e) => setPickText(e.target.value)} className={inputClass} />
