@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Save, X, ChevronDown, Send, Radio } from "lucide-react";
+import { StarRating, confidenceToStars } from "@/components/ui/star-rating";
 
 const SPORTS = ["MLB", "NFL", "NBA", "NHL", "Soccer", "NCAA"];
 const CONFIDENCE_LEVELS = ["standard", "strong", "top"];
@@ -18,6 +19,7 @@ type Pick = {
   units?: number | null;
   modelEdge?: number | null;
   confidence?: string | null;
+  stars?: number | null;
   analysisEn?: string | null;
   analysisEs?: string | null;
   tier?: string | null;
@@ -53,6 +55,7 @@ export function PickForm({ pick, defaults }: Props) {
   const [error, setError] = useState("");
   const [sendOnPublish, setSendOnPublish] = useState(true);
   const [currentStatus, setCurrentStatus] = useState(pick?.status || "draft");
+  const [starsValue, setStarsValue] = useState(pick?.stars ?? confidenceToStars(pick?.confidence ?? null));
   const [currentTier, setCurrentTier] = useState(pick?.tier || "vip");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -69,7 +72,7 @@ export function PickForm({ pick, defaults }: Props) {
       odds: Number(form.get("odds")),
       units: Number(form.get("units")),
       modelEdge: form.get("modelEdge") ? Number(form.get("modelEdge")) : null,
-      confidence: form.get("confidence"),
+      stars: starsValue || null,
       analysisEn: form.get("analysisEn") || null,
       analysisEs: form.get("analysisEs") || null,
       tier: form.get("tier"),
@@ -115,7 +118,7 @@ export function PickForm({ pick, defaults }: Props) {
             gameDate: data.gameDate || new Date().toISOString().split("T")[0],
             odds: data.odds || null,
             units: data.units || null,
-            confidence: data.confidence || null,
+            stars: data.stars || null,
             tier: data.tier || "vip",
             analysisEn: data.analysisEn || null,
           }),
@@ -194,12 +197,9 @@ export function PickForm({ pick, defaults }: Props) {
                 <label className={labelClass}>{t("modelEdge")}</label>
                 <input name="modelEdge" type="number" step="0.1" defaultValue={pick?.modelEdge ?? ""} className={`${inputClass} font-mono`} placeholder={t("modelEdgePlaceholder")} />
               </div>
-              <div className="relative">
+              <div>
                 <label className={labelClass}>{t("confidence")}</label>
-                <select name="confidence" defaultValue={pick?.confidence || "standard"} className={selectClass}>
-                  {CONFIDENCE_LEVELS.map((c) => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
-                </select>
-                <ChevronDown className="absolute right-3 top-9 h-4 w-4 text-gray-400 pointer-events-none" />
+                <StarRating value={starsValue} onChange={setStarsValue} size="md" />
               </div>
               <div className="relative">
                 <label className={labelClass}>{t("tierLabel")}</label>

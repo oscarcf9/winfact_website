@@ -10,6 +10,7 @@ export const createPickSchema = z.object({
   units: z.number().min(0.1).max(20).optional().nullable(),
   modelEdge: z.number().min(-50).max(50).optional().nullable(),
   confidence: z.enum(["standard", "strong", "top"]).optional().nullable(),
+  stars: z.number().int().min(1).max(5).optional().nullable(),
   analysisEn: z.string().max(5000).optional().nullable(),
   analysisEs: z.string().max(5000).optional().nullable(),
   tier: z.enum(["free", "vip"]).optional(),

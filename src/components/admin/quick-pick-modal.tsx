@@ -18,6 +18,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { StarRating } from "@/components/ui/star-rating";
 
 type ESPNGame = {
   id: string;
@@ -81,7 +82,7 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
   const [pickText, setPickText] = useState("");
   const [odds, setOdds] = useState("");
   const [units, setUnits] = useState("");
-  const [confidence, setConfidence] = useState("");
+  const [stars, setStars] = useState(0);
   const [tier, setTier] = useState("vip");
   const [analysis, setAnalysis] = useState("");
 
@@ -127,7 +128,7 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
       setPickText("");
       setOdds("");
       setUnits("");
-      setConfidence("");
+      setStars(0);
       setTier("vip");
       setAnalysis("");
       setSendOnPublish(true);
@@ -216,7 +217,7 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
     if (sendOnPublish) payload.distribute = true;
     if (odds) payload.odds = Number(odds);
     if (units) payload.units = Number(units);
-    if (confidence) payload.confidence = confidence;
+    if (stars > 0) payload.stars = stars;
 
     try {
       const res = await fetch("/api/admin/picks", {
@@ -603,24 +604,10 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
                 </div>
               </div>
 
+              {/* Stars Rating */}
               <div>
                 <label className={labelClass}>{t("confidence")}</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["standard", "strong", "top"] as const).map((level) => (
-                    <button
-                      key={level}
-                      type="button"
-                      onClick={() => setConfidence(confidence === level ? "" : level)}
-                      className={`px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${
-                        confidence === level
-                          ? "bg-gradient-to-r from-primary to-accent text-white shadow-md shadow-primary/20"
-                          : "bg-white border border-gray-200 text-gray-500 hover:border-primary/30 hover:text-navy"
-                      }`}
-                    >
-                      {t(level)}
-                    </button>
-                  ))}
-                </div>
+                <StarRating value={stars} onChange={setStars} size="md" />
               </div>
 
               <div>

@@ -541,6 +541,7 @@
       "sport": "Sport",
       "matchup": "Matchup",
       "confidence": "Confidence",
+      "stars": "Rating",
       "analysis": "Analysis",
       "optional": "Optional...",
       "standard": "Standard",

@@ -207,6 +207,7 @@ export async function distributePickOnPublish(
     odds?: number | null;
     units?: number | null;
     confidence?: string | null;
+    stars?: number | null;
     analysisEn?: string | null;
     analysisEs?: string | null;
     tier?: string | null;

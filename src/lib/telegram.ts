@@ -11,6 +11,7 @@ type Pick = {
   odds?: number | null;
   units?: number | null;
   confidence?: string | null;
+  stars?: number | null;
   analysisEn?: string | null;
   tier?: string | null;
   modelEdge?: number | null;
@@ -18,9 +19,7 @@ type Pick = {
 
 function formatPickMessage(pick: Pick): string {
   const oddsStr = pick.odds != null ? (pick.odds > 0 ? `+${pick.odds}` : String(pick.odds)) : "N/A";
-  const confidence = pick.confidence
-    ? pick.confidence.charAt(0).toUpperCase() + pick.confidence.slice(1)
-    : "Standard";
+  const starCount = pick.stars || (pick.confidence === "top" ? 5 : pick.confidence === "strong" ? 3 : 2);
 
   let msg = `🎯 *NEW PICK*\n\n`;
   msg += `🏟 *${pick.sport}*\n`;
@@ -28,7 +27,7 @@ function formatPickMessage(pick: Pick): string {
   msg += `✅ *${pick.pickText}*\n`;
   if (pick.odds != null) msg += `📊 Odds: \`${oddsStr}\`\n`;
   if (pick.units != null) msg += `💰 Units: \`${pick.units}\`\n`;
-  msg += `🔥 Confidence: *${confidence}*\n`;
+  msg += `${"⭐".repeat(starCount)} *${starCount}/5*\n`;
 
   if (pick.modelEdge) {
     msg += `📈 Edge: \`${pick.modelEdge.toFixed(1)}%\`\n`;

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Lock, Crown, X, Zap, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { StarRating, confidenceToStars } from "@/components/ui/star-rating";
 
 const SPORT_COLORS: Record<string, string> = {
   MLB: "#c8102e",
@@ -26,6 +27,7 @@ type PickCardProps = {
     units?: number | null;
     modelEdge?: number | null;
     confidence?: "top" | "strong" | "standard" | null;
+    stars?: number | null;
     analysisEn?: string | null;
     analysisEs?: string | null;
     tier?: "free" | "vip" | null;
@@ -267,10 +269,12 @@ export function PickCard({ pick, locale = "en", isVipMember = true, showAnalysis
             <Badge variant="sport" sportColor={SPORT_COLORS[pick.sport] || "#666"}>
               {pick.sport}
             </Badge>
-            {pick.confidence && (
-              <Badge variant="confidence" confidence={pick.confidence}>
-                {pick.confidence.charAt(0).toUpperCase() + pick.confidence.slice(1)}
-              </Badge>
+            {(pick.stars || pick.confidence) && (
+              <StarRating
+                value={pick.stars ?? confidenceToStars(pick.confidence ?? null)}
+                readonly
+                size="sm"
+              />
             )}
             {pick.tier && (
               <Badge variant="tier" tier={pick.tier}>

@@ -24,6 +24,7 @@ import {
   ArrowDown,
 } from "lucide-react";
 import { QuickPickModal } from "@/components/admin/quick-pick-modal";
+import { StarRating, confidenceToStars } from "@/components/ui/star-rating";
 
 type Pick = {
   id: string;
@@ -36,6 +37,7 @@ type Pick = {
   units?: number | null;
   modelEdge?: number | null;
   confidence?: string | null;
+  stars?: number | null;
   tier?: string | null;
   status?: string | null;
   result?: string | null;
@@ -99,7 +101,7 @@ function EditPickModal({
   const [pickText, setPickText] = useState(pick.pickText);
   const [odds, setOdds] = useState(pick.odds != null ? String(pick.odds) : "");
   const [units, setUnits] = useState(pick.units != null ? String(pick.units) : "");
-  const [confidence, setConfidence] = useState(pick.confidence || "");
+  const [stars, setStars] = useState(pick.stars ?? confidenceToStars(pick.confidence ?? null));
   const [tier, setTier] = useState(pick.tier || "vip");
   const [analysis, setAnalysis] = useState(pick.analysisEn || "");
 
@@ -115,7 +117,7 @@ function EditPickModal({
           pickText,
           odds: odds ? Number(odds) : null,
           units: units ? Number(units) : null,
-          confidence: confidence || null,
+          stars: stars || null,
           tier,
           status: pick.status,
           analysisEn: analysis || null,
@@ -168,22 +170,7 @@ function EditPickModal({
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">{tc("confidence")}</label>
-            <div className="flex gap-1.5">
-              {(["standard", "strong", "top"] as const).map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setConfidence(confidence === c ? "" : c)}
-                  className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                    confidence === c
-                      ? "bg-primary/10 text-primary border border-primary/20"
-                      : "bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100"
-                  }`}
-                >
-                  {tc(c)}
-                </button>
-              ))}
-            </div>
+            <StarRating value={stars} onChange={setStars} size="md" />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">{tc("tier")}</label>

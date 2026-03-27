@@ -14,6 +14,7 @@ export const picks = sqliteTable("picks", {
   confidence: text("confidence", {
     enum: ["top", "strong", "standard"],
   }).default("standard"),
+  stars: integer("stars"),  // 1-5 star rating, replaces confidence
   analysisEn: text("analysis_en"),
   analysisEs: text("analysis_es"),
   tier: text("tier", { enum: ["free", "vip"] }).default("vip"),

@@ -213,7 +213,9 @@ async function handlePickImport(rows: Record<string, string>[], dryRun: boolean)
       gameDate = new Date().toISOString().split("T")[0]; // Default to today
     }
 
-    const confidence = normalizeConfidence(row.confidence || ""); // Default "standard"
+    const rawStars = parseInt(row.stars || "", 10);
+    const stars = rawStars >= 1 && rawStars <= 5 ? rawStars : null;
+    const confidence = stars ? null : normalizeConfidence(row.confidence || ""); // Default "standard" for legacy
     const tier = (row.tier || "free").toLowerCase().includes("vip") ? "vip" : "free"; // Default "free"
 
     // Duplicate detection: same pickText + matchup + sport + same calendar day
@@ -255,7 +257,8 @@ async function handlePickImport(rows: Record<string, string>[], dryRun: boolean)
         gameDate,
         odds,
         units,
-        confidence: confidence as "standard" | "strong" | "top",
+        confidence: confidence as "standard" | "strong" | "top" | null,
+        stars: stars,
         tier: tier as "free" | "vip",
         status: result ? "settled" : "published",
         result: result as "win" | "loss" | "push" | null,

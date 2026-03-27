@@ -10,6 +10,7 @@ type Pick = {
   odds?: number | null;
   units?: number | null;
   confidence?: string | null;
+  stars?: number | null;
   analysisEn?: string | null;
   analysisEs?: string | null;
   tier?: string | null;
@@ -30,9 +31,8 @@ async function mailerliteFetch(endpoint: string, options: RequestInit = {}) {
 
 function buildPickEmailHtml(pick: Pick): string {
   const oddsStr = pick.odds != null ? (pick.odds > 0 ? `+${pick.odds}` : String(pick.odds)) : "—";
-  const confidence = pick.confidence
-    ? pick.confidence.charAt(0).toUpperCase() + pick.confidence.slice(1)
-    : "Standard";
+  const starCount = pick.stars || (pick.confidence === "top" ? 5 : pick.confidence === "strong" ? 3 : 2);
+  const starDisplay = "⭐".repeat(starCount);
 
   return `
     <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
@@ -57,8 +57,8 @@ function buildPickEmailHtml(pick: Pick): string {
               <p style="margin: 0; color: #0B1F3B; font-size: 18px; font-family: monospace;">${pick.units ?? "—"}</p>
             </div>
             <div>
-              <p style="margin: 0; color: #6b7280; font-size: 11px;">CONFIDENCE</p>
-              <p style="margin: 0; color: #0B1F3B; font-size: 18px;">${confidence}</p>
+              <p style="margin: 0; color: #6b7280; font-size: 11px;">RATING</p>
+              <p style="margin: 0; color: #0B1F3B; font-size: 18px;">${starDisplay} ${starCount}/5</p>
             </div>
           </div>
         </div>
