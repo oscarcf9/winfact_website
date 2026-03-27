@@ -22,6 +22,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Search,
 } from "lucide-react";
 import { QuickPickModal } from "@/components/admin/quick-pick-modal";
 import { StarRating, confidenceToStars } from "@/components/ui/star-rating";
@@ -296,6 +297,11 @@ export function PicksManager() {
   // Result filter (History tab only)
   const [resultFilter, setResultFilter] = useState<"all" | "win" | "loss" | "push" | "void">("all");
 
+  // Search and date range (History tab only)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
   // Sort state
   type SortField = "date" | "sport" | "odds" | "units" | "result";
   type SortDir = "asc" | "desc";
@@ -348,6 +354,9 @@ export function PicksManager() {
     setBulkMode(false);
     setBulkEdits({});
     setResultFilter("all");
+    setSearchQuery("");
+    setDateFrom("");
+    setDateTo("");
     setSortField("date");
     setSortDir("desc");
   }, [tab]);
@@ -358,6 +367,31 @@ export function PicksManager() {
     // Apply result filter (History tab only)
     if (tab === "settled" && resultFilter !== "all") {
       result = result.filter((p) => p.result === resultFilter);
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((p) =>
+        p.matchup.toLowerCase().includes(q) ||
+        p.pickText.toLowerCase().includes(q) ||
+        p.sport.toLowerCase().includes(q) ||
+        (p.capperName || "").toLowerCase().includes(q)
+      );
+    }
+
+    // Apply date range filter
+    if (dateFrom) {
+      result = result.filter((p) => {
+        const d = p.gameDate || p.publishedAt || p.createdAt || "";
+        return d >= dateFrom;
+      });
+    }
+    if (dateTo) {
+      result = result.filter((p) => {
+        const d = p.gameDate || p.publishedAt || p.createdAt || "";
+        return d <= dateTo + "T23:59:59";
+      });
     }
 
     // Apply sorting
@@ -387,7 +421,7 @@ export function PicksManager() {
     });
 
     return result;
-  }, [picks, sportFilter, tab, resultFilter, sortField, sortDir]);
+  }, [picks, sportFilter, tab, resultFilter, searchQuery, dateFrom, dateTo, sortField, sortDir]);
 
   async function handleSettle(pickId: string, result: "win" | "loss" | "push") {
     setSettlingId(pickId);
@@ -640,7 +674,7 @@ export function PicksManager() {
           </div>
         )}
 
-        {/* Bulk Edit toggle - only in table view */}
+        {/* Bulk Edit toggle */}
         {useTableView && !loading && filteredPicks.length > 0 && (
           <button
             type="button"
@@ -659,6 +693,49 @@ export function PicksManager() {
           </button>
         )}
       </div>
+
+      {/* Search + Date Range — History tab only */}
+      {tab === "settled" && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search matchup, pick, capper..."
+              className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-navy placeholder:text-gray-300 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-navy focus:outline-none focus:border-primary/50 transition-all"
+            />
+            <span className="text-xs text-gray-400">to</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-navy focus:outline-none focus:border-primary/50 transition-all"
+            />
+          </div>
+          {(searchQuery || dateFrom || dateTo) && (
+            <button
+              type="button"
+              onClick={() => { setSearchQuery(""); setDateFrom(""); setDateTo(""); }}
+              className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
+            >
+              Clear
+            </button>
+          )}
+          <span className="ml-auto text-xs text-gray-400">
+            {filteredPicks.length} picks
+          </span>
+        </div>
+      )}
 
       {/* Content */}
       {loading ? (
