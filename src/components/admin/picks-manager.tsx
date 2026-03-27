@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import {
   Plus,
@@ -19,6 +19,9 @@ import {
   Download,
   ListChecks,
   Trash2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { QuickPickModal } from "@/components/admin/quick-pick-modal";
 
@@ -303,6 +306,24 @@ export function PicksManager() {
   // Count unsettled picks (published with no result)
   const [unsettledCount, setUnsettledCount] = useState(0);
 
+  // Result filter (History tab only)
+  const [resultFilter, setResultFilter] = useState<"all" | "win" | "loss" | "push" | "void">("all");
+
+  // Sort state
+  type SortField = "date" | "sport" | "odds" | "units" | "result";
+  type SortDir = "asc" | "desc";
+  const [sortField, setSortField] = useState<SortField>("date");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  function toggleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDir(sortDir === "desc" ? "asc" : "desc");
+    } else {
+      setSortField(field);
+      setSortDir("desc");
+    }
+  }
+
   const fetchPicks = useCallback(async () => {
     setLoading(true);
     try {
@@ -335,14 +356,51 @@ export function PicksManager() {
 
   useEffect(() => { fetchPicks(); }, [fetchPicks]);
 
-  // Reset bulk edits when switching tabs
+  // Reset filters when switching tabs
   useEffect(() => {
     setBulkMode(false);
     setBulkEdits({});
+    setResultFilter("all");
+    setSortField("date");
+    setSortDir("desc");
   }, [tab]);
 
-  const filteredPicks =
-    sportFilter === "All" ? picks : picks.filter((p) => p.sport === sportFilter);
+  const filteredPicks = useMemo(() => {
+    let result = sportFilter === "All" ? picks : picks.filter((p) => p.sport === sportFilter);
+
+    // Apply result filter (History tab only)
+    if (tab === "settled" && resultFilter !== "all") {
+      result = result.filter((p) => p.result === resultFilter);
+    }
+
+    // Apply sorting
+    result = [...result].sort((a, b) => {
+      const dir = sortDir === "desc" ? -1 : 1;
+      switch (sortField) {
+        case "date": {
+          const da = a.gameDate || a.publishedAt || a.createdAt || "";
+          const db_ = b.gameDate || b.publishedAt || b.createdAt || "";
+          return da < db_ ? dir : da > db_ ? -dir : 0;
+        }
+        case "sport":
+          return (a.sport || "").localeCompare(b.sport || "") * dir;
+        case "odds":
+          return ((a.odds ?? 0) - (b.odds ?? 0)) * dir;
+        case "units":
+          return ((a.units ?? 0) - (b.units ?? 0)) * dir;
+        case "result": {
+          const order = { win: 1, loss: 2, push: 3, void: 4 };
+          const ra = order[a.result as keyof typeof order] ?? 5;
+          const rb = order[b.result as keyof typeof order] ?? 5;
+          return (ra - rb) * dir;
+        }
+        default:
+          return 0;
+      }
+    });
+
+    return result;
+  }, [picks, sportFilter, tab, resultFilter, sortField, sortDir]);
 
   async function handleSettle(pickId: string, result: "win" | "loss" | "push") {
     setSettlingId(pickId);
@@ -566,6 +624,35 @@ export function PicksManager() {
           ))}
         </div>
 
+        {/* Result filter - History tab only */}
+        {tab === "settled" && (
+          <div className="flex gap-1.5 flex-wrap">
+            {(["all", "win", "loss", "push", "void"] as const).map((r) => {
+              const colors: Record<string, string> = {
+                all: "bg-primary/10 text-primary border-primary/20",
+                win: "bg-success/10 text-success border-success/20",
+                loss: "bg-danger/10 text-danger border-danger/20",
+                push: "bg-warning/10 text-warning border-warning/20",
+                void: "bg-gray-100 text-gray-400 border-gray-200",
+              };
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setResultFilter(r)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${
+                    resultFilter === r
+                      ? `${colors[r]} font-semibold`
+                      : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
+                  }`}
+                >
+                  {r === "all" ? tc("all") : tc(r)}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Bulk Edit toggle - only in table view */}
         {useTableView && !loading && filteredPicks.length > 0 && (
           <button
@@ -616,15 +703,34 @@ export function PicksManager() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50/50">
-                  <th className="text-left py-2.5 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{tm("date")}</th>
-                  <th className="text-left py-2.5 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{tc("sport")}</th>
-                  <th className="text-left py-2.5 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{tc("matchup")}</th>
-                  <th className="text-left py-2.5 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{tc("pick")}</th>
-                  <th className="text-center py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{tc("odds")}</th>
-                  <th className="text-center py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{tc("units")}</th>
-                  <th className="text-center py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{tc("tier")}</th>
-                  <th className="text-left py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{tc("capper")}</th>
-                  <th className="text-center py-2.5 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{tc("result")}</th>
+                  {([
+                    { field: "date" as SortField, label: tm("date"), align: "text-left", px: "px-4", sortable: true },
+                    { field: "sport" as SortField, label: tc("sport"), align: "text-left", px: "px-4", sortable: true },
+                    { field: null, label: tc("matchup"), align: "text-left", px: "px-4", sortable: false },
+                    { field: null, label: tc("pick"), align: "text-left", px: "px-4", sortable: false },
+                    { field: "odds" as SortField, label: tc("odds"), align: "text-center", px: "px-3", sortable: true },
+                    { field: "units" as SortField, label: tc("units"), align: "text-center", px: "px-3", sortable: true },
+                    { field: null, label: tc("tier"), align: "text-center", px: "px-3", sortable: false },
+                    { field: null, label: tc("capper"), align: "text-left", px: "px-3", sortable: false },
+                    { field: "result" as SortField, label: tc("result"), align: "text-center", px: "px-4", sortable: true },
+                  ]).map((col, i) => (
+                    <th
+                      key={i}
+                      className={`${col.align} py-2.5 ${col.px} text-[10px] font-semibold text-gray-400 uppercase tracking-wider ${col.sortable ? "cursor-pointer hover:text-gray-600 select-none" : ""}`}
+                      onClick={col.sortable && col.field ? () => toggleSort(col.field!) : undefined}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        {col.label}
+                        {col.sortable && col.field && (
+                          sortField === col.field
+                            ? sortDir === "desc"
+                              ? <ArrowDown className="h-3 w-3 text-primary" />
+                              : <ArrowUp className="h-3 w-3 text-primary" />
+                            : <ArrowUpDown className="h-2.5 w-2.5 text-gray-300" />
+                        )}
+                      </span>
+                    </th>
+                  ))}
                   {!bulkMode && (
                     <th className="text-center py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider w-[100px]">{tc("actions")}</th>
                   )}

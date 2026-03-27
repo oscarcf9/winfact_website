@@ -529,6 +529,7 @@
       "win": "Ganada",
       "loss": "Perdida",
       "push": "Empate",
+      "void": "Anulado",
       "review": "Revisar",
       "pending": "Pendiente",
       "pick": "Pick",

@@ -529,6 +529,7 @@
       "win": "Win",
       "loss": "Loss",
       "push": "Push",
+      "void": "Void",
       "review": "Review",
       "pending": "Pending",
       "pick": "Pick",
