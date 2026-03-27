@@ -353,6 +353,7 @@ export function PicksManager() {
   useEffect(() => {
     setBulkMode(false);
     setBulkEdits({});
+    setBulkSelected(new Set());
     setResultFilter("all");
     setSearchQuery("");
     setDateFrom("");
@@ -516,7 +517,46 @@ export function PicksManager() {
   ];
 
   // Use table view for history tab, card view for active
-  const useTableView = tab === "settled";
+  const useTableView = true; // Always use table view for both Active and History
+
+  // Bulk select for delete
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  function toggleBulkSelect(id: string) {
+    setBulkSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (bulkSelected.size === filteredPicks.length) {
+      setBulkSelected(new Set());
+    } else {
+      setBulkSelected(new Set(filteredPicks.map((p) => p.id)));
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (bulkSelected.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      const promises = [...bulkSelected].map((id) =>
+        fetch(`/api/admin/picks/${id}`, { method: "DELETE" })
+      );
+      await Promise.all(promises);
+      setBulkSelected(new Set());
+      setBulkMode(false);
+      await fetchPicks();
+    } catch {
+      // silent
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
 
   return (
     <div className="space-y-5 animate-fade-up">
@@ -755,9 +795,20 @@ export function PicksManager() {
             <div className="flex items-center gap-3 px-5 py-2.5 bg-primary/5 border-b border-primary/10">
               <ListChecks className="h-4 w-4 text-primary" />
               <span className="text-xs font-semibold text-primary">{tm("bulkEditMode")}</span>
-              <span className="text-xs text-gray-500">{tm("bulkEditHint")}</span>
+              <span className="text-xs text-gray-500">{tab === "settled" ? tm("bulkEditHint") : "Select picks to delete"}</span>
+              {bulkSelected.size > 0 && (
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleting}
+                  className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-danger text-white text-xs font-medium hover:bg-danger/90 disabled:opacity-50 cursor-pointer"
+                >
+                  {bulkDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                  Delete {bulkSelected.size} selected
+                </button>
+              )}
               {bulkChangeCount > 0 && (
-                <span className="ml-auto text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                <span className={`${bulkSelected.size > 0 ? "" : "ml-auto"} text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full`}>
                   {tm("changed", { count: bulkChangeCount })}
                 </span>
               )}
@@ -767,6 +818,16 @@ export function PicksManager() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50/50">
+                  {bulkMode && (
+                    <th className="py-2.5 px-3 w-10">
+                      <input
+                        type="checkbox"
+                        checked={bulkSelected.size === filteredPicks.length && filteredPicks.length > 0}
+                        onChange={toggleSelectAll}
+                        className="h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary/20 cursor-pointer"
+                      />
+                    </th>
+                  )}
                   {([
                     { field: "date" as SortField, label: tm("date"), align: "text-left", px: "px-4", sortable: true },
                     { field: "sport" as SortField, label: tc("sport"), align: "text-left", px: "px-4", sortable: true },
@@ -814,6 +875,16 @@ export function PicksManager() {
                           : "hover:bg-gray-50/50"
                       }`}
                     >
+                      {bulkMode && (
+                        <td className="py-2 px-3">
+                          <input
+                            type="checkbox"
+                            checked={bulkSelected.has(pick.id)}
+                            onChange={() => toggleBulkSelect(pick.id)}
+                            className="h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary/20 cursor-pointer"
+                          />
+                        </td>
+                      )}
                       <td className="py-2 px-4 text-xs text-gray-400 font-mono whitespace-nowrap">
                         {pick.gameDate || formatDate(pick.publishedAt || pick.createdAt)}
                       </td>

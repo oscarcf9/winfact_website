@@ -286,6 +286,16 @@ async function handlePickImport(rows: Record<string, string>[], dryRun: boolean)
     }
   }
 
+  // Refresh performance cache after import
+  if (results.successful > 0) {
+    try {
+      const { refreshPerformanceCache } = await import("@/lib/refresh-performance");
+      await refreshPerformanceCache();
+    } catch (err) {
+      console.error("Performance refresh after import failed:", err);
+    }
+  }
+
   return NextResponse.json(results);
 }
 
