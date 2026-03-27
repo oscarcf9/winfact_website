@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
         .from(picks)
         .where(and(...conditions))
         .orderBy(desc(picks.settledAt))
-        .limit(100);
+        .limit(1000);
     } else {
       // tab === "all" (default fallback)
       const conditions = [];
@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
         .from(picks)
         .where(conditions.length ? and(...conditions) : undefined)
         .orderBy(desc(picks.createdAt))
-        .limit(100);
+        .limit(1000);
     }
 
     // Attach capper names (query only relevant users, not the entire table)
