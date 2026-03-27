@@ -8,8 +8,22 @@ export default async function AdminTeamPage() {
   const t = await getTranslations("admin.team");
 
   const members = await db.select().from(teamMembers).orderBy(desc(teamMembers.createdAt));
-  const allUsers = await db.select({ id: users.id, email: users.email, name: users.name }).from(users);
+
+  // Also get admin users from the users table as fallback
+  const allUsers = await db.select({ id: users.id, email: users.email, name: users.name, role: users.role, createdAt: users.createdAt }).from(users);
   const userMap = new Map(allUsers.map((u) => [u.id, u]));
+  const adminUsers = allUsers.filter((u) => u.role === "admin");
+
+  // Use team_members if populated, otherwise show admin users
+  const displayMembers = members.length > 0
+    ? members.map((m) => {
+        const user = userMap.get(m.userId);
+        return { id: m.id, name: user?.name || "Unknown", email: user?.email || "", role: m.teamRole, isActive: m.isActive, createdAt: m.createdAt };
+      })
+    : adminUsers.map((u) => ({
+        id: u.id, name: u.name || u.email.split("@")[0], email: u.email, role: "owner", isActive: true, createdAt: u.createdAt,
+      }));
+
   const recentActivity = await db.select().from(activityLog).orderBy(desc(activityLog.createdAt)).limit(30);
 
   const roleColors: Record<string, string> = {
@@ -20,9 +34,9 @@ export default async function AdminTeamPage() {
   };
 
   const statCards = [
-    { icon: Users, value: String(members.length), label: t("teamMembers"), accent: "from-primary to-primary" },
-    { icon: Shield, value: String(members.filter((m) => m.teamRole === "owner").length), label: t("owners"), accent: "from-accent to-accent" },
-    { icon: UserCheck, value: String(members.filter((m) => m.isActive).length), label: t("active"), accent: "from-success to-success" },
+    { icon: Users, value: String(displayMembers.length), label: t("teamMembers"), accent: "from-primary to-primary" },
+    { icon: Shield, value: String(displayMembers.filter((m) => m.role === "owner").length), label: t("owners"), accent: "from-accent to-accent" },
+    { icon: UserCheck, value: String(displayMembers.filter((m) => m.isActive).length), label: t("active"), accent: "from-success to-success" },
     { icon: Activity, value: String(recentActivity.length), label: t("recentActions"), accent: "from-warning to-warning" },
   ];
 
@@ -86,17 +100,15 @@ export default async function AdminTeamPage() {
               </tr>
             </thead>
             <tbody>
-              {members.map((member) => {
-                const user = userMap.get(member.userId);
-                return (
+              {displayMembers.map((member) => (
                   <tr key={member.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                     <td className="py-3 px-6">
-                      <p className="text-gray-800 font-medium">{user?.name || "Unknown"}</p>
-                      <p className="text-gray-400 text-xs">{user?.email}</p>
+                      <p className="text-gray-800 font-medium">{member.name}</p>
+                      <p className="text-gray-400 text-xs">{member.email}</p>
                     </td>
                     <td className="py-3 px-6 text-center">
-                      <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${roleColors[member.teamRole] || "bg-gray-100 text-gray-500"}`}>
-                        {member.teamRole}
+                      <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${roleColors[member.role] || "bg-gray-100 text-gray-500"}`}>
+                        {member.role}
                       </span>
                     </td>
                     <td className="py-3 px-6 text-center">
@@ -108,9 +120,8 @@ export default async function AdminTeamPage() {
                       {member.createdAt ? new Date(member.createdAt).toLocaleDateString() : "\u2014"}
                     </td>
                   </tr>
-                );
-              })}
-              {members.length === 0 && (
+              ))}
+              {displayMembers.length === 0 && (
                 <tr>
                   <td colSpan={4} className="py-12 text-center">
                     <Users className="h-10 w-10 text-gray-200 mx-auto mb-3" />
