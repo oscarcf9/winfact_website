@@ -207,7 +207,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Auto-blog generation — fire-and-forget, never blocks pick creation
-    if (data.status === "published") {
+    // Disabled by default. Set ENABLE_AUTO_BLOG=true in env to enable.
+    if (data.status === "published" && process.env.ENABLE_AUTO_BLOG === "true") {
       try {
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
         console.log(`[auto-blog] Triggering for pick ${id}: ${data.matchup}`);

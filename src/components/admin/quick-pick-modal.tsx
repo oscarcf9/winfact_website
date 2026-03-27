@@ -233,23 +233,8 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
 
       const result = await res.json();
 
-      // Trigger auto-blog generation in the background (non-blocking)
-      fetch("/api/admin/auto-blog", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sport: effectiveSport,
-          league: selectedLeague || effectiveSport,
-          matchup: effectiveMatchup,
-          pickText,
-          gameDate,
-          odds: odds ? Number(odds) : null,
-          units: units ? Number(units) : null,
-          confidence: confidence || null,
-          tier,
-          analysisEn: analysis || null,
-        }),
-      }).catch(() => {});
+      // Auto-blog disabled — server-side API route controls this via ENABLE_AUTO_BLOG env var
+      // Client-side trigger removed; auto-blog now lives in POST /api/admin/picks route only.
 
       // Show distribution result before closing
       if (sendOnPublish) {
