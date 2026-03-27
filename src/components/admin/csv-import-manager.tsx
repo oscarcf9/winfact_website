@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Upload, FileSpreadsheet, Users, Target, AlertCircle, CheckCircle, XCircle, Download } from "lucide-react";
+import { Upload, FileSpreadsheet, Users, Target, AlertCircle, CheckCircle, XCircle, Download, Eye } from "lucide-react";
 
 type ImportType = "subscribers" | "picks";
 type ImportResult = {
@@ -9,6 +9,8 @@ type ImportResult = {
   skipped: number;
   failed: number;
   errors: string[];
+  skippedRows?: { row: number; reason: string }[];
+  dryRun?: boolean;
 };
 
 const SUBSCRIBER_TEMPLATE = "email,name,plan,status,language,joined_date\njohn@example.com,John Doe,vip_monthly,active,en,2026-01-15\njane@example.com,Jane Smith,vip_weekly,active,es,2026-02-01";
@@ -17,10 +19,13 @@ const PICKS_TEMPLATE = "pick,game,sport,result,odds,units,date,tier,confidence\n
 export function CsvImportManager() {
   const [importType, setImportType] = useState<ImportType>("subscribers");
   const [file, setFile] = useState<File | null>(null);
+  const [allRows, setAllRows] = useState<Record<string, string>[]>([]);
   const [preview, setPreview] = useState<Record<string, string>[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [previewResult, setPreviewResult] = useState<ImportResult | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -28,6 +33,8 @@ export function CsvImportManager() {
     if (!f) return;
     setFile(f);
     setResult(null);
+    setPreviewResult(null);
+    setConfirmed(false);
 
     const reader = new FileReader();
     reader.onload = (ev) => {
@@ -35,6 +42,7 @@ export function CsvImportManager() {
       const parsed = parseCsv(text);
       if (parsed.length > 0) {
         setHeaders(Object.keys(parsed[0]));
+        setAllRows(parsed);
         setPreview(parsed.slice(0, 10));
       }
     };
@@ -55,6 +63,34 @@ export function CsvImportManager() {
     });
   }
 
+  async function handleDryRun() {
+    if (!file) return;
+    setLoading(true);
+    setPreviewResult(null);
+
+    try {
+      const text = await file.text();
+      const rows = parseCsv(text);
+
+      const res = await fetch("/api/admin/imports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: importType, rows, dryRun: true }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setPreviewResult(data);
+      } else {
+        setPreviewResult({ successful: 0, skipped: 0, failed: rows.length, errors: [data.error || "Preview failed"] });
+      }
+    } catch (err) {
+      setPreviewResult({ successful: 0, skipped: 0, failed: 0, errors: [(err as Error).message] });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleImport() {
     if (!file) return;
     setLoading(true);
@@ -73,6 +109,8 @@ export function CsvImportManager() {
       const data = await res.json();
       if (res.ok) {
         setResult(data);
+        setPreviewResult(null);
+        setConfirmed(true);
       } else {
         setResult({ successful: 0, skipped: 0, failed: rows.length, errors: [data.error || "Import failed"] });
       }
@@ -96,9 +134,12 @@ export function CsvImportManager() {
 
   function reset() {
     setFile(null);
+    setAllRows([]);
     setPreview([]);
     setHeaders([]);
     setResult(null);
+    setPreviewResult(null);
+    setConfirmed(false);
     if (fileRef.current) fileRef.current.value = "";
   }
 
@@ -174,7 +215,7 @@ export function CsvImportManager() {
               <code className="rounded bg-gray-200 px-1.5 py-0.5 text-xs">tier</code>{" "}
               <code className="rounded bg-gray-200 px-1.5 py-0.5 text-xs">confidence</code>
             </p>
-            <p className="text-gray-400">Result: win/loss/push (or w/l/p). Sport: NBA, MLB, NFL, NHL, Soccer, NCAA. Tier: free/vip.</p>
+            <p className="text-gray-400">Result: win/loss/push (or w/l/p). Sport: NBA, MLB, NFL, NHL, Soccer, NCAA. Tier: free/vip. Blank defaults: units=1, tier=free, confidence=standard, date=today.</p>
           </div>
         )}
         <button
@@ -202,7 +243,7 @@ export function CsvImportManager() {
             {file ? file.name : "Drop your CSV file here or click to browse"}
           </p>
           <p className="mt-1 text-sm text-gray-400">
-            {file ? `${preview.length}+ rows detected` : "Supports .csv files"}
+            {file ? `${allRows.length} rows detected` : "Supports .csv files"}
           </p>
         </label>
       </div>
@@ -211,7 +252,7 @@ export function CsvImportManager() {
       {preview.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
           <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
-            <h3 className="font-semibold text-navy">Preview (first 10 rows)</h3>
+            <h3 className="font-semibold text-navy">Preview (first {Math.min(10, allRows.length)} of {allRows.length} rows)</h3>
             <span className="text-sm text-gray-400">{headers.length} columns detected</span>
           </div>
           <div className="overflow-x-auto">
@@ -229,7 +270,7 @@ export function CsvImportManager() {
                   <tr key={i} className="hover:bg-gray-50/50">
                     <td className="px-3 py-2 text-gray-400">{i + 1}</td>
                     {headers.map((h) => (
-                      <td key={h} className="px-3 py-2 text-gray-700 whitespace-nowrap max-w-[200px] truncate">{row[h] || "—"}</td>
+                      <td key={h} className="px-3 py-2 text-gray-700 whitespace-nowrap max-w-[200px] truncate">{row[h] || <span className="text-gray-300">--</span>}</td>
                     ))}
                   </tr>
                 ))}
@@ -239,29 +280,123 @@ export function CsvImportManager() {
         </div>
       )}
 
-      {/* Import Button */}
-      {preview.length > 0 && !result && (
-        <button
-          onClick={handleImport}
-          disabled={loading}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3.5 font-semibold text-white shadow-md transition-all hover:bg-secondary disabled:opacity-50"
-        >
-          {loading ? (
-            <>
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              Importing...
-            </>
-          ) : (
-            <>
-              <Upload className="h-5 w-5" />
-              Import {importType === "subscribers" ? "Subscribers" : "Picks"}
-            </>
+      {/* Dry Run Preview Results */}
+      {previewResult && !result && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-6 space-y-4">
+          <h3 className="font-semibold text-navy text-lg flex items-center gap-2">
+            <Eye className="h-5 w-5 text-blue-500" />
+            Dry Run Preview
+          </h3>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="flex items-center gap-3 rounded-lg bg-green-50 p-4">
+              <CheckCircle className="h-6 w-6 text-green-500" />
+              <div>
+                <p className="text-2xl font-bold text-green-700">{previewResult.successful}</p>
+                <p className="text-sm text-green-600">Will import</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 rounded-lg bg-yellow-50 p-4">
+              <AlertCircle className="h-6 w-6 text-yellow-500" />
+              <div>
+                <p className="text-2xl font-bold text-yellow-700">{previewResult.skipped}</p>
+                <p className="text-sm text-yellow-600">Will skip (duplicates)</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 rounded-lg bg-red-50 p-4">
+              <XCircle className="h-6 w-6 text-red-500" />
+              <div>
+                <p className="text-2xl font-bold text-red-700">{previewResult.failed}</p>
+                <p className="text-sm text-red-600">Errors</p>
+              </div>
+            </div>
+          </div>
+
+          {previewResult.skippedRows && previewResult.skippedRows.length > 0 && (
+            <div className="rounded-lg border border-yellow-200 bg-yellow-50/50 p-4">
+              <p className="mb-2 text-sm font-medium text-yellow-700">Skipped rows:</p>
+              <ul className="max-h-32 space-y-1 overflow-y-auto text-sm text-yellow-600">
+                {previewResult.skippedRows.map((s, i) => (
+                  <li key={i}>Row {s.row}: {s.reason}</li>
+                ))}
+              </ul>
+            </div>
           )}
-        </button>
+
+          {previewResult.errors.length > 0 && (
+            <div className="rounded-lg border border-red-200 bg-red-50/50 p-4">
+              <p className="mb-2 text-sm font-medium text-red-700">Errors:</p>
+              <ul className="max-h-32 space-y-1 overflow-y-auto text-sm text-red-600">
+                {previewResult.errors.map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {previewResult.successful > 0 && (
+            <button
+              onClick={handleImport}
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3.5 font-semibold text-white shadow-md transition-all hover:bg-secondary disabled:opacity-50"
+            >
+              {loading ? (
+                <>
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-5 w-5" />
+                  Confirm Import ({previewResult.successful} rows)
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Preview / Import Buttons */}
+      {preview.length > 0 && !result && !previewResult && (
+        <div className="flex gap-3">
+          <button
+            onClick={handleDryRun}
+            disabled={loading}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-primary px-6 py-3.5 font-semibold text-primary transition-all hover:bg-primary/5 disabled:opacity-50"
+          >
+            {loading ? (
+              <>
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                Checking...
+              </>
+            ) : (
+              <>
+                <Eye className="h-5 w-5" />
+                Preview Import
+              </>
+            )}
+          </button>
+          <button
+            onClick={handleImport}
+            disabled={loading}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3.5 font-semibold text-white shadow-md transition-all hover:bg-secondary disabled:opacity-50"
+          >
+            {loading ? (
+              <>
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Importing...
+              </>
+            ) : (
+              <>
+                <Upload className="h-5 w-5" />
+                Import Directly
+              </>
+            )}
+          </button>
+        </div>
       )}
 
       {/* Results */}
-      {result && (
+      {result && !result.dryRun && (
         <div className="rounded-xl border border-gray-200 bg-white p-6 space-y-4">
           <h3 className="font-semibold text-navy text-lg">Import Results</h3>
           <div className="grid grid-cols-3 gap-4">
@@ -288,12 +423,23 @@ export function CsvImportManager() {
             </div>
           </div>
 
+          {result.skippedRows && result.skippedRows.length > 0 && (
+            <div className="rounded-lg border border-yellow-200 bg-yellow-50/50 p-4">
+              <p className="mb-2 text-sm font-medium text-yellow-700">Skipped rows:</p>
+              <ul className="max-h-32 space-y-1 overflow-y-auto text-sm text-yellow-600">
+                {result.skippedRows.map((s, i) => (
+                  <li key={i}>Row {s.row}: {s.reason}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {result.errors.length > 0 && (
             <div className="rounded-lg border border-red-200 bg-red-50/50 p-4">
               <p className="mb-2 text-sm font-medium text-red-700">Errors:</p>
               <ul className="max-h-40 space-y-1 overflow-y-auto text-sm text-red-600">
                 {result.errors.map((err, i) => (
-                  <li key={i}>• {err}</li>
+                  <li key={i}>{err}</li>
                 ))}
               </ul>
             </div>

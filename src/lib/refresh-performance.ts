@@ -83,23 +83,26 @@ type PickRow = {
 };
 
 function calcStats(picks: PickRow[]) {
-  const wins = picks.filter((p) => p.result === "win").length;
-  const losses = picks.filter((p) => p.result === "loss").length;
-  const pushes = picks.filter((p) => p.result === "push").length;
+  // Exclude void picks from all performance metrics
+  const counted = picks.filter((p) => p.result !== "void");
 
-  const unitsWon = picks.reduce((sum, p) => {
+  const wins = counted.filter((p) => p.result === "win").length;
+  const losses = counted.filter((p) => p.result === "loss").length;
+  const pushes = counted.filter((p) => p.result === "push").length;
+
+  const unitsWon = counted.reduce((sum, p) => {
     if (p.result === "win") return sum + (p.units ?? 0);
     if (p.result === "loss") return sum - (p.units ?? 0);
     return sum;
   }, 0);
 
-  const totalRisked = picks
+  const totalRisked = counted
     .filter((p) => p.result !== "push")
     .reduce((sum, p) => sum + (p.units ?? 0), 0);
 
   const roiPct = totalRisked > 0 ? (unitsWon / totalRisked) * 100 : 0;
 
-  const clvPicks = picks.filter((p) => p.clv != null);
+  const clvPicks = counted.filter((p) => p.clv != null);
   const clvAvg = clvPicks.length > 0
     ? clvPicks.reduce((sum, p) => sum + (p.clv || 0), 0) / clvPicks.length
     : 0;

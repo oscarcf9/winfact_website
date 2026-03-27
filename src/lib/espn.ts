@@ -277,12 +277,18 @@ export async function fetchEventSummary(
 
 /**
  * Format a Date to YYYYMMDD string for ESPN API.
+ * When called without arguments, returns today's date in ET.
  */
-export function toESPNDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}${m}${d}`;
+export function toESPNDate(date?: Date): string {
+  if (date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}${m}${d}`;
+  }
+  // Default: today in ET (not UTC) — critical for Vercel servers
+  const { todayET } = require("@/lib/timezone");
+  return todayET();
 }
 
 export { SPORT_PATHS };

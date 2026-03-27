@@ -159,7 +159,7 @@ export function MediaGallery() {
           ) : (
             <Upload className="h-4 w-4" />
           )}
-          {uploading ? "Uploading..." : t("upload")}
+          {uploading ? t("uploading") : t("upload")}
         </button>
         <input
           ref={fileInputRef}
@@ -191,10 +191,10 @@ export function MediaGallery() {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-600">
-              Drag and drop files here, or click Upload
+              {t("dragAndDrop")}
             </p>
             <p className="text-xs text-gray-400 mt-1">
-              PNG, JPG, WebP, GIF up to 10MB each
+              {t("uploadFormats")}
             </p>
           </div>
         </div>
@@ -208,7 +208,7 @@ export function MediaGallery() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search files..."
+            placeholder={t("searchFiles")}
             className="w-full bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2.5 text-sm text-navy placeholder:text-gray-300 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all"
           />
         </div>
@@ -237,7 +237,7 @@ export function MediaGallery() {
         <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-12 text-center">
           <ImageIcon className="h-8 w-8 text-gray-300 mx-auto mb-3" />
           <p className="text-sm text-gray-400">
-            {search ? "No files match your search" : "No media uploaded yet"}
+            {search ? t("noSearchResults") : t("noMedia")}
           </p>
         </div>
       ) : view === "grid" ? (
@@ -266,7 +266,7 @@ export function MediaGallery() {
                   <button
                     onClick={() => copyUrl(item.url)}
                     className="p-1.5 rounded-md bg-white/20 text-white hover:bg-white/30 transition-colors cursor-pointer"
-                    title="Copy URL"
+                    title={t("copyUrl")}
                   >
                     {copied === item.url ? (
                       <Check className="h-3 w-3" />
@@ -278,7 +278,7 @@ export function MediaGallery() {
                     onClick={() => handleDelete(item.id)}
                     disabled={deleting === item.id}
                     className="p-1.5 rounded-md bg-white/20 text-white hover:bg-danger/80 transition-colors cursor-pointer disabled:opacity-50"
-                    title="Delete"
+                    title={t("delete")}
                   >
                     {deleting === item.id ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
@@ -393,11 +393,11 @@ export function MediaGallery() {
               >
                 {copied === preview.url ? (
                   <>
-                    <Check className="h-3 w-3" /> Copied
+                    <Check className="h-3 w-3" /> {t("copied")}
                   </>
                 ) : (
                   <>
-                    <Copy className="h-3 w-3" /> Copy URL
+                    <Copy className="h-3 w-3" /> {t("copyUrl")}
                   </>
                 )}
               </button>

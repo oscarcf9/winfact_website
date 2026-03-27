@@ -6,6 +6,7 @@ import { generateGameBlog } from "@/lib/ai-blog-engine";
 import { generateMatchupImage } from "@/lib/ai-image";
 import { notifyBlogDraftReady } from "@/lib/telegram";
 import { enrichPickData } from "@/lib/blog-enrichment";
+import { todayISOET } from "@/lib/timezone";
 
 /**
  * POST /api/admin/auto-blog
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
         league: data.league || null,
         matchup: data.matchup,
         pickText: data.pickText || "",
-        gameDate: data.gameDate || new Date().toISOString().split("T")[0],
+        gameDate: data.gameDate || todayISOET(),
         odds: data.odds || null,
         units: data.units || null,
         confidence: data.confidence || null,
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
           league: data.league || null,
           matchup: data.matchup,
           pickText: data.pickText || "",
-          gameDate: data.gameDate || new Date().toISOString().split("T")[0],
+          gameDate: data.gameDate || todayISOET(),
           odds: data.odds || null,
           units: data.units || null,
           confidence: data.confidence || null,

@@ -20,7 +20,7 @@ export const picks = sqliteTable("picks", {
   status: text("status", {
     enum: ["draft", "published", "settled"],
   }).default("draft"),
-  result: text("result", { enum: ["win", "loss", "push"] }),
+  result: text("result", { enum: ["win", "loss", "push", "void"] }),
   closingOdds: integer("closing_odds"),
   clv: real("clv"),
   capperId: text("capper_id"),

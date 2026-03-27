@@ -22,12 +22,12 @@ import {
 const CATEGORIES = ["free_pick", "game_preview", "strategy", "model_breakdown", "news"];
 const SPORTS = ["MLB", "NFL", "NBA", "NHL", "Soccer", "NCAA"];
 
-const CATEGORY_LABELS: Record<string, string> = {
-  free_pick: "Free Pick",
-  game_preview: "Game Preview",
-  strategy: "Strategy",
-  model_breakdown: "Model Breakdown",
-  news: "News",
+const CATEGORY_KEYS: Record<string, string> = {
+  free_pick: "catFreePick",
+  game_preview: "catGamePreview",
+  strategy: "catStrategy",
+  model_breakdown: "catModelBreakdown",
+  news: "catNews",
 };
 
 type Post = {
@@ -101,11 +101,11 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
         const data = await res.json();
         setFeaturedImageUrl(data.url);
       } else {
-        setError("Failed to upload image");
+        setError(t("uploadFailed"));
         setImagePreview(null);
       }
     } catch {
-      setError("Upload failed");
+      setError(t("uploadFailed"));
       setImagePreview(null);
     } finally {
       setUploading(false);
@@ -195,24 +195,24 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
           <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-6">
             <div className="flex items-center gap-2 mb-4">
               <FileText className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold text-navy">Title & Content</h3>
+              <h3 className="text-sm font-semibold text-navy">{t("titleAndContent")}</h3>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className={labelClass}>Title</label>
+                <label className={labelClass}>{t("titleSection")}</label>
                 <input
                   name="titleEn"
                   required
                   defaultValue={post?.titleEn || ""}
                   className={`${inputClass} text-base font-medium`}
-                  placeholder="Write a compelling title..."
+                  placeholder={t("titlePlaceholder")}
                 />
               </div>
 
               {/* Slug */}
               <div>
-                <label className={labelClass}>URL Slug</label>
+                <label className={labelClass}>{t("urlSlug")}</label>
                 <div className="flex gap-2">
                   <div className="flex-1 flex items-center bg-white border border-gray-200 rounded-xl overflow-hidden focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10 transition-all duration-200">
                     <span className="pl-4 text-xs text-gray-400 select-none whitespace-nowrap">/blog/</span>
@@ -221,7 +221,7 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
                       required
                       defaultValue={post?.slug || ""}
                       className="flex-1 bg-transparent px-1 py-2.5 text-sm text-navy font-mono placeholder:text-gray-300 focus:outline-none"
-                      placeholder="my-post-slug"
+                      placeholder={t("slugPlaceholder")}
                     />
                   </div>
                   {!isEdit && (
@@ -231,7 +231,7 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
                       className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-primary/5 border border-primary/15 text-primary text-sm hover:bg-primary/10 transition-all duration-200 cursor-pointer shrink-0"
                     >
                       <Sparkles className="h-3.5 w-3.5" />
-                      Auto
+                      {t("auto")}
                     </button>
                   )}
                 </div>
@@ -239,14 +239,14 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
 
               {/* Body */}
               <div>
-                <label className={labelClass}>Content</label>
+                <label className={labelClass}>{t("content")}</label>
                 <textarea
                   name="bodyEn"
                   required
                   rows={16}
                   defaultValue={post?.bodyEn || ""}
                   className={`${inputClass} font-mono text-[13px] leading-relaxed min-h-[300px] resize-y`}
-                  placeholder="Write your post content here..."
+                  placeholder={t("contentPlaceholder")}
                 />
               </div>
             </div>
@@ -256,7 +256,7 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
           <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-6">
             <div className="flex items-center gap-2 mb-4">
               <ImageIcon className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold text-navy">Featured Image</h3>
+              <h3 className="text-sm font-semibold text-navy">{t("featuredImageSection")}</h3>
             </div>
 
             {imagePreview ? (
@@ -289,8 +289,8 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
                   <Upload className="h-6 w-6 text-gray-400 group-hover:text-primary transition-colors" />
                 </div>
                 <div className="text-center">
-                  <p className="text-sm font-medium text-gray-600">Click to upload image</p>
-                  <p className="text-xs text-gray-400 mt-1">PNG, JPG, WebP up to 10MB</p>
+                  <p className="text-sm font-medium text-gray-600">{t("clickToUpload")}</p>
+                  <p className="text-xs text-gray-400 mt-1">{t("uploadFormats")}</p>
                 </div>
               </button>
             )}
@@ -313,8 +313,8 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
             >
               <div className="flex items-center gap-2">
                 <Search className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-semibold text-navy">SEO Settings</h3>
-                <span className="text-xs text-gray-400">Optional</span>
+                <h3 className="text-sm font-semibold text-navy">{t("seoSettings")}</h3>
+                <span className="text-xs text-gray-400">{t("optional")}</span>
               </div>
               <ChevronDown
                 className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${showSeo ? "rotate-180" : ""}`}
@@ -323,22 +323,22 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
             {showSeo && (
               <div className="px-6 pb-6 space-y-4 border-t border-gray-100 pt-4">
                 <div>
-                  <label className={labelClass}>SEO Title</label>
+                  <label className={labelClass}>{t("seoTitle")}</label>
                   <input
                     name="seoTitle"
                     defaultValue={post?.seoTitle || ""}
                     className={inputClass}
-                    placeholder="Override page title for search engines..."
+                    placeholder={t("seoTitlePlaceholder")}
                   />
                 </div>
                 <div>
-                  <label className={labelClass}>SEO Description</label>
+                  <label className={labelClass}>{t("seoDescription")}</label>
                   <textarea
                     name="seoDescription"
                     rows={2}
                     defaultValue={post?.seoDescription || ""}
                     className={`${inputClass} resize-none`}
-                    placeholder="Brief description for search results (150-160 chars)..."
+                    placeholder={t("seoDescriptionPlaceholder")}
                   />
                 </div>
               </div>
@@ -352,13 +352,13 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
           <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-6">
             <div className="flex items-center gap-2 mb-4">
               <Settings2 className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold text-navy">Publish</h3>
+              <h3 className="text-sm font-semibold text-navy">{t("publish")}</h3>
             </div>
 
             <div className="space-y-4">
               {/* Status */}
               <div>
-                <label className={labelClass}>Status</label>
+                <label className={labelClass}>{t("status")}</label>
                 <div className="relative">
                   <select
                     name="status"
@@ -380,7 +380,7 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
                   <label className={labelClass}>
                     <span className="flex items-center gap-1.5">
                       <Calendar className="h-3.5 w-3.5 text-primary" />
-                      Publish Date &amp; Time
+                      {t("publishDateTime")}
                     </span>
                   </label>
                   <input
@@ -393,7 +393,7 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
                   />
                   {scheduledAt && new Date(scheduledAt) <= new Date() && (
                     <p className="text-xs text-amber-600 mt-1">
-                      This time is in the past. The post will be published on the next cron run.
+                      {t("pastTimeWarning")}
                     </p>
                   )}
                 </div>
@@ -401,17 +401,17 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
 
               {/* Category */}
               <div>
-                <label className={labelClass}>Category</label>
+                <label className={labelClass}>{t("category")}</label>
                 <div className="relative">
                   <select
                     name="category"
                     defaultValue={post?.category || ""}
                     className={`${inputClass} appearance-none cursor-pointer pr-10`}
                   >
-                    <option value="">Select category...</option>
+                    <option value="">{t("selectCategory")}</option>
                     {CATEGORIES.map((c) => (
                       <option key={c} value={c}>
-                        {CATEGORY_LABELS[c] || c}
+                        {CATEGORY_KEYS[c] ? t(CATEGORY_KEYS[c]) : c}
                       </option>
                     ))}
                   </select>
@@ -421,7 +421,7 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
 
               {/* Author */}
               <div>
-                <label className={labelClass}>Author</label>
+                <label className={labelClass}>{t("author")}</label>
                 <input
                   name="author"
                   defaultValue={post?.author || "WinFact"}
@@ -459,7 +459,7 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
                   className="w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-primary/20 text-primary text-sm font-medium hover:bg-primary/5 transition-all duration-200 cursor-pointer"
                 >
                   <Eye className="h-4 w-4" />
-                  Preview
+                  {t("preview")}
                 </a>
               )}
               {deleteButton}
@@ -470,7 +470,7 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
           <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-6">
             <div className="flex items-center gap-2 mb-4">
               <Tag className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold text-navy">Sport Tags</h3>
+              <h3 className="text-sm font-semibold text-navy">{t("sportTags")}</h3>
             </div>
             <div className="flex flex-wrap gap-2">
               {SPORTS.map((sport) => (

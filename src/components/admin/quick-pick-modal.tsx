@@ -57,6 +57,8 @@ function formatTime(iso: string): string {
 
 export function QuickPickModal({ open, onClose, onSuccess }: Props) {
   const t = useTranslations("admin.quickPick");
+  const tc = useTranslations("admin.common");
+  const tm = useTranslations("admin.picksManager");
 
   const [step, setStep] = useState(1);
   const [leagueData, setLeagueData] = useState<LeagueGames[]>([]);
@@ -410,14 +412,14 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
                     </div>
                   ) : filteredGames.length === 0 ? (
                     <p className="text-xs text-gray-400 text-center py-4">
-                      {searchQuery ? "No matching games found" : t("noGames")}
+                      {searchQuery ? tm("noMatchingGames") : t("noGames")}
                     </p>
                   ) : (
                     <div className="border border-gray-200 rounded-xl overflow-hidden max-h-[220px] overflow-y-auto">
                       {filteredGames.map((ld) => (
                         <div key={ld.league}>
                           <div className="px-3 py-1.5 bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-wider sticky top-0 z-10">
-                            {ld.league} — {ld.games.length} {ld.games.length === 1 ? "game" : "games"}
+                            {ld.league} — {ld.games.length} {ld.games.length === 1 ? tc("game") : tc("games")}
                           </div>
                           {ld.games.map((game) => (
                             <button
@@ -652,7 +654,7 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
                 <label className="flex items-center justify-between cursor-pointer">
                   <div className="flex items-center gap-2">
                     <Send className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-sm font-medium text-navy">Distribute on publish</span>
+                    <span className="text-sm font-medium text-navy">{tm("distributeOnPublish")}</span>
                   </div>
                   <button
                     type="button"
@@ -669,8 +671,8 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
                     <Radio className="h-3 w-3 text-gray-400 mt-0.5 shrink-0" />
                     <p className="text-xs text-gray-500">
                       {tier === "free"
-                        ? "Telegram (full pick) + Email (free members)"
-                        : "Telegram (teaser only) + Email (VIP members)"}
+                        ? tm("distributionFreePick")
+                        : tm("distributionVipPick")}
                     </p>
                   </div>
                 )}
@@ -687,8 +689,8 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
                     <CheckCircle2 className="h-8 w-8 text-success" />
                   </div>
                   <div className="text-center">
-                    <p className="text-lg font-semibold text-navy">Pick Published & Distributed</p>
-                    <p className="text-sm text-gray-400 mt-1">Telegram + Email sent successfully</p>
+                    <p className="text-lg font-semibold text-navy">{tm("pickPublishedDistributed")}</p>
+                    <p className="text-sm text-gray-400 mt-1">{tm("telegramEmailSent")}</p>
                   </div>
                 </>
               ) : publishResult.success && !sendOnPublish ? (
@@ -697,8 +699,8 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
                     <CheckCircle2 className="h-8 w-8 text-primary" />
                   </div>
                   <div className="text-center">
-                    <p className="text-lg font-semibold text-navy">Pick Published</p>
-                    <p className="text-sm text-gray-400 mt-1">Saved without distribution</p>
+                    <p className="text-lg font-semibold text-navy">{tm("pickPublished")}</p>
+                    <p className="text-sm text-gray-400 mt-1">{tm("savedWithoutDistribution")}</p>
                   </div>
                 </>
               ) : (
@@ -707,9 +709,9 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
                     <AlertTriangle className="h-8 w-8 text-warning" />
                   </div>
                   <div className="text-center">
-                    <p className="text-lg font-semibold text-navy">Pick Saved — Distribution Issue</p>
+                    <p className="text-lg font-semibold text-navy">{tm("pickSavedDistributionIssue")}</p>
                     <p className="text-sm text-gray-400 mt-1">
-                      Pick was saved but distribution encountered an issue.
+                      {tm("distributionIssueDesc")}
                     </p>
                     {publishResult.distributionError && (
                       <p className="text-xs text-danger mt-2 font-mono bg-danger/5 rounded-lg px-3 py-1.5">
@@ -717,7 +719,7 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
                       </p>
                     )}
                     <p className="text-xs text-gray-400 mt-2">
-                      You can resend from the Picks management page.
+                      {tm("resendFromPicks")}
                     </p>
                   </div>
                 </>
@@ -757,7 +759,7 @@ export function QuickPickModal({ open, onClose, onSuccess }: Props) {
                   {sendOnPublish ? (
                     <>
                       <Send className="h-4 w-4" />
-                      {submitting ? t("publishing") : "Publish & Send"}
+                      {submitting ? t("publishing") : tm("publishAndSend")}
                     </>
                   ) : (
                     <>

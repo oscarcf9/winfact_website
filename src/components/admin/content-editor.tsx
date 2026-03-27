@@ -109,7 +109,7 @@ export function ContentEditor({ initialContent }: Props) {
           <div>
             <p className="text-sm font-medium text-navy">{cfg.label}</p>
             <p className="text-[10px] text-gray-300">
-              {current?.updatedAt ? `Updated ${new Date(current.updatedAt).toLocaleDateString()}` : ""}
+              {current?.updatedAt ? `${t("updated")} ${new Date(current.updatedAt).toLocaleDateString()}` : ""}
             </p>
           </div>
           <button
@@ -118,7 +118,7 @@ export function ContentEditor({ initialContent }: Props) {
             className="flex items-center gap-2 cursor-pointer"
           >
             {saving === cfg.key ? (
-              <span className="text-xs text-gray-400">Saving...</span>
+              <span className="text-xs text-gray-400">{tc("saving")}</span>
             ) : saved === cfg.key ? (
               <Check className="h-4 w-4 text-success" />
             ) : null}
@@ -168,7 +168,7 @@ export function ContentEditor({ initialContent }: Props) {
               if (e.target.value !== value) saveItem(cfg.key, e.target.value);
             }}
           />
-          <p className="text-[10px] text-gray-300 mt-1">Leave empty for no expiration</p>
+          <p className="text-[10px] text-gray-300 mt-1">{t("leaveEmptyNoExpiration")}</p>
         </div>
       );
     }
@@ -201,8 +201,8 @@ export function ContentEditor({ initialContent }: Props) {
             <Megaphone className="h-4 w-4 text-accent" />
           </div>
           <div>
-            <h2 className="font-heading font-bold text-lg text-navy">Announcement Bar</h2>
-            <p className="text-xs text-gray-400">Promotional banner shown at the top of the website</p>
+            <h2 className="font-heading font-bold text-lg text-navy">{t("announcementBar")}</h2>
+            <p className="text-xs text-gray-400">{t("announcementBarDesc")}</p>
           </div>
         </div>
         <div className="px-6 py-2 divide-y divide-gray-100">
@@ -217,8 +217,8 @@ export function ContentEditor({ initialContent }: Props) {
             <Type className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <h2 className="font-heading font-bold text-lg text-navy">Homepage Hero</h2>
-            <p className="text-xs text-gray-400">Override headline and subheadline (leave empty to use defaults)</p>
+            <h2 className="font-heading font-bold text-lg text-navy">{t("homepageHero")}</h2>
+            <p className="text-xs text-gray-400">{t("homepageHeroDesc")}</p>
           </div>
         </div>
         <div className="px-6 py-2 divide-y divide-gray-100">
@@ -228,7 +228,7 @@ export function ContentEditor({ initialContent }: Props) {
 
       {/* Generic Content Blocks */}
       <div>
-        <h2 className="font-heading font-bold text-lg text-navy mb-4">Custom Content Blocks</h2>
+        <h2 className="font-heading font-bold text-lg text-navy mb-4">{t("customContentBlocks")}</h2>
         {genericItems.map((item) => (
           <div
             key={item.key}

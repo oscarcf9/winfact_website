@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Trash2, Loader2, AlertTriangle } from "lucide-react";
 
 type Props = {
@@ -12,6 +13,7 @@ type Props = {
 
 export function BlogDeleteButton({ postId, postTitle, isPublished }: Props) {
   const router = useRouter();
+  const tc = useTranslations("admin.common");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -36,7 +38,7 @@ export function BlogDeleteButton({ postId, postTitle, isPublished }: Props) {
         type="button"
         onClick={() => setConfirmOpen(true)}
         className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
-        title="Delete"
+        title={tc("delete")}
       >
         <Trash2 className="h-3.5 w-3.5" />
       </button>
@@ -52,20 +54,20 @@ export function BlogDeleteButton({ postId, postTitle, isPublished }: Props) {
               <div className="mx-auto w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-3">
                 <Trash2 className="h-6 w-6 text-red-500" />
               </div>
-              <h3 className="text-lg font-semibold text-navy mb-1">Delete Post</h3>
+              <h3 className="text-lg font-semibold text-navy mb-1">{tc("deletePost")}</h3>
               <p className="text-sm text-gray-500 mb-1">
                 <span className="font-medium text-navy">{postTitle}</span>
               </p>
-              <p className="text-xs text-gray-400 mb-3">This will also remove all associated tags.</p>
+              <p className="text-xs text-gray-400 mb-3">{tc("tagsRemoved")}</p>
               {isPublished && (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 mb-3">
                   <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
                   <p className="text-xs text-amber-700 text-left">
-                    This post is published and visible to users. Deleting it will create broken links.
+                    {tc("publishedWarning")}
                   </p>
                 </div>
               )}
-              <p className="text-xs text-gray-400">This action cannot be undone.</p>
+              <p className="text-xs text-gray-400">{tc("deleteConfirmTitle")}</p>
             </div>
             <div className="px-5 py-3 border-t border-gray-200 bg-gray-50/50 flex gap-2">
               <button
@@ -75,7 +77,7 @@ export function BlogDeleteButton({ postId, postTitle, isPublished }: Props) {
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-all disabled:opacity-50 cursor-pointer"
               >
                 {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                Delete
+                {tc("delete")}
               </button>
               <button
                 type="button"
@@ -83,7 +85,7 @@ export function BlogDeleteButton({ postId, postTitle, isPublished }: Props) {
                 disabled={deleting}
                 className="flex-1 px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-100 cursor-pointer disabled:opacity-50"
               >
-                Cancel
+                {tc("cancel")}
               </button>
             </div>
           </div>
@@ -99,6 +101,7 @@ export function BlogDeleteButton({ postId, postTitle, isPublished }: Props) {
  */
 export function BlogDeleteButtonFull({ postId, postTitle, isPublished }: Props) {
   const router = useRouter();
+  const tc = useTranslations("admin.common");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -125,7 +128,7 @@ export function BlogDeleteButtonFull({ postId, postTitle, isPublished }: Props) 
         className="w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-red-200 text-red-500 text-sm font-medium hover:bg-red-50 hover:border-red-300 transition-all duration-200 cursor-pointer"
       >
         <Trash2 className="h-4 w-4" />
-        Delete Post
+        {tc("deletePost")}
       </button>
 
       {confirmOpen && (
@@ -139,20 +142,20 @@ export function BlogDeleteButtonFull({ postId, postTitle, isPublished }: Props) 
               <div className="mx-auto w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-3">
                 <Trash2 className="h-6 w-6 text-red-500" />
               </div>
-              <h3 className="text-lg font-semibold text-navy mb-1">Delete Post</h3>
+              <h3 className="text-lg font-semibold text-navy mb-1">{tc("deletePost")}</h3>
               <p className="text-sm text-gray-500 mb-1">
                 <span className="font-medium text-navy">{postTitle}</span>
               </p>
-              <p className="text-xs text-gray-400 mb-3">This will also remove all associated tags.</p>
+              <p className="text-xs text-gray-400 mb-3">{tc("tagsRemoved")}</p>
               {isPublished && (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 mb-3">
                   <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
                   <p className="text-xs text-amber-700 text-left">
-                    This post is published and visible to users. Deleting it will create broken links.
+                    {tc("publishedWarning")}
                   </p>
                 </div>
               )}
-              <p className="text-xs text-gray-400">This action cannot be undone.</p>
+              <p className="text-xs text-gray-400">{tc("deleteConfirmTitle")}</p>
             </div>
             <div className="px-5 py-3 border-t border-gray-200 bg-gray-50/50 flex gap-2">
               <button
@@ -162,7 +165,7 @@ export function BlogDeleteButtonFull({ postId, postTitle, isPublished }: Props) 
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-all disabled:opacity-50 cursor-pointer"
               >
                 {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                Delete
+                {tc("delete")}
               </button>
               <button
                 type="button"
@@ -170,7 +173,7 @@ export function BlogDeleteButtonFull({ postId, postTitle, isPublished }: Props) 
                 disabled={deleting}
                 className="flex-1 px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-100 cursor-pointer disabled:opacity-50"
               >
-                Cancel
+                {tc("cancel")}
               </button>
             </div>
           </div>

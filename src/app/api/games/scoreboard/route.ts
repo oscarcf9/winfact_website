@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": "60" } });
   }
 
-  const today = toESPNDate(new Date());
+  const today = toESPNDate();
 
   const results = await Promise.allSettled(
     LEAGUES.map(async (league) => {

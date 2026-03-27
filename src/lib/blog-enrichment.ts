@@ -7,6 +7,7 @@ import { fetchScoreboard, fetchEventSummary, toESPNDate, SPORT_PATHS } from "./e
 import type { ESPNEventSummary, ESPNInjury } from "./espn";
 import { fetchOdds } from "./odds-api";
 import { normalizeTeamName } from "./team-normalizer";
+import { todayISOET } from "./timezone";
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -68,7 +69,7 @@ export async function enrichPickData(input: EnrichmentInput): Promise<Enrichment
   const sportName = getSportDisplayName(sport, input.league);
 
   // Step 2 & 3: Fetch ESPN + Odds data in parallel
-  const gameDate = input.gameDate || new Date().toISOString().split("T")[0];
+  const gameDate = input.gameDate || todayISOET();
   const espnDate = toESPNDate(new Date(gameDate + "T12:00:00"));
 
   const [espnData, oddsData] = await Promise.all([

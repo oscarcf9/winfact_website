@@ -20,8 +20,8 @@ import { ActivePicksFeed } from "@/components/admin/active-picks-feed";
 import { NewPickButton } from "@/components/admin/new-pick-button";
 
 async function getAdminStats() {
-  const now = new Date();
-  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  const { monthStartET } = await import("@/lib/timezone");
+  const monthStart = monthStartET();
 
   const [subscriberCount, picksThisMonth, postCount, draftPostCount, allActiveSubs] = await Promise.all([
     db
@@ -62,7 +62,8 @@ async function getAdminStats() {
 }
 
 function getGreeting(t: (key: string) => string) {
-  const hour = new Date().getHours();
+  const { hourET } = require("@/lib/timezone");
+  const hour = hourET();
   if (hour < 12) return t("greetingMorning");
   if (hour < 17) return t("greetingAfternoon");
   return t("greetingEvening");

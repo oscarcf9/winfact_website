@@ -157,14 +157,14 @@ export function PickForm({ pick, defaults }: Props) {
               </div>
               <div>
                 <label className={labelClass}>{t("league")}</label>
-                <input name="league" defaultValue={pick?.league || ""} className={inputClass} placeholder="e.g. American League" />
+                <input name="league" defaultValue={pick?.league || ""} className={inputClass} placeholder={t("leaguePlaceholder")} />
               </div>
             </div>
           </div>
 
           <div>
             <label className={labelClass}>{t("matchup")}</label>
-            <input name="matchup" required defaultValue={pick?.matchup || defaults?.matchup || ""} className={inputClass} placeholder="e.g. Yankees vs Red Sox" />
+            <input name="matchup" required defaultValue={pick?.matchup || defaults?.matchup || ""} className={inputClass} placeholder={t("matchupPlaceholder")} />
           </div>
 
           {/* Pick Details */}
@@ -173,15 +173,15 @@ export function PickForm({ pick, defaults }: Props) {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className={labelClass}>{t("pickText")}</label>
-                <input name="pickText" required defaultValue={pick?.pickText || ""} className={inputClass} placeholder="e.g. Yankees ML" />
+                <input name="pickText" required defaultValue={pick?.pickText || ""} className={inputClass} placeholder={t("pickTextPlaceholder")} />
               </div>
               <div>
                 <label className={labelClass}>{t("odds")}</label>
-                <input name="odds" type="number" required defaultValue={pick?.odds || ""} className={`${inputClass} font-mono`} placeholder="-110" />
+                <input name="odds" type="number" required defaultValue={pick?.odds || ""} className={`${inputClass} font-mono`} placeholder={t("oddsPlaceholder")} />
               </div>
               <div>
                 <label className={labelClass}>{t("units")}</label>
-                <input name="units" type="number" step="0.5" required defaultValue={pick?.units || ""} className={`${inputClass} font-mono`} placeholder="1.5" />
+                <input name="units" type="number" step="0.5" required defaultValue={pick?.units || ""} className={`${inputClass} font-mono`} placeholder={t("unitsPlaceholder")} />
               </div>
             </div>
           </div>
@@ -192,7 +192,7 @@ export function PickForm({ pick, defaults }: Props) {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className={labelClass}>{t("modelEdge")}</label>
-                <input name="modelEdge" type="number" step="0.1" defaultValue={pick?.modelEdge ?? ""} className={`${inputClass} font-mono`} placeholder="3.5" />
+                <input name="modelEdge" type="number" step="0.1" defaultValue={pick?.modelEdge ?? ""} className={`${inputClass} font-mono`} placeholder={t("modelEdgePlaceholder")} />
               </div>
               <div className="relative">
                 <label className={labelClass}>{t("confidence")}</label>
@@ -218,11 +218,11 @@ export function PickForm({ pick, defaults }: Props) {
             <div className="space-y-4">
               <div>
                 <label className={labelClass}>{t("analysisEn")}</label>
-                <textarea name="analysisEn" rows={3} defaultValue={pick?.analysisEn || ""} className={`${inputClass} min-h-[80px] resize-y`} placeholder="English analysis..." />
+                <textarea name="analysisEn" rows={3} defaultValue={pick?.analysisEn || ""} className={`${inputClass} min-h-[80px] resize-y`} placeholder={t("analysisEnPlaceholder")} />
               </div>
               <div>
                 <label className={labelClass}>{t("analysisEs")}</label>
-                <textarea name="analysisEs" rows={3} defaultValue={pick?.analysisEs || ""} className={`${inputClass} min-h-[80px] resize-y`} placeholder="Spanish analysis..." />
+                <textarea name="analysisEs" rows={3} defaultValue={pick?.analysisEs || ""} className={`${inputClass} min-h-[80px] resize-y`} placeholder={t("analysisEsPlaceholder")} />
               </div>
             </div>
           </div>
@@ -247,6 +247,7 @@ export function PickForm({ pick, defaults }: Props) {
                   <option value="win">{t("win")}</option>
                   <option value="loss">{t("loss")}</option>
                   <option value="push">{t("push")}</option>
+                  <option value="void">{t("void")}</option>
                 </select>
                 <ChevronDown className="absolute right-3 top-9 h-4 w-4 text-gray-400 pointer-events-none" />
               </div>
@@ -256,7 +257,7 @@ export function PickForm({ pick, defaults }: Props) {
           {isEdit && (
             <div>
               <label className={labelClass}>{t("closingOdds")}</label>
-              <input name="closingOdds" type="number" defaultValue={pick?.closingOdds ?? ""} className={`${inputClass} font-mono max-w-xs`} placeholder="-115" />
+              <input name="closingOdds" type="number" defaultValue={pick?.closingOdds ?? ""} className={`${inputClass} font-mono max-w-xs`} placeholder={t("closingOddsPlaceholder")} />
             </div>
           )}
 

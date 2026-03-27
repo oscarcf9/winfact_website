@@ -206,6 +206,34 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Auto-blog generation — fire-and-forget, never blocks pick creation
+    if (data.status === "published") {
+      try {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+        console.log(`[auto-blog] Triggering for pick ${id}: ${data.matchup}`);
+        fetch(`${siteUrl}/api/admin/auto-blog`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sport: data.sport,
+            league: data.league || data.sport,
+            matchup: data.matchup,
+            pickText: data.pickText,
+            gameDate: data.gameDate || null,
+            odds: data.odds || null,
+            units: data.units || null,
+            confidence: data.confidence || null,
+            tier: data.tier || "vip",
+            analysisEn: data.analysisEn || null,
+          }),
+        }).catch((err) => {
+          console.error("[auto-blog] Failed to trigger:", err);
+        });
+      } catch (err) {
+        console.error("[auto-blog] Error:", err);
+      }
+    }
+
     return NextResponse.json({ id, distributed, distributionError });
   } catch (error) {
     console.error("Create pick error:", error);

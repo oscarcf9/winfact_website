@@ -37,48 +37,43 @@ import { AdminThemeToggle } from "./dark-mode-provider";
 
 const NAV_SECTIONS = [
   {
-    key: "content",
+    key: "dailyOps",
     items: [
       { href: "/admin", labelKey: "dashboard", icon: LayoutDashboard, exact: true },
       { href: "/admin/picks", labelKey: "picks", icon: Target, exact: false },
-      { href: "/admin/blog", labelKey: "blog", icon: FileText, exact: false },
-      { href: "/admin/media", labelKey: "media", icon: Image, exact: false },
-      { href: "/admin/content", labelKey: "siteContent", icon: Settings, exact: false },
-      { href: "/admin/calendar", labelKey: "calendar", icon: Calendar, exact: false },
-      { href: "/admin/imports", labelKey: "importData", icon: Upload, exact: false },
+      { href: "/admin/intelligence", labelKey: "intelligence", icon: Brain, exact: false },
+      { href: "/admin/distribution", labelKey: "distribution", icon: Send, exact: false },
+      { href: "/admin/ai", labelKey: "aiAssistant", icon: Activity, exact: false },
     ],
   },
   {
-    key: "operations",
+    key: "content",
     items: [
-      { href: "/admin/distribution", labelKey: "distribution", icon: Send, exact: false },
-      { href: "/admin/intelligence", labelKey: "intelligence", icon: Activity, exact: false },
-      { href: "/admin/ai", labelKey: "aiAssistant", icon: Brain, exact: false },
+      { href: "/admin/blog", labelKey: "blog", icon: FileText, exact: false },
+      { href: "/admin/media", labelKey: "media", icon: Image, exact: false },
+      { href: "/admin/content", labelKey: "siteContent", icon: Settings, exact: false },
     ],
   },
   {
     key: "analytics",
     items: [
-      { href: "/admin/subscribers", labelKey: "subscribers", icon: Users, exact: false },
       { href: "/admin/performance", labelKey: "performance", icon: BarChart3, exact: false },
+      { href: "/admin/subscribers", labelKey: "subscribers", icon: Users, exact: false },
       { href: "/admin/revenue", labelKey: "revenue", icon: DollarSign, exact: false },
       { href: "/admin/referrals", labelKey: "referrals", icon: Gift, exact: false },
     ],
   },
   {
-    key: "business",
+    key: "settings",
     items: [
+      { href: "/admin/calendar", labelKey: "calendar", icon: Calendar, exact: false },
+      { href: "/admin/imports", labelKey: "importData", icon: Upload, exact: false },
       { href: "/admin/pricing", labelKey: "pricing", icon: DollarSign, exact: false },
       { href: "/admin/promos", labelKey: "promotions", icon: Tag, exact: false },
       { href: "/admin/affiliates", labelKey: "affiliates", icon: UserCheck, exact: false },
-      { href: "/admin/audit", labelKey: "auditTrail", icon: Shield, exact: false },
-    ],
-  },
-  {
-    key: "system",
-    items: [
       { href: "/admin/team", labelKey: "team", icon: Users2, exact: false },
       { href: "/admin/integrations", labelKey: "integrations", icon: Plug, exact: false },
+      { href: "/admin/audit", labelKey: "auditTrail", icon: Shield, exact: false },
     ],
   },
 ];
@@ -119,6 +114,58 @@ function LocaleToggle() {
       >
         ES
       </button>
+    </div>
+  );
+}
+
+function FixedSection({
+  sectionKey,
+  items,
+  cleanPath,
+  onNavigate,
+}: {
+  sectionKey: string;
+  items: typeof NAV_SECTIONS[number]["items"];
+  cleanPath: string;
+  onNavigate?: () => void;
+}) {
+  const t = useTranslations("admin.sidebar");
+
+  return (
+    <div>
+      <div className="w-full flex items-center px-4 mb-1">
+        <span className="text-[10px] font-semibold tracking-[0.15em] text-gray-400 uppercase">
+          {t(`sections.${sectionKey}`)}
+        </span>
+      </div>
+      <div className="space-y-0.5 pb-2">
+        {items.map((item) => {
+          const isActive = item.exact
+            ? cleanPath === item.href
+            : cleanPath.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onNavigate}
+              className={cn(
+                "flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                isActive
+                  ? "bg-primary/10 text-primary border-l-2 border-primary"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 border-l-2 border-transparent"
+              )}
+            >
+              <item.icon
+                className={cn(
+                  "h-[18px] w-[18px] shrink-0 transition-colors duration-200",
+                  isActive ? "text-primary" : "text-gray-400"
+                )}
+              />
+              {t(`items.${item.labelKey}`)}
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -208,15 +255,25 @@ export function AdminSidebar() {
     )
   ).map((s) => s.key);
 
+  const dailyOps = NAV_SECTIONS.find((s) => s.key === "dailyOps")!;
+  const collapsibleSections = NAV_SECTIONS.filter((s) => s.key !== "dailyOps");
+
   const navContent = (onNavigate?: () => void) => (
     <div className="space-y-3">
-      {NAV_SECTIONS.map((section) => (
+      {/* Daily Ops — always visible, never collapsible */}
+      <FixedSection
+        sectionKey={dailyOps.key}
+        items={dailyOps.items}
+        cleanPath={cleanPath}
+        onNavigate={onNavigate}
+      />
+      {collapsibleSections.map((section) => (
         <AccordionSection
           key={section.key}
           sectionKey={section.key}
           items={section.items}
           cleanPath={cleanPath}
-          defaultOpen={activeSectionKeys.includes(section.key) || section.key === "content"}
+          defaultOpen={activeSectionKeys.includes(section.key)}
           onNavigate={onNavigate}
         />
       ))}

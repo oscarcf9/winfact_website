@@ -287,7 +287,7 @@ export function PerformanceCharts({ picks, cappers = [] }: Props) {
             onChange={(e) => setCapperFilter(e.target.value)}
             className="px-3 py-1.5 rounded-full text-xs font-medium bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 cursor-pointer focus:outline-none focus:border-primary/30"
           >
-            <option value="All">All Cappers</option>
+            <option value="All">{t("allCappers")}</option>
             {cappers.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
@@ -302,7 +302,7 @@ export function PerformanceCharts({ picks, cappers = [] }: Props) {
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
             className={inputClass}
-            placeholder="From"
+            placeholder={t("from")}
           />
           <span className="text-gray-300">—</span>
           <input
@@ -310,7 +310,7 @@ export function PerformanceCharts({ picks, cappers = [] }: Props) {
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
             className={inputClass}
-            placeholder="To"
+            placeholder={t("to")}
           />
         </div>
 

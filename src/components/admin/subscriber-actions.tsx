@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   MoreHorizontal,
   XCircle,
@@ -39,6 +40,8 @@ type Props = {
 };
 
 export function SubscriberActionMenu({ user }: Props) {
+  const t = useTranslations("admin.subscriberActions");
+  const tc = useTranslations("admin.common");
   const [open, setOpen] = useState(false);
   const [modal, setModal] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -66,13 +69,13 @@ export function SubscriberActionMenu({ user }: Props) {
       });
       const data = await res.json();
       if (res.ok) {
-        setFeedback({ ok: true, message: `${action} successful` });
+        setFeedback({ ok: true, message: `${action} ${t("successful")}` });
         setTimeout(() => window.location.reload(), 1500);
       } else {
-        setFeedback({ ok: false, message: data.error || "Action failed" });
+        setFeedback({ ok: false, message: data.error || tc("actionFailed") });
       }
     } catch {
-      setFeedback({ ok: false, message: "Network error" });
+      setFeedback({ ok: false, message: tc("networkError") });
     } finally {
       setLoading(false);
     }
@@ -94,27 +97,27 @@ export function SubscriberActionMenu({ user }: Props) {
               onClick={() => { setModal("cancel"); setOpen(false); }}
               className="flex items-center gap-2 w-full px-4 py-2 text-sm text-danger hover:bg-danger/5 cursor-pointer"
             >
-              <XCircle className="h-3.5 w-3.5" /> Cancel Subscription
+              <XCircle className="h-3.5 w-3.5" /> {t("cancelSubscription")}
             </button>
           )}
           <button
             onClick={() => { setModal("comp"); setOpen(false); }}
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
           >
-            <Gift className="h-3.5 w-3.5" /> Comp VIP Access
+            <Gift className="h-3.5 w-3.5" /> {t("compVip")}
           </button>
           <button
             onClick={() => { setModal("change_tier"); setOpen(false); }}
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
           >
-            <ArrowUpDown className="h-3.5 w-3.5" /> Change Plan
+            <ArrowUpDown className="h-3.5 w-3.5" /> {t("changePlan")}
           </button>
           {user.subscription && (
             <button
               onClick={() => { setModal("extend"); setOpen(false); }}
               className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
             >
-              <Calendar className="h-3.5 w-3.5" /> Extend Period
+              <Calendar className="h-3.5 w-3.5" /> {t("extendPeriod")}
             </button>
           )}
           {user.subscription?.stripeSubscriptionId &&
@@ -123,20 +126,20 @@ export function SubscriberActionMenu({ user }: Props) {
               onClick={() => { setModal("refund"); setOpen(false); }}
               className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
             >
-              <CreditCard className="h-3.5 w-3.5" /> Issue Refund
+              <CreditCard className="h-3.5 w-3.5" /> {t("issueRefund")}
             </button>
           )}
           <button
             onClick={() => { setModal("email"); setOpen(false); }}
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
           >
-            <Mail className="h-3.5 w-3.5" /> Send Email
+            <Mail className="h-3.5 w-3.5" /> {t("sendEmail")}
           </button>
           <button
             onClick={() => { setModal("notes"); setOpen(false); }}
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
           >
-            <StickyNote className="h-3.5 w-3.5" /> Notes
+            <StickyNote className="h-3.5 w-3.5" /> {t("notes")}
           </button>
         </div>
       )}
@@ -150,13 +153,13 @@ export function SubscriberActionMenu({ user }: Props) {
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-heading font-bold text-lg text-navy">
-                {modal === "cancel" && "Cancel Subscription"}
-                {modal === "comp" && "Comp VIP Access"}
-                {modal === "change_tier" && "Change Plan"}
-                {modal === "extend" && "Extend Period"}
-                {modal === "refund" && "Issue Refund"}
-                {modal === "email" && "Send Email"}
-                {modal === "notes" && "Subscriber Notes"}
+                {modal === "cancel" && t("cancelSubscription")}
+                {modal === "comp" && t("compVip")}
+                {modal === "change_tier" && t("changePlan")}
+                {modal === "extend" && t("extendPeriod")}
+                {modal === "refund" && t("issueRefund")}
+                {modal === "email" && t("sendEmail")}
+                {modal === "notes" && t("subscriberNotes")}
               </h3>
               <button onClick={() => { setModal(null); setFeedback(null); }} className="p-1 hover:bg-gray-100 rounded cursor-pointer">
                 <X className="h-4 w-4 text-gray-400" />
@@ -179,8 +182,8 @@ export function SubscriberActionMenu({ user }: Props) {
             {modal === "cancel" && (
               <div>
                 <p className="text-sm text-gray-600 mb-4">
-                  This will immediately cancel the subscription for <strong>{user.email}</strong>.
-                  Current plan: <strong>{user.subscription?.tier?.replace(/_/g, " ")}</strong>
+                  {t("cancelDesc")} <strong>{user.email}</strong>.
+                  {t("currentPlan")} <strong>{user.subscription?.tier?.replace(/_/g, " ")}</strong>
                 </p>
                 <div className="flex gap-3">
                   <button
@@ -188,10 +191,10 @@ export function SubscriberActionMenu({ user }: Props) {
                     disabled={loading}
                     className="flex-1 px-4 py-2.5 rounded-xl bg-danger text-white text-sm font-medium disabled:opacity-50 cursor-pointer"
                   >
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : "Confirm Cancel"}
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : t("confirmCancel")}
                   </button>
                   <button onClick={() => setModal(null)} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-sm cursor-pointer">
-                    Back
+                    {tc("back")}
                   </button>
                 </div>
               </div>
@@ -228,10 +231,11 @@ export function SubscriberActionMenu({ user }: Props) {
 }
 
 function CompModal({ loading, onSubmit }: { loading: boolean; onSubmit: (days: number) => void }) {
+  const t = useTranslations("admin.subscriberActions");
   const [days, setDays] = useState(30);
   return (
     <div>
-      <p className="text-sm text-gray-600 mb-3">Grant free VIP access without a payment.</p>
+      <p className="text-sm text-gray-600 mb-3">{t("compDesc")}</p>
       <div className="flex gap-2 mb-4">
         {[7, 14, 30, 60, 90].map((d) => (
           <button
@@ -252,33 +256,34 @@ function CompModal({ loading, onSubmit }: { loading: boolean; onSubmit: (days: n
         disabled={loading}
         className="w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary to-accent text-white text-sm font-medium disabled:opacity-50 cursor-pointer"
       >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : `Grant ${days} Days VIP`}
+        {loading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : t("grantDaysVip", { days })}
       </button>
     </div>
   );
 }
 
 function ChangeTierModal({ loading, currentTier, onSubmit }: { loading: boolean; currentTier?: string; onSubmit: (tier: string) => void }) {
+  const t = useTranslations("admin.subscriberActions");
   const tiers = [
-    { value: "vip_weekly", label: "VIP Weekly" },
-    { value: "vip_monthly", label: "VIP Monthly" },
+    { value: "vip_weekly", label: t("vipWeekly") },
+    { value: "vip_monthly", label: t("vipMonthly") },
   ];
   const [tier, setTier] = useState(currentTier || "vip_monthly");
   return (
     <div>
-      <p className="text-sm text-gray-600 mb-3">Change to a different plan.</p>
+      <p className="text-sm text-gray-600 mb-3">{t("changePlanDesc")}</p>
       <div className="space-y-2 mb-4">
-        {tiers.map((t) => (
+        {tiers.map((opt) => (
           <button
-            key={t.value}
-            onClick={() => setTier(t.value)}
+            key={opt.value}
+            onClick={() => setTier(opt.value)}
             className={`w-full px-4 py-3 rounded-xl text-sm font-medium text-left cursor-pointer ${
-              tier === t.value
+              tier === opt.value
                 ? "bg-primary/10 text-primary border border-primary/20"
                 : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
             }`}
           >
-            {t.label}
+            {opt.label}
           </button>
         ))}
       </div>
@@ -287,17 +292,18 @@ function ChangeTierModal({ loading, currentTier, onSubmit }: { loading: boolean;
         disabled={loading}
         className="w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary to-accent text-white text-sm font-medium disabled:opacity-50 cursor-pointer"
       >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : "Change Plan"}
+        {loading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : t("changePlan")}
       </button>
     </div>
   );
 }
 
 function ExtendModal({ loading, onSubmit }: { loading: boolean; onSubmit: (days: number) => void }) {
+  const t = useTranslations("admin.subscriberActions");
   const [days, setDays] = useState(30);
   return (
     <div>
-      <p className="text-sm text-gray-600 mb-3">Extend the current billing period.</p>
+      <p className="text-sm text-gray-600 mb-3">{t("extendDesc")}</p>
       <div className="flex gap-2 mb-4">
         {[7, 14, 30].map((d) => (
           <button
@@ -309,7 +315,7 @@ function ExtendModal({ loading, onSubmit }: { loading: boolean; onSubmit: (days:
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
-            +{d} days
+            {t("plusDays", { days: d })}
           </button>
         ))}
       </div>
@@ -318,18 +324,19 @@ function ExtendModal({ loading, onSubmit }: { loading: boolean; onSubmit: (days:
         disabled={loading}
         className="w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary to-accent text-white text-sm font-medium disabled:opacity-50 cursor-pointer"
       >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : `Extend by ${days} Days`}
+        {loading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : t("extendDays", { days })}
       </button>
     </div>
   );
 }
 
 function RefundModal({ loading, onSubmit }: { loading: boolean; onSubmit: (amount?: number) => void }) {
+  const t = useTranslations("admin.subscriberActions");
   const [refundType, setRefundType] = useState<"full" | "partial">("full");
   const [amount, setAmount] = useState("");
   return (
     <div>
-      <p className="text-sm text-gray-600 mb-3">Issue a refund via Stripe.</p>
+      <p className="text-sm text-gray-600 mb-3">{t("refundDesc")}</p>
       <div className="flex gap-2 mb-4">
         <button
           onClick={() => setRefundType("full")}
@@ -339,7 +346,7 @@ function RefundModal({ loading, onSubmit }: { loading: boolean; onSubmit: (amoun
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           }`}
         >
-          Full Refund
+          {t("fullRefund")}
         </button>
         <button
           onClick={() => setRefundType("partial")}
@@ -349,12 +356,12 @@ function RefundModal({ loading, onSubmit }: { loading: boolean; onSubmit: (amoun
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           }`}
         >
-          Partial
+          {t("partial")}
         </button>
       </div>
       {refundType === "partial" && (
         <div className="mb-4">
-          <label className="block text-sm text-gray-500 mb-1">Amount ($)</label>
+          <label className="block text-sm text-gray-500 mb-1">{t("amountLabel")}</label>
           <input
             type="number"
             step="0.01"
@@ -370,13 +377,15 @@ function RefundModal({ loading, onSubmit }: { loading: boolean; onSubmit: (amoun
         disabled={loading || (refundType === "partial" && !amount)}
         className="w-full px-4 py-2.5 rounded-xl bg-danger text-white text-sm font-medium disabled:opacity-50 cursor-pointer"
       >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : "Issue Refund"}
+        {loading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : t("issueRefund")}
       </button>
     </div>
   );
 }
 
 function EmailModal({ userId, email, onClose }: { userId: string; email: string; onClose: () => void }) {
+  const t = useTranslations("admin.subscriberActions");
+  const tc = useTranslations("admin.common");
   const [subject, setSubject] = useState("Message from WinFact Picks");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -397,13 +406,13 @@ function EmailModal({ userId, email, onClose }: { userId: string; email: string;
         setSent(true);
         setTimeout(() => onClose(), 1500);
       } else if (res.status === 429) {
-        setError("Too many emails sent. Try again in a minute.");
+        setError(t("tooManyEmails"));
       } else {
         const data = await res.json();
-        setError(data.error || "Failed to send email");
+        setError(data.error || t("failedToSendEmail"));
       }
     } catch {
-      setError("Network error");
+      setError(tc("networkError"));
     } finally {
       setSending(false);
     }
@@ -415,7 +424,7 @@ function EmailModal({ userId, email, onClose }: { userId: string; email: string;
         <div className="mx-auto w-10 h-10 rounded-full bg-success/10 flex items-center justify-center mb-3">
           <Check className="h-5 w-5 text-success" />
         </div>
-        <p className="text-sm font-medium text-navy">Email sent to {email}</p>
+        <p className="text-sm font-medium text-navy">{t("emailSentTo", { email })}</p>
       </div>
     );
   }
@@ -430,22 +439,22 @@ function EmailModal({ userId, email, onClose }: { userId: string; email: string;
       )}
       <div className="space-y-3 mb-4">
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Subject</label>
+          <label className="block text-xs font-medium text-gray-500 mb-1">{t("subject")}</label>
           <input
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-navy focus:outline-none focus:border-primary/50"
-            placeholder="Email subject..."
+            placeholder={t("emailSubject")}
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Message</label>
+          <label className="block text-xs font-medium text-gray-500 mb-1">{t("message")}</label>
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={4}
             className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-navy focus:outline-none focus:border-primary/50 resize-y"
-            placeholder="Write your message..."
+            placeholder={t("writeMessage")}
           />
         </div>
       </div>
@@ -456,10 +465,10 @@ function EmailModal({ userId, email, onClose }: { userId: string; email: string;
           className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary to-accent text-white text-sm font-medium disabled:opacity-50 cursor-pointer"
         >
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
-          {sending ? "Sending..." : "Send"}
+          {sending ? tc("sending") : tc("send")}
         </button>
         <button onClick={onClose} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-sm cursor-pointer">
-          Cancel
+          {tc("cancel")}
         </button>
       </div>
     </div>
@@ -467,6 +476,8 @@ function EmailModal({ userId, email, onClose }: { userId: string; email: string;
 }
 
 function NotesModal({ userId, initialNotes, onClose }: { userId: string; initialNotes: string; onClose: () => void }) {
+  const t = useTranslations("admin.subscriberActions");
+  const tc = useTranslations("admin.common");
   const [notes, setNotes] = useState(initialNotes);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -495,7 +506,7 @@ function NotesModal({ userId, initialNotes, onClose }: { userId: string; initial
         onChange={(e) => setNotes(e.target.value)}
         rows={4}
         className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-navy focus:outline-none focus:border-primary/50 resize-y mb-3"
-        placeholder="Add notes about this subscriber..."
+        placeholder={t("addNotes")}
         onBlur={saveNotes}
       />
       <div className="flex items-center justify-between">
@@ -505,10 +516,10 @@ function NotesModal({ userId, initialNotes, onClose }: { userId: string; initial
           className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-primary to-accent text-white text-sm font-medium disabled:opacity-50 cursor-pointer"
         >
           {saved ? <Check className="h-3.5 w-3.5" /> : saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-          {saved ? "Saved" : saving ? "Saving..." : "Save Notes"}
+          {saved ? tc("saved") : saving ? tc("saving") : t("saveNotes")}
         </button>
         <button onClick={onClose} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 cursor-pointer">
-          Close
+          {tc("close")}
         </button>
       </div>
     </div>
@@ -516,6 +527,7 @@ function NotesModal({ userId, initialNotes, onClose }: { userId: string; initial
 }
 
 export function ExportButton() {
+  const tc = useTranslations("admin.common");
   const [loading, setLoading] = useState(false);
 
   async function handleExport() {
@@ -543,7 +555,7 @@ export function ExportButton() {
       className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-all duration-200 disabled:opacity-50 cursor-pointer"
     >
       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-      Export CSV
+      {tc("exportCsv")}
     </button>
   );
 }

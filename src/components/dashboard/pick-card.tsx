@@ -30,7 +30,7 @@ type PickCardProps = {
     analysisEs?: string | null;
     tier?: "free" | "vip" | null;
     status?: "draft" | "published" | "settled" | null;
-    result?: "win" | "loss" | "push" | null;
+    result?: "win" | "loss" | "push" | "void" | null;
     closingOdds?: number | null;
     clv?: number | null;
     publishedAt?: string | null;

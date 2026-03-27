@@ -14,7 +14,7 @@ export const createPickSchema = z.object({
   analysisEs: z.string().max(5000).optional().nullable(),
   tier: z.enum(["free", "vip"]).optional(),
   status: z.enum(["draft", "published", "settled"]).optional(),
-  result: z.enum(["win", "loss", "push"]).optional().nullable(),
+  result: z.enum(["win", "loss", "push", "void"]).optional().nullable(),
   closingOdds: z.number().int().min(-10000).max(10000).optional().nullable(),
   distribute: z.boolean().optional(),
 });

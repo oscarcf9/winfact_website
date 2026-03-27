@@ -91,6 +91,7 @@ function EditPickModal({
   onSaved: () => void;
   onDelete: (pick: Pick) => void;
 }) {
+  const tc = useTranslations("admin.common");
   const [saving, setSaving] = useState(false);
   const [pickText, setPickText] = useState(pick.pickText);
   const [odds, setOdds] = useState(pick.odds != null ? String(pick.odds) : "");
@@ -149,21 +150,21 @@ function EditPickModal({
 
         <div className="p-5 space-y-3">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Pick</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{tc("pick")}</label>
             <input value={pickText} onChange={(e) => setPickText(e.target.value)} className={inputClass} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Odds</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">{tc("odds")}</label>
               <input type="number" value={odds} onChange={(e) => setOdds(e.target.value)} className={`${inputClass} font-mono`} placeholder="—" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Units</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">{tc("units")}</label>
               <input type="number" step="0.5" value={units} onChange={(e) => setUnits(e.target.value)} className={`${inputClass} font-mono`} placeholder="—" />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Confidence</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{tc("confidence")}</label>
             <div className="flex gap-1.5">
               {(["standard", "strong", "top"] as const).map((c) => (
                 <button
@@ -176,13 +177,13 @@ function EditPickModal({
                       : "bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100"
                   }`}
                 >
-                  {c.charAt(0).toUpperCase() + c.slice(1)}
+                  {tc(c)}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Tier</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{tc("tier")}</label>
             <div className="flex gap-1.5">
               {(["free", "vip"] as const).map((t_) => (
                 <button
@@ -201,13 +202,13 @@ function EditPickModal({
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Analysis</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{tc("analysis")}</label>
             <textarea
               rows={2}
               value={analysis}
               onChange={(e) => setAnalysis(e.target.value)}
               className={`${inputClass} resize-none`}
-              placeholder="Optional..."
+              placeholder={tc("optional")}
             />
           </div>
         </div>
@@ -220,16 +221,16 @@ function EditPickModal({
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-primary to-accent text-white text-sm font-medium hover:shadow-lg transition-all disabled:opacity-50 cursor-pointer"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            Save
+            {tc("save")}
           </button>
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-100 cursor-pointer">
-            Cancel
+            {tc("cancel")}
           </button>
           <button
             type="button"
             onClick={() => { onClose(); onDelete(pick); }}
             className="p-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
-            title="Delete pick"
+            title={tc("deletePick")}
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -277,6 +278,7 @@ function InlineResultPicker({
 export function PicksManager() {
   const t = useTranslations("admin.picks");
   const tc = useTranslations("admin.common");
+  const tm = useTranslations("admin.picksManager");
 
   const [tab, setTab] = useState<Tab>("active");
   const [sportFilter, setSportFilter] = useState("All");
@@ -444,9 +446,9 @@ export function PicksManager() {
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200">
           <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
           <p className="text-sm text-amber-800 flex-1">
-            <span className="font-semibold">{unsettledCount} picks</span> need results.{" "}
+            <span className="font-semibold">{unsettledCount} picks</span> {tm("needResults")}{" "}
             <button type="button" onClick={() => setTab("active")} className="text-amber-600 underline hover:text-amber-800 cursor-pointer">
-              Review now
+              {tm("reviewNow")}
             </button>
           </p>
         </div>
@@ -466,7 +468,7 @@ export function PicksManager() {
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-all cursor-pointer"
           >
             <Download className="h-4 w-4" />
-            Export
+            {tc("export")}
           </button>
           <button
             type="button"
@@ -475,7 +477,7 @@ export function PicksManager() {
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium transition-all cursor-pointer disabled:opacity-50"
           >
             {autoSettling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-            Auto-Settle
+            {tm("autoSettle")}
           </button>
           <button
             type="button"
@@ -498,9 +500,9 @@ export function PicksManager() {
           >
             <div className="flex items-center gap-2">
               <Zap className="h-4 w-4 text-amber-500" />
-              <span className="text-sm font-semibold text-navy">Settlement Log</span>
+              <span className="text-sm font-semibold text-navy">{tm("settlementLog")}</span>
               <span className="text-xs text-gray-400">
-                ({settlementLogs.filter((l) => l.autoSettled).length} settled, {settlementLogs.filter((l) => l.result === "manual_review").length} review)
+                ({settlementLogs.filter((l) => l.autoSettled).length} {tm("settled")}, {settlementLogs.filter((l) => l.result === "manual_review").length} {tm("reviewNeeded")})
               </span>
             </div>
             <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showLogs ? "rotate-180" : ""}`} />
@@ -519,10 +521,10 @@ export function PicksManager() {
                     </span>
                   ) : log.result === "manual_review" ? (
                     <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-semibold">
-                      <AlertTriangle className="h-2.5 w-2.5" /> Review
+                      <AlertTriangle className="h-2.5 w-2.5" /> {tc("review")}
                     </span>
                   ) : (
-                    <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-400 text-[10px]">Pending</span>
+                    <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-400 text-[10px]">{tc("pending")}</span>
                   )}
                 </div>
               ))}
@@ -579,7 +581,7 @@ export function PicksManager() {
             }`}
           >
             <ListChecks className="h-3.5 w-3.5" />
-            {bulkMode ? "Exit Bulk Edit" : "Bulk Edit"}
+            {bulkMode ? tm("exitBulkEdit") : tm("bulkEdit")}
           </button>
         )}
       </div>
@@ -601,11 +603,11 @@ export function PicksManager() {
           {bulkMode && (
             <div className="flex items-center gap-3 px-5 py-2.5 bg-primary/5 border-b border-primary/10">
               <ListChecks className="h-4 w-4 text-primary" />
-              <span className="text-xs font-semibold text-primary">Bulk Edit Mode</span>
-              <span className="text-xs text-gray-500">Click W/L/P to set results, then Save All</span>
+              <span className="text-xs font-semibold text-primary">{tm("bulkEditMode")}</span>
+              <span className="text-xs text-gray-500">{tm("bulkEditHint")}</span>
               {bulkChangeCount > 0 && (
                 <span className="ml-auto text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                  {bulkChangeCount} changed
+                  {tm("changed", { count: bulkChangeCount })}
                 </span>
               )}
             </div>
@@ -614,17 +616,17 @@ export function PicksManager() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50/50">
-                  <th className="text-left py-2.5 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Date</th>
-                  <th className="text-left py-2.5 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Sport</th>
-                  <th className="text-left py-2.5 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Matchup</th>
-                  <th className="text-left py-2.5 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Pick</th>
-                  <th className="text-center py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Odds</th>
-                  <th className="text-center py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Units</th>
-                  <th className="text-center py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tier</th>
-                  <th className="text-left py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Capper</th>
-                  <th className="text-center py-2.5 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Result</th>
+                  <th className="text-left py-2.5 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{tm("date")}</th>
+                  <th className="text-left py-2.5 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{tc("sport")}</th>
+                  <th className="text-left py-2.5 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{tc("matchup")}</th>
+                  <th className="text-left py-2.5 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{tc("pick")}</th>
+                  <th className="text-center py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{tc("odds")}</th>
+                  <th className="text-center py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{tc("units")}</th>
+                  <th className="text-center py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{tc("tier")}</th>
+                  <th className="text-left py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{tc("capper")}</th>
+                  <th className="text-center py-2.5 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{tc("result")}</th>
                   {!bulkMode && (
-                    <th className="text-center py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider w-[100px]">Actions</th>
+                    <th className="text-center py-2.5 px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider w-[100px]">{tc("actions")}</th>
                   )}
                 </tr>
               </thead>
@@ -675,7 +677,7 @@ export function PicksManager() {
                           />
                         ) : pick.result ? (
                           <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                            pick.result === "win" ? "bg-success/15 text-success" : pick.result === "loss" ? "bg-danger/15 text-danger" : "bg-warning/15 text-warning"
+                            pick.result === "win" ? "bg-success/15 text-success" : pick.result === "loss" ? "bg-danger/15 text-danger" : pick.result === "void" ? "bg-gray-100 text-gray-400" : "bg-warning/15 text-warning"
                           }`}>
                             {pick.result.toUpperCase()}
                           </span>
@@ -685,15 +687,15 @@ export function PicksManager() {
                             <Loader2 className="h-3.5 w-3.5 text-gray-400 animate-spin mx-auto" />
                           ) : (
                             <div className="flex items-center justify-center gap-0.5">
-                              <button type="button" onClick={() => handleSettle(pick.id, "win")} title="Win"
+                              <button type="button" onClick={() => handleSettle(pick.id, "win")} title={tc("win")}
                                 className="p-1 rounded text-success/60 hover:text-success hover:bg-success/10 transition-all cursor-pointer">
                                 <CheckCircle className="h-4 w-4" />
                               </button>
-                              <button type="button" onClick={() => handleSettle(pick.id, "loss")} title="Loss"
+                              <button type="button" onClick={() => handleSettle(pick.id, "loss")} title={tc("loss")}
                                 className="p-1 rounded text-danger/60 hover:text-danger hover:bg-danger/10 transition-all cursor-pointer">
                                 <XCircle className="h-4 w-4" />
                               </button>
-                              <button type="button" onClick={() => handleSettle(pick.id, "push")} title="Push"
+                              <button type="button" onClick={() => handleSettle(pick.id, "push")} title={tc("push")}
                                 className="p-1 rounded text-warning/60 hover:text-warning hover:bg-warning/10 transition-all cursor-pointer">
                                 <MinusCircle className="h-4 w-4" />
                               </button>
@@ -718,7 +720,7 @@ export function PicksManager() {
                               type="button"
                               onClick={() => setDeletingPick(pick)}
                               className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer opacity-0 group-hover:opacity-100"
-                              title="Delete"
+                              title={tc("delete")}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -814,7 +816,7 @@ export function PicksManager() {
       {bulkMode && bulkChangeCount > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-5 py-3 rounded-2xl bg-navy shadow-2xl border border-gray-700 animate-fade-up">
           <span className="text-sm text-white">
-            <span className="font-bold text-primary">{bulkChangeCount}</span> pick{bulkChangeCount !== 1 ? "s" : ""} to update
+            <span className="font-bold text-primary">{bulkChangeCount}</span> {tm("picksToUpdate")}
           </span>
           <button
             type="button"
@@ -823,14 +825,14 @@ export function PicksManager() {
             className="flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-primary to-accent text-white text-sm font-semibold hover:shadow-lg transition-all cursor-pointer disabled:opacity-50"
           >
             {bulkSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            Save All
+            {tm("saveAll")}
           </button>
           <button
             type="button"
             onClick={handleBulkCancel}
             className="px-4 py-2 rounded-xl text-gray-400 hover:text-white text-sm font-medium transition-all cursor-pointer"
           >
-            Cancel
+            {tc("cancel")}
           </button>
         </div>
       )}
@@ -855,7 +857,7 @@ export function PicksManager() {
               <div className="mx-auto w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-3">
                 <Trash2 className="h-6 w-6 text-red-500" />
               </div>
-              <h3 className="text-lg font-semibold text-navy mb-1">Delete Pick</h3>
+              <h3 className="text-lg font-semibold text-navy mb-1">{tc("deletePick")}</h3>
               <p className="text-sm text-gray-500 mb-1">
                 <span className="font-medium text-navy">{deletingPick.matchup}</span>
               </p>
@@ -864,11 +866,11 @@ export function PicksManager() {
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 mb-3">
                   <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
                   <p className="text-xs text-amber-700 text-left">
-                    This pick is already settled. Deleting it will affect historical performance stats.
+                    {tc("settledWarning")}
                   </p>
                 </div>
               )}
-              <p className="text-xs text-gray-400">This action cannot be undone.</p>
+              <p className="text-xs text-gray-400">{tc("deleteConfirmTitle")}</p>
             </div>
             <div className="px-5 py-3 border-t border-gray-200 bg-gray-50/50 flex gap-2">
               <button
@@ -878,7 +880,7 @@ export function PicksManager() {
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-all disabled:opacity-50 cursor-pointer"
               >
                 {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                Delete
+                {tc("delete")}
               </button>
               <button
                 type="button"
@@ -886,7 +888,7 @@ export function PicksManager() {
                 disabled={deleting}
                 className="flex-1 px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-100 cursor-pointer disabled:opacity-50"
               >
-                Cancel
+                {tc("cancel")}
               </button>
             </div>
           </div>

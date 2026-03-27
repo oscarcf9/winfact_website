@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import {
   Plus,
   Pencil,
@@ -79,6 +80,7 @@ function parseFeatures(f: string | string[]): string[] {
 }
 
 export function PricingManager() {
+  const t = useTranslations("admin.pricingManager");
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<EditingPlan | null>(null);
@@ -175,7 +177,7 @@ export function PricingManager() {
   };
 
   const deletePlan = async (id: string) => {
-    if (!confirm("Delete this pricing plan? This cannot be undone.")) return;
+    if (!confirm(t("confirmDelete"))) return;
     setDeleting(id);
     try {
       await fetch(`/api/admin/pricing/${id}`, { method: "DELETE" });
@@ -236,9 +238,9 @@ export function PricingManager() {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
         <Crown className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-        <h3 className="font-heading font-bold text-lg text-navy mb-2">No pricing plans yet</h3>
+        <h3 className="font-heading font-bold text-lg text-navy mb-2">{t("noPlansYet")}</h3>
         <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
-          Seed the default plans (Free, VIP Weekly, VIP Monthly) or create your own from scratch.
+          {t("seedDescription")}
         </p>
         <div className="flex items-center justify-center gap-3">
           <button
@@ -247,14 +249,14 @@ export function PricingManager() {
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-secondary transition-colors disabled:opacity-50"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-            Seed Defaults
+            {t("seedDefaults")}
           </button>
           <button
             onClick={startNew}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
           >
             <Plus className="h-4 w-4" />
-            Create Custom
+            {t("createCustom")}
           </button>
         </div>
       </div>
@@ -272,7 +274,7 @@ export function PricingManager() {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-secondary transition-colors"
             >
               <Plus className="h-4 w-4" />
-              Add Plan
+              {t("addPlan")}
             </button>
           </div>
 
@@ -299,18 +301,18 @@ export function PricingManager() {
                         {plan.isPopular && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-semibold">
                             <Star className="h-3 w-3" />
-                            Popular
+                            {t("popular")}
                           </span>
                         )}
                         {!plan.isActive && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 text-xs font-semibold">
                             <EyeOff className="h-3 w-3" />
-                            Hidden
+                            {t("hidden")}
                           </span>
                         )}
                         {plan.isFree && (
                           <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-xs font-semibold">
-                            Free
+                            {t("free")}
                           </span>
                         )}
                       </div>
@@ -326,7 +328,7 @@ export function PricingManager() {
                         </span>
                         {plan.trialDays > 0 && (
                           <span className="ml-2 text-xs text-accent font-medium">
-                            {plan.trialDays}-day trial
+                            {t("dayTrial", { days: plan.trialDays })}
                           </span>
                         )}
                       </div>
@@ -339,7 +341,7 @@ export function PricingManager() {
                         ))}
                         {features.length > 4 && (
                           <span className="px-2 py-0.5 rounded bg-gray-50 text-xs text-gray-400">
-                            +{features.length - 4} more
+                            {t("moreFeatures", { count: features.length - 4 })}
                           </span>
                         )}
                       </div>
@@ -355,7 +357,7 @@ export function PricingManager() {
                       <button
                         onClick={() => toggleActive(plan)}
                         className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                        title={plan.isActive ? "Hide plan" : "Show plan"}
+                        title={plan.isActive ? t("hidePlan") : t("showPlan")}
                       >
                         {plan.isActive ? (
                           <Eye className="h-4 w-4 text-gray-400" />
@@ -366,7 +368,7 @@ export function PricingManager() {
                       <button
                         onClick={() => togglePopular(plan)}
                         className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                        title={plan.isPopular ? "Remove popular badge" : "Mark as popular"}
+                        title={plan.isPopular ? t("removePopular") : t("markPopular")}
                       >
                         <Star
                           className={`h-4 w-4 ${
@@ -405,7 +407,7 @@ export function PricingManager() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
           <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
             <h2 className="font-heading font-bold text-navy">
-              {isNew ? "New Plan" : `Edit: ${editing.nameEn}`}
+              {isNew ? t("newPlan") : `${t("edit")}: ${editing.nameEn}`}
             </h2>
             <button onClick={cancel} className="p-2 rounded-lg hover:bg-gray-100">
               <X className="h-4 w-4 text-gray-400" />
@@ -417,7 +419,7 @@ export function PricingManager() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Plan Key <span className="text-xs text-gray-400">(internal, e.g. vip_monthly)</span>
+                  {t("planKey")} <span className="text-xs text-gray-400">{t("planKeyHint")}</span>
                 </label>
                 <input
                   type="text"
@@ -428,16 +430,16 @@ export function PricingManager() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Billing Interval</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("billingInterval")}</label>
                 <select
                   value={editing.interval}
                   onChange={(e) => setEditing({ ...editing, interval: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
                 >
-                  <option value="forever">Free (forever)</option>
-                  <option value="week">Weekly</option>
-                  <option value="month">Monthly</option>
-                  <option value="year">Yearly</option>
+                  <option value="forever">{t("freeForever")}</option>
+                  <option value="week">{t("weekly")}</option>
+                  <option value="month">{t("monthly")}</option>
+                  <option value="year">{t("yearly")}</option>
                 </select>
               </div>
             </div>
@@ -445,7 +447,7 @@ export function PricingManager() {
             {/* Row: Name EN + ES */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name (EN)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("nameEn")}</label>
                 <input
                   type="text"
                   value={editing.nameEn}
@@ -455,7 +457,7 @@ export function PricingManager() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name (ES)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("nameEs")}</label>
                 <input
                   type="text"
                   value={editing.nameEs}
@@ -469,7 +471,7 @@ export function PricingManager() {
             {/* Row: Description EN + ES */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description (EN)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("descriptionEn")}</label>
                 <input
                   type="text"
                   value={editing.descriptionEn}
@@ -478,7 +480,7 @@ export function PricingManager() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description (ES)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("descriptionEs")}</label>
                 <input
                   type="text"
                   value={editing.descriptionEs}
@@ -491,7 +493,7 @@ export function PricingManager() {
             {/* Row: Price + Trial + Stripe */}
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Price ($)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("price")}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -502,7 +504,7 @@ export function PricingManager() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Trial Days</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("trialDays")}</label>
                 <input
                   type="number"
                   min="0"
@@ -513,7 +515,7 @@ export function PricingManager() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Stripe Price ID
+                  {t("stripePriceId")}
                 </label>
                 <input
                   type="text"
@@ -528,7 +530,7 @@ export function PricingManager() {
             {/* Row: CTA EN + ES */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">CTA Button (EN)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("ctaEn")}</label>
                 <input
                   type="text"
                   value={editing.ctaEn}
@@ -538,7 +540,7 @@ export function PricingManager() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">CTA Button (ES)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("ctaEs")}</label>
                 <input
                   type="text"
                   value={editing.ctaEs}
@@ -553,7 +555,7 @@ export function PricingManager() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Badge (EN) <span className="text-xs text-gray-400">optional</span>
+                  {t("badgeEn")} <span className="text-xs text-gray-400">{t("optional")}</span>
                 </label>
                 <input
                   type="text"
@@ -565,7 +567,7 @@ export function PricingManager() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Badge (ES) <span className="text-xs text-gray-400">optional</span>
+                  {t("badgeEs")} <span className="text-xs text-gray-400">{t("optional")}</span>
                 </label>
                 <input
                   type="text"
@@ -586,7 +588,7 @@ export function PricingManager() {
                   onChange={(e) => setEditing({ ...editing, isFree: e.target.checked, price: e.target.checked ? 0 : editing.price })}
                   className="rounded border-gray-300 text-primary focus:ring-primary"
                 />
-                Free tier (no checkout)
+                {t("freeTier")}
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -595,7 +597,7 @@ export function PricingManager() {
                   onChange={(e) => setEditing({ ...editing, isPopular: e.target.checked })}
                   className="rounded border-gray-300 text-primary focus:ring-primary"
                 />
-                Mark as Popular
+                {t("markAsPopular")}
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -604,10 +606,10 @@ export function PricingManager() {
                   onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })}
                   className="rounded border-gray-300 text-primary focus:ring-primary"
                 />
-                Active (visible on site)
+                {t("activeVisible")}
               </label>
               <div className="flex items-center gap-2 text-sm">
-                <label className="text-gray-700">Order:</label>
+                <label className="text-gray-700">{t("order")}:</label>
                 <input
                   type="number"
                   min="0"
@@ -620,7 +622,7 @@ export function PricingManager() {
 
             {/* Features EN */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Features (EN)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t("featuresEn")}</label>
               <div className="space-y-2">
                 {editing.featuresEn.map((f, i) => (
                   <div key={i} className="flex items-center gap-2">
@@ -643,14 +645,14 @@ export function PricingManager() {
                   onClick={() => addFeature("En")}
                   className="text-sm text-primary hover:text-secondary font-medium"
                 >
-                  + Add feature
+                  {t("addFeature")}
                 </button>
               </div>
             </div>
 
             {/* Features ES */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Features (ES)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t("featuresEs")}</label>
               <div className="space-y-2">
                 {editing.featuresEs.map((f, i) => (
                   <div key={i} className="flex items-center gap-2">
@@ -673,7 +675,7 @@ export function PricingManager() {
                   onClick={() => addFeature("Es")}
                   className="text-sm text-primary hover:text-secondary font-medium"
                 >
-                  + Add feature
+                  {t("addFeature")}
                 </button>
               </div>
             </div>
@@ -685,7 +687,7 @@ export function PricingManager() {
               onClick={cancel}
               className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50"
             >
-              Cancel
+              {t("cancel")}
             </button>
             <button
               onClick={savePlan}
@@ -697,7 +699,7 @@ export function PricingManager() {
               ) : (
                 <Save className="h-4 w-4" />
               )}
-              {isNew ? "Create Plan" : "Save Changes"}
+              {isNew ? t("createPlan") : t("saveChanges")}
             </button>
           </div>
         </div>

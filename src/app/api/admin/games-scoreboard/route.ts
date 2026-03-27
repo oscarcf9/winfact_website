@@ -8,7 +8,7 @@ export async function GET() {
   const admin = await requireAdmin();
   if (admin.error) return admin.error;
 
-  const today = toESPNDate(new Date());
+  const today = toESPNDate();
 
   // Fetch all leagues in parallel
   const results = await Promise.all(

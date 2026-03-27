@@ -22,6 +22,7 @@ const badgeVariants = cva(
         win: "bg-success/10 text-success",
         loss: "bg-danger/10 text-danger",
         push: "bg-warning/10 text-warning",
+        void: "bg-gray-100 text-gray-400",
         pending: "bg-gray-100 text-gray-500",
       },
       tier: {
