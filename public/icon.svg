@@ -1,5 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="76" fill="#0B1F3B"/>
-  <text x="256" y="290" font-family="Arial,sans-serif" font-weight="900" font-size="320" fill="white" text-anchor="middle" dominant-baseline="middle">W</text>
-  <circle cx="370" cy="180" r="32" fill="#1168D9"/>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B1F3B"/>
+      <stop offset="100%" stop-color="#0E2A4D"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1168D9"/>
+      <stop offset="100%" stop-color="#0BC4D9"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <text x="148" y="350" font-family="system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif" font-weight="900" font-size="300" fill="white" letter-spacing="-20">W</text>
+  <text x="310" y="350" font-family="system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif" font-weight="900" font-size="300" fill="url(#accent)" letter-spacing="-20">F</text>
 </svg>
