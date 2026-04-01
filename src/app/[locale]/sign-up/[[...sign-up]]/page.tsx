@@ -1,7 +1,7 @@
 "use client";
 
 import { SignUp, useUser } from "@clerk/nextjs";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { BarChart3, Zap, Shield, Bell } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useSearchParams, useParams } from "next/navigation";
@@ -146,7 +146,7 @@ export default function SignUpPage() {
         {/* Custom footer */}
         <p className="mt-8 text-sm text-gray-500 text-center">
           Already have an account?{" "}
-          <Link href={`/${locale}/sign-in`} className="text-primary hover:text-secondary font-medium">
+          <Link href="/sign-in" className="text-primary hover:text-secondary font-medium">
             Sign in
           </Link>
         </p>

@@ -1,0 +1,30 @@
+# WinFact Picks
+
+> Data-driven sports betting picks backed by advanced analytics, sharp market insights, and disciplined bankroll strategy.
+
+WinFact Picks provides expert sports betting analysis across MLB, NFL, NBA, NHL, Soccer, and NCAA. Our model-driven approach combines statistical analysis, line movement tracking, and bankroll management to deliver actionable picks.
+
+## Pages
+
+- [Home](https://www.winfactpicks.com/en): Main landing page with overview of services
+- [How It Works](https://www.winfactpicks.com/en/how-it-works): Explanation of our data-driven methodology
+- [Pricing](https://www.winfactpicks.com/en/pricing): Subscription plans and pricing details
+- [About](https://www.winfactpicks.com/en/about): About WinFact Picks and our team
+- [FAQ](https://www.winfactpicks.com/en/faq): Frequently asked questions
+- [Contact](https://www.winfactpicks.com/en/contact): Get in touch with our team
+- [Blog](https://www.winfactpicks.com/en/blog): Free picks and insights
+
+## Sports Coverage
+
+- [MLB Picks](https://www.winfactpicks.com/en/mlb-picks): Major League Baseball picks and analysis
+- [NFL Picks](https://www.winfactpicks.com/en/nfl-picks): National Football League picks and analysis
+- [NBA Picks](https://www.winfactpicks.com/en/nba-picks): National Basketball Association picks and analysis
+- [NHL Picks](https://www.winfactpicks.com/en/nhl-picks): National Hockey League picks and analysis
+- [Soccer Picks](https://www.winfactpicks.com/en/soccer-picks): Soccer/Football picks and analysis
+
+## Legal
+
+- [Privacy Policy](https://www.winfactpicks.com/en/privacy)
+- [Terms of Service](https://www.winfactpicks.com/en/terms)
+- [Disclaimer](https://www.winfactpicks.com/en/disclaimer)
+- [Responsible Gambling](https://www.winfactpicks.com/en/responsible-gambling)

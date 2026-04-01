@@ -47,7 +47,7 @@ export async function generateMetadata({
       title: dbPost.seoTitle ?? title,
       description,
       alternates: {
-        canonical: dbPost.canonicalUrl ?? `/blog/${slug}`,
+        canonical: dbPost.canonicalUrl ?? `/${locale}/blog/${slug}`,
         languages: { en: `/en/blog/${slug}`, es: `/es/blog/${slug}` },
       },
       openGraph: {

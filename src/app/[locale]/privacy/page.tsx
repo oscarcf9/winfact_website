@@ -24,7 +24,7 @@ export async function generateMetadata({
     title: t("title"),
     description: t("subtitle"),
     alternates: {
-      canonical: "/privacy",
+      canonical: `/${locale}/privacy`,
       languages: { en: "/en/privacy", es: "/es/privacy" },
     },
     openGraph: {

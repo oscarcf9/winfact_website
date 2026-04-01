@@ -26,7 +26,7 @@ export async function generateMetadata({
     title: meta("homeTitle"),
     description: t("subheadline"),
     alternates: {
-      canonical: "/",
+      canonical: `/${locale}`,
       languages: { en: "/en", es: "/es" },
     },
   };

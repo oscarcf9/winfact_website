@@ -11,6 +11,31 @@ import { logAdminAction } from "@/lib/audit";
 import { createPostSchema } from "@/lib/validations";
 import { sanitizeBlogHtml } from "@/lib/sanitize";
 
+export async function DELETE(req: NextRequest) {
+  const admin = await requireAdmin();
+  if (admin.error) return admin.error;
+
+  try {
+    await db.delete(postTags);
+    await db.delete(posts);
+
+    await logAdminAction({
+      adminUserId: admin.userId,
+      action: "all_posts_deleted",
+      targetType: "post",
+      targetId: "all",
+      request: req,
+    });
+
+    revalidatePath("/[locale]/blog", "page");
+
+    return NextResponse.json({ success: true, message: "All blog posts deleted" });
+  } catch (error) {
+    console.error("Bulk delete posts error:", error);
+    return NextResponse.json({ error: "Failed to delete all posts" }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
   if (admin.error) return admin.error;

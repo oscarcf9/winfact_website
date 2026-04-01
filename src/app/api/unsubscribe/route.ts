@@ -25,7 +25,7 @@ function htmlPage(title: string, message: string, success: boolean): Response {
       <h2 style="color:#0B1F3B;margin:0 0 12px;font-size:20px;">${title}</h2>
       <p style="color:#374151;font-size:14px;line-height:1.7;">${message}</p>
       <div style="margin-top:24px;">
-        <a href="${process.env.NEXT_PUBLIC_SITE_URL || "https://winfactpicks.com"}" style="display:inline-block;background:linear-gradient(135deg,#1168D9,#0BC4D9);color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-weight:600;font-size:14px;">Go to Homepage</a>
+        <a href="${process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com"}" style="display:inline-block;background:linear-gradient(135deg,#1168D9,#0BC4D9);color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-weight:600;font-size:14px;">Go to Homepage</a>
       </div>
     </div>
   </div>

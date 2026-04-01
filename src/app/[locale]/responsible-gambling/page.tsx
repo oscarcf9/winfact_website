@@ -27,7 +27,7 @@ export async function generateMetadata({
     title: t("title"),
     description: t("subtitle"),
     alternates: {
-      canonical: "/responsible-gambling",
+      canonical: `/${locale}/responsible-gambling`,
       languages: {
         en: "/en/responsible-gambling",
         es: "/es/responsible-gambling",

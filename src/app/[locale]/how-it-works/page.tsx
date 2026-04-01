@@ -87,7 +87,7 @@ export async function generateMetadata({
     title: "How It Works",
     description: `${t("pageSubtitle")} Learn about our data-driven process for generating winning sports betting picks.`,
     alternates: {
-      canonical: "/how-it-works",
+      canonical: `/${locale}/how-it-works`,
       languages: { en: "/en/how-it-works", es: "/es/how-it-works" },
     },
     openGraph: {

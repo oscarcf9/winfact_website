@@ -67,7 +67,7 @@ export function Footer() {
     <footer className="bg-navy text-white">
       <Container>
         <div className="py-16">
-          <div className="grid gap-12 md:grid-cols-4">
+          <div className="grid gap-12 md:grid-cols-5">
             {/* Brand */}
             <div className="md:col-span-1">
               <span className="font-heading text-xl font-bold">
@@ -138,6 +138,40 @@ export function Footer() {
                   >
                     {t("links.telegram")}
                   </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Sports */}
+            <div>
+              <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-primary">
+                {t("sports") ?? "Sports"}
+              </h3>
+              <ul className="space-y-2.5">
+                <li>
+                  <Link href="/mlb-picks" className="text-sm text-gray-400 hover:text-primary transition-colors footer-link">
+                    MLB
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/nfl-picks" className="text-sm text-gray-400 hover:text-primary transition-colors footer-link">
+                    NFL
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/nba-picks" className="text-sm text-gray-400 hover:text-primary transition-colors footer-link">
+                    NBA
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/nhl-picks" className="text-sm text-gray-400 hover:text-primary transition-colors footer-link">
+                    NHL
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/soccer-picks" className="text-sm text-gray-400 hover:text-primary transition-colors footer-link">
+                    Soccer
+                  </Link>
                 </li>
               </ul>
             </div>

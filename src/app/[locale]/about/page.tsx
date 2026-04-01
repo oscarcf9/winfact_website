@@ -29,7 +29,7 @@ export async function generateMetadata({
     title: t("title"),
     description: t("missionText"),
     alternates: {
-      canonical: "/about",
+      canonical: `/${locale}/about`,
       languages: { en: "/en/about", es: "/es/about" },
     },
     openGraph: {

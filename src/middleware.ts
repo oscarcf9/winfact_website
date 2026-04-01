@@ -58,6 +58,16 @@ function getAllowedOrigin(requestOrigin: string | null): string | null {
 export default clerkMiddleware(async (auth, req) => {
   const url = req.nextUrl;
 
+  // Canonical www redirect: non-www → www (301 permanent)
+  const host = req.headers.get("host") || "";
+  if (
+    host === "winfactpicks.com" &&
+    (process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production")
+  ) {
+    const wwwUrl = new URL(url.pathname + url.search, "https://www.winfactpicks.com");
+    return NextResponse.redirect(wwwUrl, 301);
+  }
+
   // Capture referral code from ?ref= parameter (first-touch attribution)
   const refCode = url.searchParams.get("ref");
   const shouldSetRefCookie = refCode && !req.cookies.get("wf_ref");

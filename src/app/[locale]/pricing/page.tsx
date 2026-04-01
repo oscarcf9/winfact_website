@@ -29,7 +29,7 @@ export async function generateMetadata({
     title: "Pricing & Plans",
     description: `${t("subtitle")}. Choose from Free, VIP Weekly, or VIP Monthly subscription options for data-driven sports betting picks.`,
     alternates: {
-      canonical: "/pricing",
+      canonical: `/${locale}/pricing`,
       languages: { en: "/en/pricing", es: "/es/pricing" },
     },
     openGraph: {

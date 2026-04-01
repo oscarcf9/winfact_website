@@ -21,6 +21,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/nhl-picks",
     "/soccer-picks",
     "/ncaa-picks",
+    "/privacy",
+    "/terms",
+    "/disclaimer",
+    "/responsible-gambling",
   ];
 
   const entries: MetadataRoute.Sitemap = [];
@@ -29,11 +33,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     for (const locale of locales) {
       entries.push({
         url: `${baseUrl}/${locale}${page}`,
-        lastModified: new Date('2026-03-20'),
+        lastModified: new Date(),
         changeFrequency: page === "" ? "daily" : "weekly",
         priority: page === "" ? 1.0 : page === "/pricing" ? 0.9 : 0.7,
         alternates: {
           languages: {
+            "x-default": `${baseUrl}/en${page}`,
             en: `${baseUrl}/en${page}`,
             es: `${baseUrl}/es${page}`,
           },
@@ -54,6 +59,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           priority: 0.6,
           alternates: {
             languages: {
+              "x-default": `${baseUrl}/en/blog/${slug}`,
               en: `${baseUrl}/en/blog/${slug}`,
               es: `${baseUrl}/es/blog/${slug}`,
             },

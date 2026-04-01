@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { escapeHtml } from "@/lib/utils";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://winfactpicks.com";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com";
 const LOGO_TEXT = "WinFact Picks";
 
 function getUnsubscribeSecret(): string {

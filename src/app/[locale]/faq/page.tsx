@@ -27,7 +27,7 @@ export async function generateMetadata({
     title: "Frequently Asked Questions",
     description: `${t("subtitle")}. Find answers about our picks, billing, plans, and technical details.`,
     alternates: {
-      canonical: "/faq",
+      canonical: `/${locale}/faq`,
       languages: { en: "/en/faq", es: "/es/faq" },
     },
     openGraph: {

@@ -24,7 +24,7 @@ const TURSO_DATABASE_URL = process.env.TURSO_DATABASE_URL;
 const TURSO_AUTH_TOKEN = process.env.TURSO_AUTH_TOKEN;
 const MAILERLITE_API_KEY = process.env.MAILERLITE_API_KEY || "";
 const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://winfactpicks.com";
+  process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com";
 
 if (!CLERK_SECRET_KEY || !TURSO_DATABASE_URL || !TURSO_AUTH_TOKEN) {
   console.error(

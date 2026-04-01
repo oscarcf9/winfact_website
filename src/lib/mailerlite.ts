@@ -65,7 +65,7 @@ function buildPickEmailHtml(pick: Pick): string {
         ${pick.analysisEn ? `<p style="color: #374151; font-size: 14px; line-height: 1.6;">${pick.analysisEn}</p>` : ""}
         ${pick.modelEdge ? `<p style="color: #6b7280; font-size: 13px;">📈 Model Edge: ${pick.modelEdge.toFixed(1)}%</p>` : ""}
         <div style="margin-top: 24px; text-align: center;">
-          <a href="${process.env.NEXT_PUBLIC_SITE_URL || "https://winfactpicks.com"}/dashboard" style="display: inline-block; background: linear-gradient(135deg, #1168D9, #0BC4D9); color: #ffffff; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600; font-size: 14px;">View in Dashboard</a>
+          <a href="${process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com"}/dashboard" style="display: inline-block; background: linear-gradient(135deg, #1168D9, #0BC4D9); color: #ffffff; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600; font-size: 14px;">View in Dashboard</a>
         </div>
       </div>
     </div>

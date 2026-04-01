@@ -1,5 +1,5 @@
 export const SITE_NAME = "WinFact Picks";
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://winfactpicks.com";
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com";
 export const SITE_DESCRIPTION = "Data-driven sports betting picks backed by advanced analytics, sharp market insights, and disciplined bankroll strategy.";
 
 export const LOCALES = ["en", "es"] as const;

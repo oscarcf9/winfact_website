@@ -101,7 +101,7 @@ const VIP_TEASER_TEMPLATES = [
 ];
 
 function formatVipTeaserMessage(pick: Pick): string {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://winfactpicks.com";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com";
   const idx = Math.floor(Math.random() * VIP_TEASER_TEMPLATES.length);
   return VIP_TEASER_TEMPLATES[idx](pick.sport, siteUrl);
 }
@@ -179,7 +179,7 @@ export async function notifyBlogDraftReady(params: {
   matchup: string;
   slug: string;
 }): Promise<{ ok: boolean; error?: string }> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://winfactpicks.com";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com";
   const editUrl = `${siteUrl}/admin/blog/${params.slug}`;
 
   const message =
@@ -201,7 +201,7 @@ export async function notifyReferralMilestone(params: {
   referralCount: number;
   rewardLabel: string;
 }): Promise<{ ok: boolean; error?: string }> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://winfactpicks.com";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com";
   const adminUrl = `${siteUrl}/admin/referrals`;
 
   const message =
