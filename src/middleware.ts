@@ -68,6 +68,11 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.redirect(wwwUrl, 301);
   }
 
+  // Redirect old Wix /post/ URLs to blog index (these no longer exist)
+  if (url.pathname.startsWith("/post/") || url.pathname === "/post") {
+    return NextResponse.redirect(new URL("/en/blog", url), 301);
+  }
+
   // Capture referral code from ?ref= parameter (first-touch attribution)
   const refCode = url.searchParams.get("ref");
   const shouldSetRefCookie = refCode && !req.cookies.get("wf_ref");
