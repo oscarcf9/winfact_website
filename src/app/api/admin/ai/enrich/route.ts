@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { db } from "@/db";
 import { gamesToday } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { fetchEventSummary, SPORT_PATHS } from "@/lib/espn";
+import { fetchEventSummary, fetchScoreboard, toESPNDate, SPORT_PATHS } from "@/lib/espn";
 import { fetchOdds, SPORT_KEYS } from "@/lib/odds-api";
 
 /**
@@ -33,16 +33,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Game not found" }, { status: 404 });
     }
 
-    // Find the ESPN event ID — gamesToday.gameId is the Odds API event ID, not ESPN's.
-    // We need to search ESPN's scoreboard for a matching game.
+    console.log(`[enrich] Game: ${game.awayTeam} vs ${game.homeTeam} (${game.sport})`);
+
     const espnLeague = game.sport;
     const hasESPN = !!SPORT_PATHS[espnLeague];
+    console.log(`[enrich] ESPN lookup: hasESPN=${hasESPN}, league=${espnLeague}`);
 
     // Fetch ESPN data and fresh odds in parallel
     const [espnSummary, oddsResult] = await Promise.all([
       hasESPN ? findESPNEvent(espnLeague, game.homeTeam, game.awayTeam) : Promise.resolve(null),
       getFreshOdds(game.sport, game.homeTeam, game.awayTeam),
     ]);
+
+    console.log(`[enrich] ESPN result: ${espnSummary ? `found (${espnSummary.homeTeam.record || "no record"})` : "null"}`);
+    console.log(`[enrich] Odds result: ${oddsResult ? `${oddsResult.bookmakers.length} bookmakers` : "null"}`);
 
     // Build enrichment response
     const enrichment: Record<string, unknown> = {
@@ -91,6 +95,14 @@ export async function POST(req: NextRequest) {
 
       // Sharp action from DB
       sharpAction: game.sharpAction ? safeJSON(game.sharpAction) : null,
+
+      // Debug info (for troubleshooting)
+      _debug: {
+        espnFound: !!espnSummary,
+        oddsFound: !!oddsResult,
+        oddsBookmakers: oddsResult?.bookmakers.length || 0,
+        dbOddsPresent: game.homeOdds != null,
+      },
     };
 
     return NextResponse.json(enrichment);
@@ -105,14 +117,21 @@ export async function POST(req: NextRequest) {
  */
 async function findESPNEvent(league: string, homeTeam: string, awayTeam: string) {
   try {
-    // ESPN scoreboard endpoint to find the event ID
-    const { fetchScoreboard, toESPNDate } = await import("@/lib/espn");
     const date = toESPNDate();
     const scoreboard = await fetchScoreboard(league, date);
+    console.log(`[enrich:espn] Scoreboard for ${league} on ${date}: ${scoreboard.length} games`);
+
+    if (scoreboard.length === 0) return null;
 
     const normalizeTeam = (name: string) => name.toLowerCase().replace(/[^a-z]/g, "");
     const home = normalizeTeam(homeTeam);
     const away = normalizeTeam(awayTeam);
+
+    // Log first few games to debug matching
+    console.log(`[enrich:espn] Looking for: home="${homeTeam}" (${home}), away="${awayTeam}" (${away})`);
+    scoreboard.slice(0, 3).forEach((g) => {
+      console.log(`[enrich:espn]   Game: ${g.awayTeam} at ${g.homeTeam} (h=${normalizeTeam(g.homeTeam)}, a=${normalizeTeam(g.awayTeam)})`);
+    });
 
     const match = scoreboard.find((g) => {
       const h = normalizeTeam(g.homeTeam);
@@ -120,12 +139,15 @@ async function findESPNEvent(league: string, homeTeam: string, awayTeam: string)
       return (h.includes(home) || home.includes(h)) && (a.includes(away) || away.includes(a));
     });
 
-    if (!match) return null;
+    if (!match) {
+      console.log(`[enrich:espn] No match found in ${scoreboard.length} games`);
+      return null;
+    }
 
-    // Fetch detailed summary using the ESPN event ID
+    console.log(`[enrich:espn] Matched ESPN event: ${match.id} (${match.awayTeam} at ${match.homeTeam})`);
     return await fetchEventSummary(league, match.id);
   } catch (error) {
-    console.error("ESPN lookup error:", error);
+    console.error("[enrich:espn] Error:", error);
     return null;
   }
 }
@@ -139,10 +161,15 @@ type BookmakerData = {
  * Fetch fresh odds from The Odds API for a specific game.
  */
 async function getFreshOdds(sport: string, homeTeam: string, awayTeam: string) {
-  if (!SPORT_KEYS[sport]) return null;
+  if (!SPORT_KEYS[sport]) {
+    console.log(`[enrich:odds] Unknown sport key: "${sport}"`);
+    return null;
+  }
 
   try {
     const { events, error } = await fetchOdds(sport, "h2h,spreads,totals");
+    console.log(`[enrich:odds] Fetched ${events.length} events for ${sport}${error ? ` (error: ${error})` : ""}`);
+
     if (error || events.length === 0) return null;
 
     const normalizeTeam = (name: string) => name.toLowerCase().replace(/[^a-z]/g, "");
@@ -155,7 +182,16 @@ async function getFreshOdds(sport: string, homeTeam: string, awayTeam: string) {
       return (eHome.includes(home) || home.includes(eHome)) && (eAway.includes(away) || away.includes(eAway));
     });
 
-    if (!match) return null;
+    if (!match) {
+      console.log(`[enrich:odds] No team match for ${homeTeam} vs ${awayTeam} in ${events.length} events`);
+      // Log a few events to debug
+      events.slice(0, 3).forEach((e) => {
+        console.log(`[enrich:odds]   Event: ${e.away_team} at ${e.home_team}`);
+      });
+      return null;
+    }
+
+    console.log(`[enrich:odds] Matched: ${match.away_team} at ${match.home_team}, ${match.bookmakers.length} bookmakers`);
 
     const bookmakers: BookmakerData[] = match.bookmakers.map((bk) => ({
       name: bk.title,
@@ -168,7 +204,8 @@ async function getFreshOdds(sport: string, homeTeam: string, awayTeam: string) {
     }));
 
     return { bookmakers };
-  } catch {
+  } catch (error) {
+    console.error("[enrich:odds] Error:", error);
     return null;
   }
 }

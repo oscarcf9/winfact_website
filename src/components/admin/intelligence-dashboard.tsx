@@ -208,12 +208,15 @@ export function IntelligenceDashboard({ games, sports }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ gameId: game.id }),
       });
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
         setEnrichment(data);
+        console.log("[enrich] Response:", JSON.stringify(data._debug || {}, null, 2));
+      } else {
+        console.error("[enrich] API error:", data.error);
       }
-    } catch {
-      // Enrichment is best-effort — drawer still works with cached odds
+    } catch (err) {
+      console.error("[enrich] Fetch failed:", err);
     } finally {
       setEnrichLoading(false);
     }
