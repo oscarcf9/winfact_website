@@ -8,6 +8,8 @@ import { teamsMatch } from "@/lib/team-normalizer";
 import type { ESPNGame } from "@/lib/espn";
 import { refreshPerformanceCache } from "@/lib/refresh-performance";
 import { sendAdminNotification, sendWinCelebration } from "@/lib/telegram";
+import { formatWinCelebrationMessage } from "@/lib/telegram-templates";
+import { postToBuffer } from "@/lib/buffer";
 
 type SettlementLog = {
   pickId: string;
@@ -154,14 +156,22 @@ export async function GET(req: Request) {
 
           log.autoSettled = true;
 
-          // Post win celebration to Telegram (fire-and-forget)
+          // Post win celebration to Telegram + Buffer (fire-and-forget)
           if (settlement.result === "win") {
-            sendWinCelebration({
+            const celebrationPick = {
               sport: pick.sport,
               matchup: pick.matchup,
               pickText: pick.pickText,
-            }).catch((err) =>
+            };
+
+            sendWinCelebration(celebrationPick).catch((err) =>
               console.error("[settle-picks] Win celebration failed:", err)
+            );
+
+            // Cross-post to Twitter/Threads via Buffer
+            const message = formatWinCelebrationMessage(celebrationPick);
+            postToBuffer(message).catch((err) =>
+              console.error("[settle-picks] Buffer win celebration failed:", err)
             );
           }
         }

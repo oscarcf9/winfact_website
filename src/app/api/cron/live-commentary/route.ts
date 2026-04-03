@@ -6,6 +6,7 @@ import { fetchAllLiveGames } from "@/lib/espn-live";
 import { generateCommentary } from "@/lib/commentary-generator";
 import { sendTelegramMessage } from "@/lib/telegram";
 import { getSiteContent } from "@/db/queries/site-content";
+import { postToBuffer } from "@/lib/buffer";
 
 const COOLDOWN_MINUTES = 45;
 
@@ -111,6 +112,11 @@ export async function GET(req: Request) {
     if (!result.ok) {
       return NextResponse.json({ status: "error", reason: "telegram_send_failed", error: result.error });
     }
+
+    // Cross-post to Twitter/Threads via Buffer (fire-and-forget)
+    postToBuffer(comment).catch((err) =>
+      console.error("[commentary] Buffer cross-post failed:", err)
+    );
 
     // 6. Log the commentary
     await db.insert(commentaryLog).values({
