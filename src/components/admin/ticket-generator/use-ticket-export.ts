@@ -7,13 +7,17 @@ import { saveAs } from "file-saver";
 export function useTicketExport() {
   const ticketRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const exportingRef = useRef(false);
 
   const exportToPng = useCallback(async () => {
-    if (!ticketRef.current || isExporting) return;
+    if (!ticketRef.current || exportingRef.current) return;
 
+    exportingRef.current = true;
     setIsExporting(true);
     try {
-      // Use toBlob directly — avoids CSP connect-src issues with data: URIs
+      // Wait for all fonts to be loaded before capturing
+      await document.fonts.ready;
+
       const blob = await toBlob(ticketRef.current, {
         pixelRatio: 2,
         quality: 1.0,
@@ -25,9 +29,10 @@ export function useTicketExport() {
         saveAs(blob, `ticket_${timestamp}.png`);
       }
     } finally {
+      exportingRef.current = false;
       setIsExporting(false);
     }
-  }, [isExporting]);
+  }, []);
 
   return { ticketRef, exportToPng, isExporting };
 }

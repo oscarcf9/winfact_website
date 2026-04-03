@@ -69,7 +69,15 @@ export function calculateParlayPayout(
 ): { profit: number; totalPayout: number; formatted: string } | null {
   const parlayOdds = calculateParlayOdds(legOdds);
   if (!parlayOdds) return null;
-  return calculateSinglePayout(parlayOdds.americanOdds, wagerStr);
+
+  const wager = parseFloat(wagerStr.replace(/[$,]/g, "").trim());
+  if (isNaN(wager) || wager <= 0) return null;
+
+  // Compute directly from decimal odds to avoid American round-trip rounding
+  const totalPayout = Math.round(wager * parlayOdds.decimalOdds * 100) / 100;
+  const profit = Math.round((totalPayout - wager) * 100) / 100;
+
+  return { profit, totalPayout, formatted: formatCurrency(totalPayout) };
 }
 
 export function formatCurrency(amount: number): string {

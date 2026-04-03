@@ -11,7 +11,7 @@ import {
   hasTeamPrefix,
   getSubTypesForSport,
 } from "./sport-config";
-import { searchTeams, urlToDataUrl, type TeamLogo } from "./team-logos";
+import { searchTeams, urlToDataUrl, getLeaguesForSport, type TeamLogo } from "./team-logos";
 
 interface TicketFormProps {
   data: BetFormData;
@@ -338,9 +338,11 @@ function TeamCard({
 }) {
   const [showPicker, setShowPicker] = useState(false);
   const [logoSearch, setLogoSearch] = useState("");
+  const [selectedLeague, setSelectedLeague] = useState("");
   const [isLoadingLogo, setIsLoadingLogo] = useState(false);
 
-  const results = searchTeams(logoSearch, sport);
+  const leagues = getLeaguesForSport(sport);
+  const results = searchTeams(logoSearch, sport, selectedLeague || undefined);
 
   const handlePickLogo = async (logo: TeamLogo) => {
     setIsLoadingLogo(true);
@@ -414,20 +416,42 @@ function TeamCard({
             className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-xs focus:border-blue-500 outline-none placeholder:text-gray-400"
           />
 
+          {/* League tabs */}
+          {leagues.length > 1 && (
+            <div className="flex flex-wrap gap-1">
+              <button type="button"
+                onClick={() => setSelectedLeague("")}
+                className={`px-2 py-1 rounded text-[10px] font-medium transition-colors ${!selectedLeague ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+              >
+                All
+              </button>
+              {leagues.map((lg) => (
+                <button key={lg} type="button"
+                  onClick={() => setSelectedLeague(lg)}
+                  className={`px-2 py-1 rounded text-[10px] font-medium transition-colors ${selectedLeague === lg ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                >
+                  {lg}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Team grid */}
-          <div className="max-h-40 overflow-y-auto">
+          <div className="max-h-48 overflow-y-auto">
             {isLoadingLogo ? (
-              <div className="text-center py-4 text-xs text-gray-400">Loading...</div>
+              <div className="text-center py-4 text-xs text-gray-400">Loading logo...</div>
             ) : results.length > 0 ? (
               <div className="grid grid-cols-4 gap-1.5">
                 {results.map((t) => (
-                  <button key={`${t.sport}-${t.abbr}`} type="button"
+                  <button key={`${t.league}-${t.abbr}`} type="button"
                     onClick={() => handlePickLogo(t)}
                     className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-blue-50 transition-colors"
                     title={t.name}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={t.url} alt={t.name} className="w-8 h-8 object-contain" />
+                    <img src={t.url} alt={t.name} className="w-8 h-8 object-contain"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
                     <span className="text-[9px] font-medium text-gray-600 leading-tight text-center truncate w-full">{t.abbr}</span>
                   </button>
                 ))}
