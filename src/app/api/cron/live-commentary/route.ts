@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { commentaryLog } from "@/db/schema";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { fetchAllLiveGames } from "@/lib/espn-live";
 import { generateCommentary } from "@/lib/commentary-generator";
 import { sendTelegramMessage } from "@/lib/telegram";
@@ -99,14 +99,22 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: "skipped", reason: "all_games_on_cooldown" });
     }
 
-    // 4. Generate commentary
-    const comment = await generateCommentary(selectedGame);
+    // 4. Fetch recent commentary for dedup context
+    const recentMessages = await db
+      .select({ message: commentaryLog.message })
+      .from(commentaryLog)
+      .orderBy(desc(commentaryLog.postedAt))
+      .limit(5);
+    const recentCommentary = recentMessages.map((r) => r.message);
+
+    // 5. Generate commentary
+    const comment = await generateCommentary(selectedGame, recentCommentary);
 
     if (!comment) {
       return NextResponse.json({ status: "error", reason: "commentary_generation_failed" });
     }
 
-    // 5. Post to Telegram
+    // 6. Post to Telegram
     const chatId = process.env.TELEGRAM_FREE_CHAT_ID;
     if (!chatId) {
       return NextResponse.json({ status: "error", reason: "telegram_not_configured" });
@@ -123,7 +131,7 @@ export async function GET(req: Request) {
       console.error("[commentary] Buffer cross-post failed:", err)
     );
 
-    // 6. Log the commentary
+    // 7. Log the commentary
     await db.insert(commentaryLog).values({
       id: crypto.randomUUID(),
       gameId: selectedGame.gameId,
