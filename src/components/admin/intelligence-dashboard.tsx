@@ -262,6 +262,15 @@ export function IntelligenceDashboard({ games, sports }: Props) {
 
     const sharp = enrichment?.sharpAction;
 
+    // Use fresh enrichment odds as fallback when DB cache is null
+    const bl = enrichment?.bestLines;
+    const homeOdds = drawerGame.homeOdds ?? bl?.homeML?.price ?? null;
+    const awayOdds = drawerGame.awayOdds ?? bl?.awayML?.price ?? null;
+    const homeSpread = drawerGame.homeSpread ?? bl?.homeSpread?.point ?? null;
+    const totalLine = drawerGame.totalLine ?? bl?.total?.point ?? null;
+    const overOdds = drawerGame.overOdds ?? bl?.total?.overPrice ?? null;
+    const underOdds = drawerGame.underOdds ?? bl?.total?.underPrice ?? null;
+
     try {
       const res = await fetch("/api/admin/ai/analysis", {
         method: "POST",
@@ -272,12 +281,12 @@ export function IntelligenceDashboard({ games, sports }: Props) {
           gameTime: `${time} ET`,
           homeTeam: drawerGame.homeTeam,
           awayTeam: drawerGame.awayTeam,
-          homeOdds: drawerGame.homeOdds,
-          awayOdds: drawerGame.awayOdds,
-          homeSpread: drawerGame.homeSpread,
-          totalLine: drawerGame.totalLine,
-          overOdds: drawerGame.overOdds,
-          underOdds: drawerGame.underOdds,
+          homeOdds,
+          awayOdds,
+          homeSpread,
+          totalLine,
+          overOdds,
+          underOdds,
           modelEdge: drawerGame.modelEdge,
           venue: enrichment?.venue || drawerGame.venue,
           homeRecord: enrichment?.homeRecord,
@@ -703,33 +712,44 @@ export function IntelligenceDashboard({ games, sports }: Props) {
               {/* Enrichment Data Sections */}
               {!enrichLoading && (
                 <>
-                  {/* Market Data */}
+                  {/* Market Data — prefer fresh enrichment odds over DB cache */}
                   <section className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
                     <h3 className="font-semibold text-navy text-xs uppercase tracking-wider mb-2">{t("marketData")}</h3>
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Moneyline</span>
-                        <span className="font-mono font-semibold text-navy">
-                          {drawerGame.homeOdds != null
-                            ? `${drawerGame.homeTeam} ${fmtOdds(drawerGame.homeOdds)} / ${drawerGame.awayTeam} ${fmtOdds(drawerGame.awayOdds)}`
-                            : "—"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Spread</span>
-                        <span className="font-mono font-semibold text-navy">
-                          {drawerGame.homeSpread != null ? `${drawerGame.homeTeam} ${fmtOdds(drawerGame.homeSpread)}` : "—"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Total</span>
-                        <span className="font-mono font-semibold text-navy">
-                          {drawerGame.totalLine != null
-                            ? `${drawerGame.totalLine} (O ${fmtOdds(drawerGame.overOdds)} / U ${fmtOdds(drawerGame.underOdds)})`
-                            : "—"}
-                        </span>
-                      </div>
-                    </div>
+                    {(() => {
+                      const ebl = enrichment?.bestLines;
+                      const dHomeOdds = drawerGame.homeOdds ?? ebl?.homeML?.price ?? null;
+                      const dAwayOdds = drawerGame.awayOdds ?? ebl?.awayML?.price ?? null;
+                      const dSpread = drawerGame.homeSpread ?? ebl?.homeSpread?.point ?? null;
+                      const dTotal = drawerGame.totalLine ?? ebl?.total?.point ?? null;
+                      const dOverOdds = drawerGame.overOdds ?? ebl?.total?.overPrice ?? null;
+                      const dUnderOdds = drawerGame.underOdds ?? ebl?.total?.underPrice ?? null;
+                      return (
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Moneyline</span>
+                            <span className="font-mono font-semibold text-navy">
+                              {dHomeOdds != null
+                                ? `${drawerGame.homeTeam} ${fmtOdds(dHomeOdds)} / ${drawerGame.awayTeam} ${fmtOdds(dAwayOdds)}`
+                                : "—"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Spread</span>
+                            <span className="font-mono font-semibold text-navy">
+                              {dSpread != null ? `${drawerGame.homeTeam} ${fmtOdds(dSpread)}` : "—"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Total</span>
+                            <span className="font-mono font-semibold text-navy">
+                              {dTotal != null
+                                ? `${dTotal} (O ${fmtOdds(dOverOdds)} / U ${fmtOdds(dUnderOdds)})`
+                                : "—"}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Best lines from bookmakers */}
                     {enrichment?.bestLines && (
