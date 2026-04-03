@@ -31,7 +31,7 @@ const nextConfig: NextConfig = {
               "font-src 'self' https://fonts.gstatic.com https://use.typekit.net",
               "img-src 'self' data: blob: https://*.cloudflare.com https://*.r2.dev https://img.clerk.com https://*.stripe.com https://media.winfactpicks.com https://a.espncdn.com https://*.espncdn.com https://p.typekit.net",
               "frame-src https://js.stripe.com https://clerk.winfactpicks.com https://*.clerk.accounts.dev https://challenges.cloudflare.com",
-              "connect-src 'self' https://api.stripe.com https://clerk.winfactpicks.com https://*.clerk.accounts.dev https://www.google-analytics.com https://api.mailerlite.com https://api.telegram.org https://p.typekit.net",
+              "connect-src 'self' data: blob: https://api.stripe.com https://clerk.winfactpicks.com https://*.clerk.accounts.dev https://www.google-analytics.com https://api.mailerlite.com https://api.telegram.org https://p.typekit.net",
               "object-src 'none'",
               "base-uri 'self'",
             ].join("; "),

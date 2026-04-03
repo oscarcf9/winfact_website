@@ -50,15 +50,27 @@ export default function TicketPreview({
       </div>
 
       {/* Preview Area */}
-      <div className="flex-1 p-6 flex flex-col items-center justify-center overflow-auto">
+      <div className="flex-1 p-4 flex flex-col items-center justify-start overflow-auto">
         <div
-          className="shadow-lg rounded-2xl overflow-hidden"
           style={{
-            transform: "scale(0.55)",
-            transformOrigin: "top center",
+            width: 885 * 0.52,
+            height: 620 * 0.52,
+            flexShrink: 0,
           }}
         >
-          <TicketCanvas ref={ticketRef} data={data} />
+          <div
+            className="shadow-lg"
+            style={{
+              width: 885,
+              height: 620,
+              transform: "scale(0.52)",
+              transformOrigin: "top left",
+              borderRadius: 15,
+              overflow: "hidden",
+            }}
+          >
+            <TicketCanvas ref={ticketRef} data={data} />
+          </div>
         </div>
       </div>
 

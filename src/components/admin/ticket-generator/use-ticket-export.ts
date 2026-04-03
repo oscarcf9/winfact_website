@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { toPng } from "html-to-image";
+import { toBlob } from "html-to-image";
 import { saveAs } from "file-saver";
 
 export function useTicketExport() {
@@ -13,19 +13,17 @@ export function useTicketExport() {
 
     setIsExporting(true);
     try {
-      const dataUrl = await toPng(ticketRef.current, {
+      // Use toBlob directly — avoids CSP connect-src issues with data: URIs
+      const blob = await toBlob(ticketRef.current, {
         pixelRatio: 2,
         quality: 1.0,
         cacheBust: true,
-        style: {
-          transform: "none",
-        },
       });
 
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
-      const timestamp = Date.now();
-      saveAs(blob, `ticket_${timestamp}.png`);
+      if (blob) {
+        const timestamp = Date.now();
+        saveAs(blob, `ticket_${timestamp}.png`);
+      }
     } finally {
       setIsExporting(false);
     }
