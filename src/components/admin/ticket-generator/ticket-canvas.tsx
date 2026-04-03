@@ -5,44 +5,7 @@ import type { BetFormData } from "./ticket-types";
 import { getDisplayForSubType } from "./sport-config";
 import { calculateParlayOdds } from "./payout-calculator";
 
-// ── Inline SVG Icons ─────────────────────────────────────────
-
-function ShareIcon() {
-  return (
-    <svg
-      width="38"
-      height="38"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="#FCFBF8"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={{ position: "relative", top: -3 }}
-    >
-      <path d="M22 2L11 13" />
-      <path d="M22 2L15 22L11 13L2 9L22 2Z" />
-    </svg>
-  );
-}
-
-function CopyIcon() {
-  return (
-    <svg
-      width="30"
-      height="30"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="#FCFCFE"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-    </svg>
-  );
-}
+// ── Icons (original assets from Flutter project) ─────────────
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -495,7 +458,12 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
               >
                 ID: {ticketId}
               </span>
-              <CopyIcon />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/admin/ticket-assets/copy_icon.png"
+                alt=""
+                style={{ height: 30 }}
+              />
             </div>
 
             {/* Right: Share text + icon */}
@@ -510,7 +478,16 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
               >
                 Share
               </span>
-              <ShareIcon />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/admin/ticket-assets/share.png"
+                alt=""
+                style={{
+                  height: 38,
+                  position: "relative",
+                  top: -3,
+                }}
+              />
             </div>
           </div>
 
