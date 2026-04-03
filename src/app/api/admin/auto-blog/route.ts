@@ -30,26 +30,31 @@ export async function POST(req: NextRequest) {
 
     const startTime = Date.now();
 
-    // Step 1: Fetch enrichment data from ESPN + The Odds API
+    // Step 1: Fetch enrichment data from ESPN + The Odds API (with 15s timeout)
     let enrichment: Awaited<ReturnType<typeof enrichPickData>> | null = null;
     try {
-      enrichment = await enrichPickData({
-        sport: data.sport,
-        league: data.league || null,
-        matchup: data.matchup,
-        pickText: data.pickText || "",
-        gameDate: data.gameDate || todayISOET(),
-        odds: data.odds || null,
-        units: data.units || null,
-        confidence: data.confidence || null,
-        analysisEn: data.analysisEn || null,
-      });
+      enrichment = await Promise.race([
+        enrichPickData({
+          sport: data.sport,
+          league: data.league || null,
+          matchup: data.matchup,
+          pickText: data.pickText || "",
+          gameDate: data.gameDate || todayISOET(),
+          odds: data.odds || null,
+          units: data.units || null,
+          confidence: data.confidence || null,
+          analysisEn: data.analysisEn || null,
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Enrichment timed out after 15s")), 15000)
+        ),
+      ]);
       console.log(
         "[auto-blog] Enrichment complete:",
         enrichment.fetchLog.map((l) => `${l.field}: ${l.status}`).join(", ")
       );
     } catch (err) {
-      console.error("[auto-blog] Enrichment failed, continuing without data:", err);
+      console.error("[auto-blog] Enrichment failed/timed out, continuing without data:", err);
     }
 
     const enrichmentMs = Date.now() - startTime;

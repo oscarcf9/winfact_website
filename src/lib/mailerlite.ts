@@ -3,6 +3,11 @@ const MAILERLITE_API = "https://connect.mailerlite.com/api";
 const MAILERLITE_FREE_GROUP_ID = process.env.MAILERLITE_FREE_GROUP_ID || "";
 const MAILERLITE_VIP_GROUP_ID = process.env.MAILERLITE_VIP_GROUP_ID || "";
 
+// Startup warnings for missing config
+if (!MAILERLITE_API_KEY) console.warn("[mailerlite] MAILERLITE_API_KEY not set — email distribution disabled");
+if (!MAILERLITE_FREE_GROUP_ID) console.warn("[mailerlite] MAILERLITE_FREE_GROUP_ID not set — free email delivery disabled");
+if (!MAILERLITE_VIP_GROUP_ID) console.warn("[mailerlite] MAILERLITE_VIP_GROUP_ID not set — VIP email delivery disabled");
+
 type Pick = {
   sport: string;
   matchup: string;
