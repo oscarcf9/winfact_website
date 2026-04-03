@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { db } from "@/db";
 import { gamesToday } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, lt, and, ne } from "drizzle-orm";
 import { fetchOdds, SPORT_KEYS } from "@/lib/odds-api";
 
 export async function GET(req: NextRequest) {
@@ -33,6 +33,26 @@ export async function POST(req: NextRequest) {
     const { sport } = await req.json();
     const sports = sport ? [sport] : Object.keys(SPORT_KEYS);
     let totalGames = 0;
+
+    // Clean up old games (commenced before today) that don't have picks
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const oldGames = await db
+      .select({ id: gamesToday.id })
+      .from(gamesToday)
+      .where(
+        and(
+          lt(gamesToday.commenceTime, todayStart.toISOString()),
+          ne(gamesToday.pickStatus, "posted")
+        )
+      );
+
+    for (const old of oldGames) {
+      await db.delete(gamesToday).where(eq(gamesToday.id, old.id));
+    }
+    if (oldGames.length > 0) {
+      console.log(`[refresh] Cleaned up ${oldGames.length} old games`);
+    }
 
     for (const s of sports) {
       const { events, error } = await fetchOdds(s, "h2h,spreads,totals");
