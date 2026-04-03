@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Save, Plus, Check, Megaphone, Type, ChevronDown, ChevronUp, Sparkles, Bot, Trophy, FileText, Clock } from "lucide-react";
+import { Save, Plus, Check, Megaphone, Type, ChevronDown, ChevronUp, Sparkles, Bot, Trophy, FileText, Clock, Settings } from "lucide-react";
 
 type ContentItem = { key: string; value: string; updatedAt: string | null };
 
@@ -47,6 +47,19 @@ const FEATURE_KEYS: FeatureConfig[] = [
   { key: "filler_content_enabled", label: "Filler Content Bot", description: "Daily matchup graphics for social media", type: "toggle", default: "false", icon: Sparkles, disabled: true },
 ];
 
+const COMMENTARY_SETTINGS_KEYS = [
+  { key: "commentary_cooldown_minutes", label: "Cooldown (minutes)", type: "number", default: "45" },
+  { key: "commentary_weekday_start_hour", label: "Weekday Start (ET)", type: "hour", default: "12" },
+  { key: "commentary_weekday_end_hour", label: "Weekday End (ET)", type: "hour", default: "1" },
+  { key: "commentary_weekend_start_hour", label: "Weekend Start (ET)", type: "hour", default: "10" },
+  { key: "commentary_weekend_end_hour", label: "Weekend End (ET)", type: "hour", default: "1" },
+];
+
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => ({
+  value: String(i),
+  label: `${i === 0 ? "12" : i > 12 ? String(i - 12) : String(i)}${i < 12 ? " AM" : " PM"} (${i}:00)`,
+}));
+
 const HERO_KEYS = [
   { key: "hero_headline_en", label: "Headline (English)", type: "text", default: "" },
   { key: "hero_headline_es", label: "Headline (Spanish)", type: "text", default: "" },
@@ -82,6 +95,7 @@ export function ContentEditor({ initialContent }: Props) {
   const [newValue, setNewValue] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  const [showCommentarySettings, setShowCommentarySettings] = useState(false);
   const [showAnnouncement, setShowAnnouncement] = useState(false);
   const [showHero, setShowHero] = useState(false);
   const [automationStatus, setAutomationStatus] = useState<AutomationStatus | null>(null);
@@ -99,7 +113,8 @@ export function ContentEditor({ initialContent }: Props) {
   const announcementKeySet = new Set(ANNOUNCEMENT_KEYS.map((k) => k.key));
   const heroKeySet = new Set(HERO_KEYS.map((k) => k.key));
   const featureKeySet = new Set(FEATURE_KEYS.map((k) => k.key));
-  const genericItems = items.filter((i) => !announcementKeySet.has(i.key) && !heroKeySet.has(i.key) && !featureKeySet.has(i.key));
+  const commentarySettingsKeySet = new Set(COMMENTARY_SETTINGS_KEYS.map((k) => k.key));
+  const genericItems = items.filter((i) => !announcementKeySet.has(i.key) && !heroKeySet.has(i.key) && !featureKeySet.has(i.key) && !commentarySettingsKeySet.has(i.key));
 
   async function saveItem(key: string, value: string) {
     setSaving(key);
@@ -312,7 +327,76 @@ export function ContentEditor({ initialContent }: Props) {
         )}
       </div>
 
-      {/* SECTION 2: Announcement Bar — Collapsible */}
+      {/* SECTION 2: Commentary Settings — Collapsible, only when commentary enabled */}
+      {(contentMap.get("live_commentary_enabled")?.value === "true") && (
+        <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
+          <button
+            onClick={() => setShowCommentarySettings(!showCommentarySettings)}
+            className="w-full px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Settings className="h-4 w-4 text-primary" />
+              </div>
+              <div className="text-left">
+                <h2 className="font-heading font-bold text-lg text-navy">{t("commentarySettings")}</h2>
+                <p className="text-xs text-gray-400">{t("commentarySettingsDesc")}</p>
+              </div>
+            </div>
+            {showCommentarySettings ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
+          </button>
+          {showCommentarySettings && (
+            <div className="px-6 py-4 border-t border-gray-200 space-y-4">
+              {COMMENTARY_SETTINGS_KEYS.map((cfg) => {
+                const current = contentMap.get(cfg.key);
+                const value = current?.value ?? cfg.default;
+
+                if (cfg.type === "number") {
+                  return (
+                    <div key={cfg.key} className="flex items-center justify-between">
+                      <label className="text-sm font-medium text-navy">{cfg.label}</label>
+                      <div className="flex items-center gap-2">
+                        {saved === cfg.key && <Check className="h-3.5 w-3.5 text-success" />}
+                        <input
+                          type="number"
+                          defaultValue={value}
+                          min={5}
+                          max={120}
+                          className="w-20 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-navy text-center focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
+                          onBlur={(e) => {
+                            if (e.target.value !== value) saveItem(cfg.key, e.target.value);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Hour dropdown
+                return (
+                  <div key={cfg.key} className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-navy">{cfg.label}</label>
+                    <div className="flex items-center gap-2">
+                      {saved === cfg.key && <Check className="h-3.5 w-3.5 text-success" />}
+                      <select
+                        defaultValue={value}
+                        onChange={(e) => saveItem(cfg.key, e.target.value)}
+                        className="w-36 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-navy focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 appearance-none cursor-pointer"
+                      >
+                        {HOUR_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SECTION 3: Announcement Bar — Collapsible */}
       <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
         <button
           onClick={() => setShowAnnouncement(!showAnnouncement)}

@@ -883,7 +883,9 @@
       "leaveEmptyNoExpiration": "Dejar vacío para sin expiración",
       "automationControls": "Controles de Automatizacion",
       "automationControlsDesc": "Activar o desactivar funciones de generacion automatica de contenido",
-      "lastActivity": "Ultima Actividad"
+      "lastActivity": "Ultima Actividad",
+      "commentarySettings": "Configuracion de Comentarios",
+      "commentarySettingsDesc": "Configurar cooldown y ventanas horarias del bot de comentarios en vivo"
     },
     "media": {
       "title": "Biblioteca de Medios",

@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { posts, postTags, media } from "@/db/schema";
 import { generateGameBlog } from "@/lib/ai-blog-engine";
 import { generateMatchupImage } from "@/lib/ai-image";
-import { notifyBlogDraftReady } from "@/lib/telegram";
+import { notifyBlogDraftReady } from "@/lib/notifications";
 import { enrichPickData } from "@/lib/blog-enrichment";
 import { todayISOET } from "@/lib/timezone";
 

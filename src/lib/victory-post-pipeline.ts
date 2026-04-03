@@ -10,6 +10,7 @@ import { compositeVictoryPost } from "./victory-compositor";
 import { generateVictoryCaption } from "./victory-caption-generator";
 import { uploadToR2, isR2Configured } from "./r2";
 import { sendAdminNotification } from "./telegram";
+import { notifyVictoryPostReady } from "./notifications";
 import { getSiteContent } from "@/db/queries/site-content";
 
 // ─── Types ───────────────────────────────────────────────────
@@ -186,15 +187,13 @@ export async function processNextVictoryPost(): Promise<boolean> {
       status: "draft",
     }).where(eq(victoryPosts.id, pending.id));
 
-    // 10. Send admin Telegram preview
-    const previewMsg =
-      `📸 *Victory Post Ready*\n\n` +
-      `Pick: ${pick.matchup} — ${pick.pickText} ✅\n` +
-      `Sport: ${pick.sport} | Tier: ${pick.tier}\n\n` +
-      `Caption:\n${caption}\n\n` +
-      `Image: ${imageUrl}`;
-
-    await sendAdminNotification(previewMsg);
+    // 10. Notify admin via Telegram + email
+    await notifyVictoryPostReady({
+      sport: pick.sport,
+      matchup: pick.matchup,
+      pickText: pick.pickText,
+      imageUrl,
+    });
 
     console.log(`[victory-post] Complete for pick ${pick.id}`);
     return true;
