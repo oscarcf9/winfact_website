@@ -57,20 +57,23 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
           return result ? result.americanOdds : "—";
         })();
 
-    // Bet type label for the ticket (e.g., "TO WIN", "BREWERS TOTAL RUNS")
-    const betTypeDisplay = isSingle
-      ? getDisplayForSubType(data.subBetType, data.teamName)
-      : (() => {
-          const names = data.parlayLegs
-            .slice(0, 3)
-            .map((l) => l.team1.acronym.toUpperCase())
-            .filter(Boolean)
-            .join(", ");
-          return names || "PARLAY";
-        })();
+    // Bet type label — custom override takes priority
+    const betTypeDisplay = data.customBetTypeLabel
+      ? data.customBetTypeLabel.toUpperCase()
+      : isSingle
+        ? getDisplayForSubType(data.subBetType, data.teamName)
+        : (() => {
+            const names = data.parlayLegs
+              .slice(0, 3)
+              .map((l) => l.team1.acronym.toUpperCase())
+              .filter(Boolean)
+              .join(", ");
+            return names || "PARLAY";
+          })();
 
-    // Whether to show score bar (full game bets) or matchup subtitle (props)
-    const showScore = isSingle && shouldShowScoreBar(data.subBetType);
+    // Whether to show score bar or box score or matchup subtitle
+    const showScore = isSingle && shouldShowScoreBar(data.subBetType) && !data.boxScore?.enabled;
+    const showBoxScore = isSingle && data.boxScore?.enabled;
 
     return (
       <div
@@ -296,6 +299,74 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
             flexDirection: "column",
           }}
         >
+          {/* Box Score Table — detailed quarter/period scores */}
+          {showBoxScore && data.boxScore && (
+            <div
+              style={{
+                width: "100%",
+                backgroundColor: "#FFFFFF",
+                borderRadius: 14,
+                padding: "12px 16px",
+                flexShrink: 0,
+              }}
+            >
+              {/* Header row */}
+              <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
+                <span style={{ flex: 1, fontFamily: "TicketCustomFont, sans-serif", fontSize: 16, color: "#41414D", fontWeight: 400 }}>
+                  Final Score
+                </span>
+                {Array.from({ length: data.boxScore.periods }, (_, i) => (
+                  <span key={i} style={{ width: 32, textAlign: "center", fontFamily: "TicketCustomFont, sans-serif", fontSize: 13, color: "#8E8E93" }}>
+                    {i + 1}
+                  </span>
+                ))}
+                <span style={{ width: 40, textAlign: "center", fontFamily: "TicketCustomFont, sans-serif", fontSize: 13, color: "#41414D", fontWeight: 700 }}>
+                  T
+                </span>
+              </div>
+              {/* Team 1 row */}
+              <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
+                <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+                  {data.boxScore.team1Logo && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={data.boxScore.team1Logo} alt="" style={{ width: 24, height: 24, objectFit: "contain" }} />
+                  )}
+                  <span style={{ fontFamily: "NeusaMedium, sans-serif", fontSize: 15, color: "#1A181B", fontWeight: 600 }}>
+                    {data.boxScore.team1Name || data.team1.acronym || "Team 1"}
+                  </span>
+                </div>
+                {[data.boxScore.team1Quarters.q1, data.boxScore.team1Quarters.q2, data.boxScore.team1Quarters.q3, data.boxScore.team1Quarters.q4].slice(0, data.boxScore.periods).map((q, i) => (
+                  <span key={i} style={{ width: 32, textAlign: "center", fontFamily: "TicketCustomFont, sans-serif", fontSize: 14, color: "#05D17A" }}>
+                    {q || "—"}
+                  </span>
+                ))}
+                <span style={{ width: 40, textAlign: "center", fontFamily: "TicketCustomFont, sans-serif", fontSize: 16, color: "#1A181B", fontWeight: 700 }}>
+                  {data.boxScore.team1Quarters.total || "0"}
+                </span>
+              </div>
+              {/* Team 2 row */}
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+                  {data.boxScore.team2Logo && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={data.boxScore.team2Logo} alt="" style={{ width: 24, height: 24, objectFit: "contain" }} />
+                  )}
+                  <span style={{ fontFamily: "NeusaMedium, sans-serif", fontSize: 15, color: "#1A181B", fontWeight: 600 }}>
+                    {data.boxScore.team2Name || data.team2.acronym || "Team 2"}
+                  </span>
+                </div>
+                {[data.boxScore.team2Quarters.q1, data.boxScore.team2Quarters.q2, data.boxScore.team2Quarters.q3, data.boxScore.team2Quarters.q4].slice(0, data.boxScore.periods).map((q, i) => (
+                  <span key={i} style={{ width: 32, textAlign: "center", fontFamily: "TicketCustomFont, sans-serif", fontSize: 14, color: "#05D17A" }}>
+                    {q || "—"}
+                  </span>
+                ))}
+                <span style={{ width: 40, textAlign: "center", fontFamily: "TicketCustomFont, sans-serif", fontSize: 16, color: "#1A181B", fontWeight: 700 }}>
+                  {data.boxScore.team2Quarters.total || "0"}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Score Bar — only for full-game single bets */}
           {showScore && (
             <div

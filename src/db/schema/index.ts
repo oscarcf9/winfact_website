@@ -25,3 +25,4 @@ export { processedEvents } from "./processed-events";
 export { adminAuditLog } from "./admin-audit-log";
 export { pushTokens } from "./push-tokens";
 export { commentaryLog } from "./commentary-log";
+export { ticketHistory } from "./ticket-history";

@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import type { BetFormData, ParlayLeg, TeamData } from "./ticket-types";
-import { DEFAULT_TEAM } from "./ticket-types";
+import { DEFAULT_TEAM, TICKET_PRESETS } from "./ticket-types";
 import type { SportId } from "./sport-config";
 import {
   SPORTS,
@@ -103,8 +103,32 @@ export default function TicketForm({ data, onChange }: TicketFormProps) {
     [data, update]
   );
 
+  const applyPreset = useCallback(
+    (preset: typeof TICKET_PRESETS[number]) => {
+      onChange({ ...data, ...preset.data, betType: "Single" });
+    },
+    [data, onChange]
+  );
+
   return (
     <div className="space-y-4">
+      {/* ── Quick Presets ── */}
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="px-5 py-2.5 bg-gray-50 border-b border-gray-200">
+          <span className="text-sm font-semibold text-gray-900">Quick Presets</span>
+        </div>
+        <div className="p-3 flex flex-wrap gap-1.5">
+          {TICKET_PRESETS.map((p) => (
+            <button key={p.name} type="button" onClick={() => applyPreset(p)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-[11px] font-medium text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
+            >
+              <span>{p.emoji}</span>
+              <span>{p.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* ── Bet Type + Sport + Sub-Type ── */}
       <Section title="Bet Configuration">
         {/* Bet Type Toggle */}
@@ -222,6 +246,18 @@ export default function TicketForm({ data, onChange }: TicketFormProps) {
             />
           </div>
         )}
+
+        {/* Custom bet type label override */}
+        <div className="mt-3">
+          <label className="text-xs font-semibold text-gray-700">
+            Custom Bet Type Label <span className="text-gray-400 font-normal">(optional override)</span>
+          </label>
+          <input type="text" value={data.customBetTypeLabel}
+            onChange={(e) => update({ customBetTypeLabel: e.target.value })}
+            placeholder="Leave empty to use default, or type custom label"
+            className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-xs focus:border-blue-500 outline-none placeholder:text-gray-400"
+          />
+        </div>
       </Section>
 
       {/* ── Teams (side by side, prominent) — only for score bar bets ── */}
@@ -306,6 +342,113 @@ export default function TicketForm({ data, onChange }: TicketFormProps) {
           </div>
         </div>
       </Section>
+
+      {/* ── Box Score (optional, NBA/NFL) ── */}
+      {isSingle && (
+        <Section title="Detailed Box Score">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">Show quarter-by-quarter scores instead of simple score bar</span>
+            <button type="button"
+              onClick={() => update({
+                boxScore: { ...data.boxScore, enabled: !data.boxScore.enabled },
+              })}
+              className={`relative w-10 h-5 rounded-full transition-colors ${data.boxScore.enabled ? "bg-blue-500" : "bg-gray-300"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${data.boxScore.enabled ? "translate-x-5" : ""}`} />
+            </button>
+          </div>
+
+          {data.boxScore.enabled && (
+            <div className="mt-3 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-500">Team 1 Name</label>
+                  <input type="text" value={data.boxScore.team1Name}
+                    onChange={(e) => update({ boxScore: { ...data.boxScore, team1Name: e.target.value } })}
+                    placeholder="Nuggets"
+                    className="w-full mt-1 px-2.5 py-1.5 rounded-md border border-gray-200 bg-white text-sm focus:border-blue-500 outline-none placeholder:text-gray-400"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500">Team 2 Name</label>
+                  <input type="text" value={data.boxScore.team2Name}
+                    onChange={(e) => update({ boxScore: { ...data.boxScore, team2Name: e.target.value } })}
+                    placeholder="Suns"
+                    className="w-full mt-1 px-2.5 py-1.5 rounded-md border border-gray-200 bg-white text-sm focus:border-blue-500 outline-none placeholder:text-gray-400"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Periods</label>
+                <div className="flex gap-2">
+                  {[4, 3, 9].map((p) => (
+                    <button key={p} type="button"
+                      onClick={() => update({ boxScore: { ...data.boxScore, periods: p } })}
+                      className={`px-3 py-1 rounded text-xs font-medium ${data.boxScore.periods === p ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-600"}`}
+                    >
+                      {p === 4 ? "4 (NBA/NFL)" : p === 3 ? "3 (NHL)" : "9 (MLB)"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Quarter score inputs */}
+              {["team1", "team2"].map((team) => {
+                const qs = team === "team1" ? data.boxScore.team1Quarters : data.boxScore.team2Quarters;
+                const teamLabel = team === "team1" ? (data.boxScore.team1Name || "Team 1") : (data.boxScore.team2Name || "Team 2");
+                return (
+                  <div key={team}>
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">{teamLabel} Scores</label>
+                    <div className="flex gap-1.5 items-center">
+                      {(["q1", "q2", "q3", "q4"] as const).slice(0, data.boxScore.periods).map((q) => (
+                        <input key={q} type="text" value={qs[q]}
+                          onChange={(e) => {
+                            const newQs = { ...qs, [q]: e.target.value };
+                            const vals = [newQs.q1, newQs.q2, newQs.q3, newQs.q4].slice(0, data.boxScore.periods).map(Number).filter(n => !isNaN(n));
+                            newQs.total = vals.reduce((a, b) => a + b, 0).toString();
+                            update({
+                              boxScore: {
+                                ...data.boxScore,
+                                [team === "team1" ? "team1Quarters" : "team2Quarters"]: newQs,
+                              },
+                            });
+                          }}
+                          placeholder={`P${q.slice(1)}`}
+                          className="w-10 px-1 py-1.5 rounded border border-gray-200 bg-white text-xs text-center focus:border-blue-500 outline-none placeholder:text-gray-400"
+                        />
+                      ))}
+                      <span className="text-xs text-gray-400">=</span>
+                      <span className="text-xs font-bold text-gray-900 w-8 text-center">{qs.total || "0"}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Section>
+      )}
+
+      {/* ── Links (Pick ID + Game URL) ── */}
+      <Section title="Links & References">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-semibold text-gray-700">Pick ID</label>
+            <input type="text" value={data.pickId}
+              onChange={(e) => update({ pickId: e.target.value })}
+              placeholder="Link to a pick (optional)"
+              className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-xs focus:border-blue-500 outline-none placeholder:text-gray-400"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-700">Game URL</label>
+            <input type="text" value={data.gameUrl}
+              onChange={(e) => update({ gameUrl: e.target.value })}
+              placeholder="ESPN/results link (optional)"
+              className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-xs focus:border-blue-500 outline-none placeholder:text-gray-400"
+            />
+          </div>
+        </div>
+        <p className="text-[10px] text-gray-400 mt-2">These are saved to ticket history for reference — they don&apos;t appear on the ticket.</p>
+      </Section>
     </div>
   );
 }
@@ -340,9 +483,19 @@ function TeamCard({
   const [logoSearch, setLogoSearch] = useState("");
   const [selectedLeague, setSelectedLeague] = useState("");
   const [isLoadingLogo, setIsLoadingLogo] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const leagues = getLeaguesForSport(sport);
   const results = searchTeams(logoSearch, sport, selectedLeague || undefined);
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith("image/")) {
+      handleFileUpload(file);
+    }
+  };
 
   const handlePickLogo = async (logo: TeamLogo) => {
     setIsLoadingLogo(true);
@@ -367,7 +520,12 @@ function TeamCard({
   };
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-2">
+    <div
+      className={`rounded-xl border-2 p-3 space-y-2 transition-colors ${isDragOver ? "border-blue-400 bg-blue-50" : "border-gray-200 bg-gray-50"}`}
+      onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={handleDrop}
+    >
       <div className="flex items-center justify-between">
         <span className="text-xs font-bold text-gray-500 uppercase">{label}</span>
         {team.logoDataUrl && (
