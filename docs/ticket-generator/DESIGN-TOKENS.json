@@ -1,0 +1,189 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "ticket": {
+    "dimensions": {
+      "width": { "value": 885, "unit": "px", "description": "Total ticket width" },
+      "height": { "value": 620, "unit": "px", "description": "Total ticket height (capture viewport)" },
+      "containerWidth": { "value": 875, "unit": "px", "description": "Inner container width" },
+      "containerHeight": { "value": 820, "unit": "px", "description": "Inner container height (NOTE: taller than capture — bug in original)" },
+      "borderRadius": { "value": 15, "unit": "px", "description": "Ticket corner radius" },
+      "bannerHeight": { "value": 107, "unit": "px", "description": "Top banner image height" },
+      "scoreBarHeight": { "value": 85, "unit": "px", "description": "Final score container height" },
+      "scoreBoxSize": { "value": 50, "unit": "px", "description": "Score number box width & height" },
+      "scoreBoxRadius": { "value": 10, "unit": "px", "description": "Score box corner radius" },
+      "scoreBarRadius": { "value": 14, "unit": "px", "description": "Score container corner radius" },
+      "exportPixelRatio": { "value": 2, "description": "Pixel ratio for PNG export (2x for Retina)" }
+    },
+    "spacing": {
+      "contentPaddingX": { "value": 40, "unit": "px", "description": "Horizontal padding from ticket edge to content" },
+      "bannerToContent": { "value": 50, "unit": "px", "description": "Gap from banner bottom to first content row" },
+      "titleToType": { "value": 8, "unit": "px", "description": "Gap from bet title to bet type label" },
+      "typeToWager": { "value": 40, "unit": "px", "description": "Gap from bet type to wager/paid section" },
+      "wagerToScoreBar": { "value": "auto", "description": "Pushed to bottom via Positioned(bottom: 32)" },
+      "wagerPaidGap": { "value": 280, "unit": "px", "description": "Horizontal space between Wager and Paid columns" },
+      "wagerLabelToAmount": { "value": 8, "unit": "px", "description": "Gap from 'Wager'/'Paid' label to dollar amount" },
+      "scoreBarToFooter": { "value": 40, "unit": "px", "description": "Gap from score bar to ID/Share row" },
+      "footerBottomMargin": { "value": 32, "unit": "px", "description": "Distance from ticket bottom edge to footer" },
+      "footerSideMargin": { "value": 37, "unit": "px", "description": "Horizontal margin for footer section" },
+      "scoreBarTeamInset": { "value": 20, "unit": "px", "description": "Horizontal inset for teams within score bar" },
+      "scoreBarTeamTop": { "value": 17, "unit": "px", "description": "Vertical offset for team rows in score bar" },
+      "teamLogoToAcronym": { "value": 10, "unit": "px", "description": "Gap between team logo and acronym text" },
+      "acronymToScoreBox": { "value": 15, "unit": "px", "description": "Gap between acronym and score box" },
+      "parlayBadgeToTitle": { "value": 12, "unit": "px", "description": "Gap between PARLAY badge and title text" },
+      "parlayBadgePaddingX": { "value": 10, "unit": "px" },
+      "parlayBadgePaddingY": { "value": 2, "unit": "px" },
+      "parlayBadgeRadius": { "value": 8, "unit": "px" },
+      "copyIconToId": { "value": 6, "unit": "px" },
+      "shareTextToIcon": { "value": 16, "unit": "px" },
+      "shareIconOffsetY": { "value": -3, "unit": "px", "description": "Share icon shifted up 3px" },
+      "parlayDividerToSelections": { "value": 20, "unit": "px" },
+      "selectionsVerticalPadding": { "value": 14, "unit": "px" },
+      "selectionsTextToArrow": { "value": 6, "unit": "px" }
+    },
+    "colors": {
+      "background": { "value": "#05D17A", "description": "Main ticket green background" },
+      "bannerBackground": { "value": "#009154", "description": "Banner darker green (baked into image)" },
+      "bannerText": { "value": "#048E56", "description": "Banner scrolling text color (baked into image)" },
+      "primaryText": { "value": "#FCFCFE", "description": "All white text on ticket (titles, odds, amounts, labels, ID, share)" },
+      "scoreContainer": { "value": "#EEEDF3", "description": "Final Score bar background" },
+      "scoreBox": { "value": "#DADAE4", "description": "Score number box background" },
+      "teamAcronym": { "value": "#414149", "description": "Team abbreviation text in score bar" },
+      "scoreNumber": { "value": "#1A181B", "description": "Score digit text in score boxes" },
+      "finalScoreLabel": { "value": "#41414D", "description": "'Final Score' center text" },
+      "parlayBadgeBackground": { "value": "#FFFFFF", "description": "PARLAY badge background" },
+      "parlayBadgeText": { "value": "#05D17A", "description": "PARLAY badge text" },
+      "shareIconTint": { "value": "#FCFBF8", "description": "Share icon color tint" },
+      "divider": { "value": "#FFFFFF", "description": "Parlay footer divider" }
+    },
+    "typography": {
+      "betTitle": {
+        "fontFamily": "MyCustomFont",
+        "fontSize": { "value": 35, "unit": "px" },
+        "fontWeight": 600,
+        "letterSpacing": { "value": 0.7, "unit": "px" },
+        "color": "#FCFCFE",
+        "description": "Single bet main title (bet description)"
+      },
+      "betTitleParlay": {
+        "fontFamily": "NeusaMedium",
+        "fontSize": { "value": 35, "unit": "px" },
+        "fontWeight": 500,
+        "color": "#FCFCFE",
+        "description": "Parlay bet title next to PARLAY badge"
+      },
+      "parlayBadge": {
+        "fontFamily": "NeusaMedium",
+        "fontSize": { "value": 25, "unit": "px" },
+        "fontWeight": 500,
+        "color": "#05D17A",
+        "description": "'PARLAY' text inside white badge"
+      },
+      "oddsDisplay": {
+        "fontFamily": "MyCustomFont",
+        "fontSize": { "value": 32, "unit": "px" },
+        "fontWeight": 600,
+        "letterSpacing": { "value": 0.5, "unit": "px" },
+        "color": "#FCFCFE",
+        "description": "Odds display (right-aligned, e.g., '-145')"
+      },
+      "betTypeDisplay": {
+        "fontFamily": "NeusaWideMedium",
+        "fontSize": { "value": 22, "unit": "px" },
+        "fontWeight": 600,
+        "letterSpacing": { "value": 2.5, "unit": "px" },
+        "color": "#FCFCFE",
+        "description": "Bet type label (e.g., 'TO WIN', 'SPREAD')"
+      },
+      "wagerPaidLabel": {
+        "fontFamily": "MyCustomFont",
+        "fontSize": { "value": 25, "unit": "px" },
+        "fontWeight": 400,
+        "color": "#FCFCFE",
+        "description": "'Wager' and 'Paid' labels"
+      },
+      "wagerPaidAmount": {
+        "fontFamily": "MyCustomFont",
+        "fontSize": { "value": 53, "unit": "px" },
+        "fontWeight": 400,
+        "color": "#FCFCFE",
+        "description": "Dollar amounts (e.g., '$50', '$84.48')"
+      },
+      "finalScoreLabel": {
+        "fontFamily": "MyCustomFont",
+        "fontSize": { "value": 27, "unit": "px" },
+        "fontWeight": 400,
+        "color": "#41414D",
+        "description": "'Final Score' centered text"
+      },
+      "teamAcronym": {
+        "fontFamily": "NeusaMedium",
+        "fontSize": { "value": 35, "unit": "px" },
+        "fontWeight": 600,
+        "color": "#414149",
+        "description": "Team abbreviations in score bar (e.g., 'STL', 'CHW')"
+      },
+      "teamScore": {
+        "fontFamily": "MyCustomFont",
+        "fontSize": { "value": 26, "unit": "px" },
+        "fontWeight": 700,
+        "color": "#1A181B",
+        "description": "Score numbers inside score boxes"
+      },
+      "ticketId": {
+        "fontFamily": "MyCustomFont",
+        "fontSize": { "value": 21, "unit": "px" },
+        "fontWeight": 400,
+        "color": "#FCFCFE",
+        "description": "'ID: 1234567890123456789' text"
+      },
+      "shareLabel": {
+        "fontFamily": "MyCustomFont",
+        "fontSize": { "value": 30, "unit": "px" },
+        "fontWeight": 400,
+        "color": "#FCFCFE",
+        "description": "'Share' text next to share icon"
+      },
+      "showSelections": {
+        "fontFamily": "MyCustomFont",
+        "fontSize": { "value": 22, "unit": "px" },
+        "fontWeight": 400,
+        "color": "#FFFFFF",
+        "description": "'Show selections' text in parlay footer"
+      }
+    },
+    "icons": {
+      "copyIcon": {
+        "source": "copy_icon.png",
+        "height": { "value": 30, "unit": "px" },
+        "description": "Clipboard copy icon next to ticket ID"
+      },
+      "shareIcon": {
+        "source": "share.png",
+        "height": { "value": 38, "unit": "px" },
+        "tintColor": "#FCFBF8",
+        "offsetY": { "value": -3, "unit": "px" },
+        "description": "Paper airplane share icon"
+      },
+      "parlayArrow": {
+        "source": "material:keyboard_arrow_down",
+        "size": { "value": 28, "unit": "px" },
+        "color": "#FFFFFF",
+        "description": "Down arrow next to 'Show selections'"
+      }
+    },
+    "banner": {
+      "image": "hero4_new.png",
+      "width": { "value": 885, "unit": "px" },
+      "height": { "value": 107, "unit": "px" },
+      "fit": "cover",
+      "description": "Pre-rendered PNG with Hard Rock Bet logo, scrolling SPORTSBOOK text, and WINNER badges. This is a STATIC image, not a CSS animation."
+    }
+  },
+  "ticketId": {
+    "format": "19-digit numeric string",
+    "firstDigit": "1-9 (never zero)",
+    "remainingDigits": "0-9 random",
+    "example": "4738291056483729103",
+    "description": "Random 19-digit number matching real Hard Rock Bet ticket ID format"
+  }
+}

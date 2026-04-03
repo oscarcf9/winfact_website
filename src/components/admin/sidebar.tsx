@@ -29,6 +29,7 @@ import {
   ChevronDown,
   Globe,
   Upload,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useCallback } from "react";
@@ -61,6 +62,12 @@ const NAV_SECTIONS = [
       { href: "/admin/subscribers", labelKey: "subscribers", icon: Users, exact: false },
       { href: "/admin/revenue", labelKey: "revenue", icon: DollarSign, exact: false },
       { href: "/admin/referrals", labelKey: "referrals", icon: Gift, exact: false },
+    ],
+  },
+  {
+    key: "tools",
+    items: [
+      { href: "/admin/ticket-generator", labelKey: "ticketGenerator", icon: Receipt, exact: false },
     ],
   },
   {

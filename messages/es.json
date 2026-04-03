@@ -462,6 +462,7 @@
         "dailyOps": "Ops Diarias",
         "content": "Contenido",
         "analytics": "Analíticas",
+        "tools": "Herramientas",
         "settings": "Configuraci\u00f3n"
       },
       "items": {
@@ -484,7 +485,8 @@
         "affiliates": "Afiliados",
         "auditTrail": "Registro de Auditoría",
         "team": "Equipo",
-        "integrations": "Integraciones"
+        "integrations": "Integraciones",
+        "ticketGenerator": "Generador de Tickets"
       }
     },
     "common": {
