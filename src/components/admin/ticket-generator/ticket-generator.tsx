@@ -82,6 +82,9 @@ export function TicketGenerator() {
       const res = await fetch("/api/admin/ticket-generator", { method: "POST", body: fd });
       if (res.ok) {
         setActiveTab("history");
+      } else {
+        const err = await res.json().catch(() => ({ error: "Save failed" }));
+        alert(err.error || "Failed to save ticket");
       }
     } finally {
       setIsSaving(false);

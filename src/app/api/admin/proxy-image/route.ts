@@ -19,6 +19,9 @@ export async function GET(req: NextRequest) {
 
   try {
     const parsed = new URL(url);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return NextResponse.json({ error: "Invalid protocol" }, { status: 400 });
+    }
     if (!ALLOWED_DOMAINS.some((d) => parsed.hostname === d || parsed.hostname.endsWith(`.${d}`))) {
       return NextResponse.json({ error: "Domain not allowed" }, { status: 403 });
     }

@@ -74,7 +74,14 @@ export default function TicketForm({ data, onChange }: TicketFormProps) {
   const handleSportChange = useCallback(
     (sportId: SportId) => {
       const subs = getSubTypesForSport(sportId);
-      update({ sport: sportId, subBetType: subs[0]?.id ?? "moneyline" });
+      update({
+        sport: sportId,
+        subBetType: subs[0]?.id ?? "moneyline",
+        team1: { ...DEFAULT_TEAM },
+        team2: { ...DEFAULT_TEAM },
+        teamName: "",
+        matchup: "",
+      });
     },
     [update]
   );
@@ -343,112 +350,7 @@ export default function TicketForm({ data, onChange }: TicketFormProps) {
         </div>
       </Section>
 
-      {/* ── Box Score (optional, NBA/NFL) ── */}
-      {isSingle && (
-        <Section title="Detailed Box Score">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500">Show quarter-by-quarter scores instead of simple score bar</span>
-            <button type="button"
-              onClick={() => update({
-                boxScore: { ...data.boxScore, enabled: !data.boxScore.enabled },
-              })}
-              className={`relative w-10 h-5 rounded-full transition-colors ${data.boxScore.enabled ? "bg-blue-500" : "bg-gray-300"}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${data.boxScore.enabled ? "translate-x-5" : ""}`} />
-            </button>
-          </div>
-
-          {data.boxScore.enabled && (
-            <div className="mt-3 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-gray-500">Team 1 Name</label>
-                  <input type="text" value={data.boxScore.team1Name}
-                    onChange={(e) => update({ boxScore: { ...data.boxScore, team1Name: e.target.value } })}
-                    placeholder="Nuggets"
-                    className="w-full mt-1 px-2.5 py-1.5 rounded-md border border-gray-200 bg-white text-sm focus:border-blue-500 outline-none placeholder:text-gray-400"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-500">Team 2 Name</label>
-                  <input type="text" value={data.boxScore.team2Name}
-                    onChange={(e) => update({ boxScore: { ...data.boxScore, team2Name: e.target.value } })}
-                    placeholder="Suns"
-                    className="w-full mt-1 px-2.5 py-1.5 rounded-md border border-gray-200 bg-white text-sm focus:border-blue-500 outline-none placeholder:text-gray-400"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">Periods</label>
-                <div className="flex gap-2">
-                  {[4, 3, 9].map((p) => (
-                    <button key={p} type="button"
-                      onClick={() => update({ boxScore: { ...data.boxScore, periods: p } })}
-                      className={`px-3 py-1 rounded text-xs font-medium ${data.boxScore.periods === p ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-600"}`}
-                    >
-                      {p === 4 ? "4 (NBA/NFL)" : p === 3 ? "3 (NHL)" : "9 (MLB)"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {/* Quarter score inputs */}
-              {["team1", "team2"].map((team) => {
-                const qs = team === "team1" ? data.boxScore.team1Quarters : data.boxScore.team2Quarters;
-                const teamLabel = team === "team1" ? (data.boxScore.team1Name || "Team 1") : (data.boxScore.team2Name || "Team 2");
-                return (
-                  <div key={team}>
-                    <label className="text-xs font-medium text-gray-500 mb-1 block">{teamLabel} Scores</label>
-                    <div className="flex gap-1.5 items-center">
-                      {(["q1", "q2", "q3", "q4"] as const).slice(0, data.boxScore.periods).map((q) => (
-                        <input key={q} type="text" value={qs[q]}
-                          onChange={(e) => {
-                            const newQs = { ...qs, [q]: e.target.value };
-                            const vals = [newQs.q1, newQs.q2, newQs.q3, newQs.q4].slice(0, data.boxScore.periods).map(Number).filter(n => !isNaN(n));
-                            newQs.total = vals.reduce((a, b) => a + b, 0).toString();
-                            update({
-                              boxScore: {
-                                ...data.boxScore,
-                                [team === "team1" ? "team1Quarters" : "team2Quarters"]: newQs,
-                              },
-                            });
-                          }}
-                          placeholder={`P${q.slice(1)}`}
-                          className="w-10 px-1 py-1.5 rounded border border-gray-200 bg-white text-xs text-center focus:border-blue-500 outline-none placeholder:text-gray-400"
-                        />
-                      ))}
-                      <span className="text-xs text-gray-400">=</span>
-                      <span className="text-xs font-bold text-gray-900 w-8 text-center">{qs.total || "0"}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Section>
-      )}
-
-      {/* ── Links (Pick ID + Game URL) ── */}
-      <Section title="Links & References">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs font-semibold text-gray-700">Pick ID</label>
-            <input type="text" value={data.pickId}
-              onChange={(e) => update({ pickId: e.target.value })}
-              placeholder="Link to a pick (optional)"
-              className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-xs focus:border-blue-500 outline-none placeholder:text-gray-400"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-700">Game URL</label>
-            <input type="text" value={data.gameUrl}
-              onChange={(e) => update({ gameUrl: e.target.value })}
-              placeholder="ESPN/results link (optional)"
-              className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-xs focus:border-blue-500 outline-none placeholder:text-gray-400"
-            />
-          </div>
-        </div>
-        <p className="text-[10px] text-gray-400 mt-2">These are saved to ticket history for reference — they don&apos;t appear on the ticket.</p>
-      </Section>
+      {/* Box Score and Links sections hidden for now — data structures preserved in ticket-types.ts */}
     </div>
   );
 }
