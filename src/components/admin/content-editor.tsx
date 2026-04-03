@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Save, Plus, Check, Megaphone, Type, Eye, EyeOff, ChevronDown } from "lucide-react";
+import { Save, Plus, Check, Megaphone, Type, Eye, EyeOff, ChevronDown, Sparkles } from "lucide-react";
 
 type ContentItem = { key: string; value: string; updatedAt: string | null };
 
@@ -22,6 +22,11 @@ const ANNOUNCEMENT_KEYS = [
   { key: "announcement_bar_promo_code", label: "Promo Code", type: "text", default: "PICK80" },
   { key: "announcement_bar_expires_at", label: "Expires At", type: "date", default: "" },
   { key: "announcement_bar_style", label: "Style", type: "select", default: "default", options: ["default", "urgent", "success"] },
+];
+
+const FEATURE_KEYS = [
+  { key: "live_commentary_enabled", label: "Live Commentary Bot", type: "toggle", default: "false" },
+  { key: "victory_posts_enabled", label: "Victory Post Generator", type: "toggle", default: "false" },
 ];
 
 const HERO_KEYS = [
@@ -47,10 +52,11 @@ export function ContentEditor({ initialContent }: Props) {
 
   const contentMap = new Map(items.map((i) => [i.key, i]));
 
-  // Separate announcement and hero keys from "other" generic keys
+  // Separate structured keys from "other" generic keys
   const announcementKeySet = new Set(ANNOUNCEMENT_KEYS.map((k) => k.key));
   const heroKeySet = new Set(HERO_KEYS.map((k) => k.key));
-  const genericItems = items.filter((i) => !announcementKeySet.has(i.key) && !heroKeySet.has(i.key));
+  const featureKeySet = new Set(FEATURE_KEYS.map((k) => k.key));
+  const genericItems = items.filter((i) => !announcementKeySet.has(i.key) && !heroKeySet.has(i.key) && !featureKeySet.has(i.key));
 
   async function saveItem(key: string, value: string) {
     setSaving(key);
@@ -207,6 +213,22 @@ export function ContentEditor({ initialContent }: Props) {
         </div>
         <div className="px-6 py-2 divide-y divide-gray-100">
           {ANNOUNCEMENT_KEYS.map(renderField)}
+        </div>
+      </div>
+
+      {/* Feature Toggles */}
+      <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-success/10 flex items-center justify-center">
+            <Sparkles className="h-4 w-4 text-success" />
+          </div>
+          <div>
+            <h2 className="font-heading font-bold text-lg text-navy">Features</h2>
+            <p className="text-xs text-gray-400">Enable or disable automated features</p>
+          </div>
+        </div>
+        <div className="px-6 py-2 divide-y divide-gray-100">
+          {FEATURE_KEYS.map(renderField)}
         </div>
       </div>
 
