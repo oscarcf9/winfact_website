@@ -28,8 +28,7 @@ export async function generateCommentary(game: {
   const prompt = `You are a passionate sports fan live-commenting in a Telegram group. Generate ONE short comment (max 250 characters) about this LIVE game.
 
 Sport: ${game.sport} (${game.league})
-Teams: ${game.team1} vs ${game.team2}
-Score: ${game.score1} - ${game.score2}
+${game.team1} ${game.score1} @ ${game.team2} ${game.score2}
 Period: ${sportContext}
 Clock: ${game.clock}
 Game situation: ${game.situation}

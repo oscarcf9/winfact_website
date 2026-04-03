@@ -42,18 +42,25 @@ function formatResultMessage(pick: Pick & { result: string }): string {
 
 export async function sendTelegramMessage(
   chatId: string,
-  text: string
+  text: string,
+  options?: { parseMode?: "Markdown" | "HTML" | "none" }
 ): Promise<{ ok: boolean; messageId?: number; error?: string }> {
   try {
+    const parseMode = options?.parseMode ?? "Markdown";
+    const body: Record<string, unknown> = {
+      chat_id: chatId,
+      text,
+      disable_web_page_preview: true,
+    };
+    // Only set parse_mode if not "none" — allows plain text messages
+    if (parseMode !== "none") {
+      body.parse_mode = parseMode;
+    }
+
     const res = await fetch(`${TELEGRAM_API}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: "Markdown",
-        disable_web_page_preview: true,
-      }),
+      body: JSON.stringify(body),
     });
 
     const data = await res.json();
@@ -193,7 +200,7 @@ export async function sendWinCelebration(pick: {
     return { ok: false, error: "Telegram not configured" };
   }
   const message = formatWinCelebrationMessage(pick);
-  return sendTelegramMessage(TELEGRAM_FREE_CHAT_ID, message);
+  return sendTelegramMessage(TELEGRAM_FREE_CHAT_ID, message, { parseMode: "none" });
 }
 
 export { formatPickMessage, formatResultMessage, formatVipTeaserMessage };

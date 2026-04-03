@@ -53,7 +53,7 @@ export async function fetchAllLiveGames(): Promise<LiveGame[]> {
     try {
       const url = `${ESPN_BASE}/${path}/scoreboard`;
       const response = await fetch(url, {
-        next: { revalidate: 0 },
+        cache: "no-store",
         headers: { "User-Agent": "WinFactPicks/1.0" },
       });
 
@@ -91,8 +91,11 @@ function parseScoreboard(data: any, sport: string): LiveGame[] {
     if (!competition) continue;
 
     const competitors = competition.competitors;
-    const team1 = competitors[0]?.team?.displayName || "Team 1";
-    const team2 = competitors[1]?.team?.displayName || "Team 2";
+    // Use homeAway field for consistent ordering (ESPN doesn't guarantee array order)
+    const homeComp = competitors.find((c: any) => c.homeAway === "home") || competitors[0];
+    const awayComp = competitors.find((c: any) => c.homeAway === "away") || competitors[1];
+    const team1 = awayComp?.team?.displayName || "Team 1";
+    const team2 = homeComp?.team?.displayName || "Team 2";
 
     // Filter by target teams
     if (targetTeams !== "all") {
@@ -102,44 +105,46 @@ function parseScoreboard(data: any, sport: string): LiveGame[] {
       if (!isTargetGame) continue;
     }
 
-    const score1 = parseInt(competitors[0]?.score) || 0;
-    const score2 = parseInt(competitors[1]?.score) || 0;
+    const score1 = parseInt(awayComp?.score) || 0;  // away team score
+    const score2 = parseInt(homeComp?.score) || 0;  // home team score
     const diff = Math.abs(score1 - score2);
     const total = score1 + score2;
     const period = event.status?.period || 1;
     const clock = event.status?.displayClock || "";
 
     let isInteresting = false;
-    let situation = "";
+    const situations: string[] = [];
 
     if (isSoccer) {
-      if (diff <= 1) { isInteresting = true; situation = "close_game"; }
-      if (total >= 3) { isInteresting = true; situation = "high_scoring"; }
-      if (period >= 2 && diff <= 2) { isInteresting = true; situation = "late_drama"; }
+      if (diff <= 1) { isInteresting = true; situations.push("close_game"); }
+      if (total >= 3) { isInteresting = true; situations.push("high_scoring"); }
+      if (period >= 2 && diff <= 2) { isInteresting = true; situations.push("late_drama"); }
     } else if (isBaseball) {
-      if (diff <= 3) { isInteresting = true; situation = "close_game"; }
-      if (total >= 8) { isInteresting = true; situation = "high_scoring"; }
-      if (period >= 7 && diff <= 5) { isInteresting = true; situation = "late_innings"; }
+      if (diff <= 3) { isInteresting = true; situations.push("close_game"); }
+      if (total >= 8) { isInteresting = true; situations.push("high_scoring"); }
+      if (period >= 7 && diff <= 5) { isInteresting = true; situations.push("late_innings"); }
     } else if (isFootball) {
-      if (diff <= 10) { isInteresting = true; situation = "close_game"; }
-      if (total > 40) { isInteresting = true; situation = "high_scoring"; }
-      if (period >= 4 && diff <= 14) { isInteresting = true; situation = "fourth_quarter"; }
+      if (diff <= 10) { isInteresting = true; situations.push("close_game"); }
+      if (total > 40) { isInteresting = true; situations.push("high_scoring"); }
+      if (period >= 4 && diff <= 14) { isInteresting = true; situations.push("fourth_quarter"); }
     } else if (sport === "NBA") {
-      if (diff <= 10) { isInteresting = true; situation = "close_game"; }
-      if (total > 180) { isInteresting = true; situation = "high_scoring"; }
-      if (period >= 4 && diff <= 15) { isInteresting = true; situation = "late_game"; }
+      if (diff <= 10) { isInteresting = true; situations.push("close_game"); }
+      if (total > 180) { isInteresting = true; situations.push("high_scoring"); }
+      if (period >= 4 && diff <= 15) { isInteresting = true; situations.push("late_game"); }
     } else {
       // NHL
-      if (diff <= 2) { isInteresting = true; situation = "close_game"; }
-      if (total >= 6) { isInteresting = true; situation = "high_scoring"; }
-      if (period >= 3 && diff <= 2) { isInteresting = true; situation = "late_game"; }
+      if (diff <= 2) { isInteresting = true; situations.push("close_game"); }
+      if (total >= 6) { isInteresting = true; situations.push("high_scoring"); }
+      if (period >= 3 && diff <= 2) { isInteresting = true; situations.push("late_game"); }
     }
 
     // Blowouts can be interesting too
     if (!isInteresting && diff > 20) {
       isInteresting = true;
-      situation = "blowout";
+      situations.push("blowout");
     }
+
+    const situation = situations.join(", ") || "in_progress";
 
     games.push({
       gameId: event.id,

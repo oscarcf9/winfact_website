@@ -7,9 +7,16 @@ import { evaluatePick } from "@/lib/pick-settler";
 import { teamsMatch } from "@/lib/team-normalizer";
 import type { ESPNGame } from "@/lib/espn";
 import { refreshPerformanceCache } from "@/lib/refresh-performance";
-import { sendAdminNotification, sendWinCelebration } from "@/lib/telegram";
+import { sendAdminNotification, sendTelegramMessage } from "@/lib/telegram";
 import { formatWinCelebrationMessage } from "@/lib/telegram-templates";
 import { postToBuffer } from "@/lib/buffer";
+
+const TELEGRAM_FREE_CHAT_ID = process.env.TELEGRAM_FREE_CHAT_ID || "";
+
+function sendTelegramPlain(text: string) {
+  if (!TELEGRAM_FREE_CHAT_ID) return Promise.resolve({ ok: false, error: "Not configured" });
+  return sendTelegramMessage(TELEGRAM_FREE_CHAT_ID, text, { parseMode: "none" });
+}
 
 type SettlementLog = {
   pickId: string;
@@ -157,19 +164,18 @@ export async function GET(req: Request) {
           log.autoSettled = true;
 
           // Post win celebration to Telegram + Buffer (fire-and-forget)
+          // Generate message once so both platforms get the same text
           if (settlement.result === "win") {
-            const celebrationPick = {
+            const message = formatWinCelebrationMessage({
               sport: pick.sport,
               matchup: pick.matchup,
               pickText: pick.pickText,
-            };
+            });
 
-            sendWinCelebration(celebrationPick).catch((err) =>
+            sendTelegramPlain(message).catch((err) =>
               console.error("[settle-picks] Win celebration failed:", err)
             );
 
-            // Cross-post to Twitter/Threads via Buffer
-            const message = formatWinCelebrationMessage(celebrationPick);
             postToBuffer(message).catch((err) =>
               console.error("[settle-picks] Buffer win celebration failed:", err)
             );

@@ -20,15 +20,20 @@ function isGameTime(): boolean {
     })
   );
 
-  const dayOfWeek = now.getDay(); // 0=Sun, 6=Sat
-  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+  // Use ET day-of-week, not UTC — fixes midnight boundary bug
+  const etDay = now.toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+  });
+  const isWeekend = etDay === "Sat" || etDay === "Sun";
 
   if (isWeekend) {
-    return etHour >= 10 && etHour <= 23;
+    // Weekends: 10 AM - 1 AM ET (covers late West Coast games)
+    return etHour >= 10 || etHour <= 1;
   }
 
-  // Weekdays: noon to midnight ET
-  return etHour >= 12 && etHour <= 23;
+  // Weekdays: noon - 1 AM ET (covers late West Coast NBA/MLB)
+  return etHour >= 12 || etHour <= 1;
 }
 
 async function hasRecentComment(gameId: string): Promise<boolean> {
@@ -107,7 +112,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: "error", reason: "telegram_not_configured" });
     }
 
-    const result = await sendTelegramMessage(chatId, comment);
+    const result = await sendTelegramMessage(chatId, comment, { parseMode: "none" });
 
     if (!result.ok) {
       return NextResponse.json({ status: "error", reason: "telegram_send_failed", error: result.error });
