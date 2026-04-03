@@ -112,6 +112,12 @@ export async function GET(req: Request) {
   }
 
   try {
+    // Random skip: ~35% chance to skip this cycle, creating irregular 15-45 min gaps
+    // This prevents the bot from posting at exact :00/:15/:30/:45 intervals
+    if (Math.random() < 0.35) {
+      return NextResponse.json({ status: "skipped", reason: "random_delay" });
+    }
+
     // 1. Fetch all live games
     const liveGames = await fetchAllLiveGames();
 
