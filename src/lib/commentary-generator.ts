@@ -23,7 +23,7 @@ export async function generateCommentary(
   },
   recentCommentary: string[] = []
 ): Promise<string> {
-  // ~60% Spanish, ~40% English — matches bilingual group dynamics
+  // ~60% Spanish, ~40% English , matches bilingual group dynamics
   const language = Math.random() < 0.6 ? "spanish" : "english";
 
   const sportContext = getSportContext(game.sport, game.period);
@@ -39,7 +39,7 @@ export async function generateCommentary(
     ? `\nRECENT MESSAGES YOU ALREADY POSTED (DO NOT repeat or paraphrase these):\n${recentCommentary.map((m) => `- "${m}"`).join("\n")}\n`
     : "";
 
-  const prompt = `You are the voice of WinFact Picks — a sports analytics brand that posts in its community Telegram group during live games. You sound like the sports-obsessed friend in the group who always knows what's happening, NOT like a corporate account or a bot. You're watching the game and reacting naturally for your community — a mix of paid VIP members and free followers who trust WinFact's sports knowledge. Keep it real, keep it casual, but you represent a brand people respect.
+  const prompt = `You are the voice of WinFact Picks , a sports analytics brand that posts in its community Telegram group during live games. You sound like the sports-obsessed friend in the group who always knows what's happening, NOT like a corporate account or a bot. You're watching the game and reacting naturally for your community , a mix of paid VIP members and free followers who trust WinFact's sports knowledge. Keep it real, keep it casual, but you represent a brand people respect.
 
 LIVE GAME RIGHT NOW:
 ${game.team1} ${game.score1} @ ${game.team2} ${game.score2}
@@ -53,11 +53,11 @@ ${sportPersonality}
 
 YOUR ANGLE FOR THIS COMMENT: ${angle}
 ${dedupBlock}
-RULES — break any of these and the message gets thrown out:
+RULES , break any of these and the message gets thrown out:
 - MAXIMUM 230 characters (hard limit, not a suggestion)
 - Sound like a REAL PERSON texting, not a sportscaster or AI
 - 1-2 emojis MAX, placed naturally (not at the start)
-- React to what's ACTUALLY happening in the score — if a team is getting destroyed, say it. If it's a nail-biter, show it.
+- React to what's ACTUALLY happening in the score , if a team is getting destroyed, say it. If it's a nail-biter, show it.
 - Have a TAKE. Pick a side. Be opinionated. "This is a good game" is boring. "Celtics are cooking and nobody can stop Tatum" is real.
 - DO NOT use hashtags
 - DO NOT mention betting, picks, odds, spreads, lines, or anything gambling-related
@@ -65,7 +65,8 @@ RULES — break any of these and the message gets thrown out:
 - DO NOT use words like "currently", "right now", "at the moment", "as we speak"
 - DO NOT start with "Wow" or "Oh my" or any generic exclamation
 - DO NOT use the word "folks" or "friends" or address the group directly
-- DO NOT add any preamble, label, or explanation — output ONLY the message text
+- DO NOT add any preamble, label, or explanation, output ONLY the message text
+- DO NOT use em dashes anywhere. Use commas, periods, or just separate thoughts naturally.
 - Your output must be a single message, no line breaks
 
 ${examples}
@@ -142,7 +143,7 @@ function buildScoreContext(game: {
     parts.push("late in the game");
   }
   if (game.situation.includes("high_scoring")) {
-    parts.push(`${total} total points — high-scoring affair`);
+    parts.push(`${total} total points , high-scoring affair`);
   }
 
   return parts.join(". ") + ".";
@@ -158,11 +159,11 @@ function getSportPersonality(sport: string, language: string): string {
   switch (sport) {
     case "NBA":
       return isSpanish
-        ? "WinFact sabe de NBA. Habla de runs, clutch shots, quien está en llamas. Usa jerga de basket: triple, doble-doble, and-one. Estilo Miami — mezcla español con algo de inglés cuando es natural. Habla como el analista del grupo que vive el basket."
-        : "WinFact knows NBA. Talk about runs, who's cooking, who's cold. Use real basketball language — runs, buckets, cooking, ice cold. Sound like the sharpest basketball mind in the room, but keep it casual.";
+        ? "WinFact sabe de NBA. Habla de runs, clutch shots, quien está en llamas. Usa jerga de basket: triple, doble-doble, and-one. Estilo Miami , mezcla español con algo de inglés cuando es natural. Habla como el analista del grupo que vive el basket."
+        : "WinFact knows NBA. Talk about runs, who's cooking, who's cold. Use real basketball language , runs, buckets, cooking, ice cold. Sound like the sharpest basketball mind in the room, but keep it casual.";
     case "MLB":
       return isSpanish
-        ? "WinFact sabe de baseball. Entiende innings, conteos, situaciones con corredores en base. Habla de pitchers dominando, bateadores clutch. Estilo caribeño — el beisbol está en la sangre de la comunidad."
+        ? "WinFact sabe de baseball. Entiende innings, conteos, situaciones con corredores en base. Habla de pitchers dominando, bateadores clutch. Estilo caribeño , el beisbol está en la sangre de la comunidad."
         : "WinFact knows baseball. Talk about who's dealing on the mound, big at-bats, defensive plays. Appreciate the craft. Sound like someone who sees things others miss.";
     case "NFL":
       return isSpanish
@@ -171,11 +172,11 @@ function getSportPersonality(sport: string, language: string): string {
     case "NHL":
       return isSpanish
         ? "WinFact sabe de hockey. Habla de powerplays, saves del goalie, goles increíbles. El hockey es rápido y WinFact lo entiende."
-        : "WinFact knows hockey. Talk about power plays, goalie performance, momentum shifts. Sound informed but not like a broadcast — you're reacting in real time for your community.";
+        : "WinFact knows hockey. Talk about power plays, goalie performance, momentum shifts. Sound informed but not like a broadcast , you're reacting in real time for your community.";
     default:
       // Soccer
       return isSpanish
-        ? "WinFact sabe de fútbol. Habla de posesión, goles, tarjetas, tácticas. Si es un derbi o un clásico, sube la intensidad. El fútbol es pasión para la comunidad — refleja eso."
+        ? "WinFact sabe de fútbol. Habla de posesión, goles, tarjetas, tácticas. Si es un derbi o un clásico, sube la intensidad. El fútbol es pasión para la comunidad , refleja eso."
         : "WinFact knows soccer. Talk about possession, attacks, defensive shape. If it's a derby or big match, the intensity should be higher. Sound like the most knowledgeable person watching with your community.";
   }
 }
@@ -216,7 +217,7 @@ function getExamples(sport: string, language: string): string {
     },
     MLB: {
       en: [
-        "Pitcher is dealing — 7 Ks through 5 and the lineup looks lost",
+        "Pitcher is dealing , 7 Ks through 5 and the lineup looks lost",
         "Bases loaded nobody out and they couldn't score, brutal 😬",
         "3-run bomb to center, that ball is still flying",
         "7th inning and this starter hasn't broken 90 pitches, he's cruising",
@@ -228,7 +229,7 @@ function getExamples(sport: string, language: string): string {
         "Tied in the 9th, this is what October baseball feels like",
       ],
       es: [
-        "El pitcher dominando — 7 Ks en 5 innings y el lineup perdido",
+        "El pitcher dominando , 7 Ks en 5 innings y el lineup perdido",
         "Bases llenas sin out y no pudieron anotar, brutal 😬",
         "Jonrón de 3 carreras al center, esa bola todavía está volando",
         "7mo inning y el abridor no pasa de 90 pitcheos, va en crucero",
@@ -247,7 +248,7 @@ function getExamples(sport: string, language: string): string {
         "Defense is swarming every play, offense can't breathe",
         "Red zone INT, that's a backbreaker in a 3-point game",
         "4th quarter comeback brewing, 10 unanswered points",
-        "Running game is eating — 180 yards and counting",
+        "Running game is eating , 180 yards and counting",
         "That was the worst play call I've seen all season 💀",
         "Pick six to make it a two-score game, this one's over",
         "Fumble on the goal line, you could hear the stadium groan",
@@ -259,7 +260,7 @@ function getExamples(sport: string, language: string): string {
         "La defensa asfixiando cada jugada, la ofensiva sin aire",
         "INT en la red zone, eso duele cuando el juego está por 3",
         "Comeback en el 4to cuarto, 10 puntos sin respuesta",
-        "El juego terrestre comiendo — 180 yardas y contando",
+        "El juego terrestre comiendo , 180 yardas y contando",
         "Esa fue la peor jugada que he visto en toda la temporada 💀",
         "Pick six para ponerlo a dos scores, se acabó esto",
         "Fumble en la línea de gol, se escuchó el estadio gemir",
@@ -334,14 +335,14 @@ function getExamples(sport: string, language: string): string {
 }
 
 /**
- * Commentary angles — gives Claude a specific lens for each comment
+ * Commentary angles , gives Claude a specific lens for each comment
  * to prevent repetitive "this game is close" style messages.
  */
 function getAngles(situation: string, sport: string): string[] {
   const base = [
-    "React to the scoreboard — who's winning and how convincingly",
-    "Focus on the momentum — who has it, who lost it",
-    "Call out one team's performance — are they playing well or terrible?",
+    "React to the scoreboard , who's winning and how convincingly",
+    "Focus on the momentum , who has it, who lost it",
+    "Call out one team's performance , are they playing well or terrible?",
     "Comment on the pace or energy of the game",
   ];
 
@@ -369,7 +370,7 @@ function getAngles(situation: string, sport: string): string[] {
   }
   if (situation.includes("late")) {
     base.push(
-      "Talk about clutch time — who steps up?",
+      "Talk about clutch time , who steps up?",
       "Comment on the pressure of the final stretch",
       "Note that this is where games are won or lost",
     );
