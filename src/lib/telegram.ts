@@ -1,6 +1,7 @@
 import {
   formatFreePickMessage as formatFreePickFromTemplates,
   formatVipTeaserMessage as formatVipTeaserFromTemplates,
+  formatWinCelebrationMessage,
 } from "./telegram-templates";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
@@ -176,6 +177,23 @@ export async function notifyReferralMilestone(params: {
     `👉 [Review & approve](${adminUrl})`;
 
   return sendAdminNotification(message);
+}
+
+/**
+ * Post a win celebration message to the free Telegram group.
+ * Called by the auto-settler when a pick is settled as a win.
+ * Fire-and-forget — errors are logged but never throw.
+ */
+export async function sendWinCelebration(pick: {
+  sport: string;
+  matchup: string;
+  pickText: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  if (!TELEGRAM_FREE_CHAT_ID || !TELEGRAM_BOT_TOKEN) {
+    return { ok: false, error: "Telegram not configured" };
+  }
+  const message = formatWinCelebrationMessage(pick);
+  return sendTelegramMessage(TELEGRAM_FREE_CHAT_ID, message);
 }
 
 export { formatPickMessage, formatResultMessage, formatVipTeaserMessage };

@@ -27,3 +27,18 @@ const _migratedAudit = client.execute(`
     created_at INTEGER NOT NULL
   )
 `).catch(() => {/* table already exists — ignore */});
+
+const _migratedCommentaryLog = client.execute(`
+  CREATE TABLE IF NOT EXISTS commentary_log (
+    id TEXT PRIMARY KEY NOT NULL,
+    game_id TEXT NOT NULL,
+    sport TEXT NOT NULL,
+    message TEXT NOT NULL,
+    posted_at INTEGER NOT NULL,
+    game_state TEXT
+  )
+`).catch(() => {/* table already exists */});
+
+const _migratedCommentaryIdx = client.execute(
+  `CREATE INDEX IF NOT EXISTS idx_commentary_game_posted ON commentary_log(game_id, posted_at)`
+).catch(() => {});

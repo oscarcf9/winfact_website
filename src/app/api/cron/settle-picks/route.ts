@@ -7,7 +7,7 @@ import { evaluatePick } from "@/lib/pick-settler";
 import { teamsMatch } from "@/lib/team-normalizer";
 import type { ESPNGame } from "@/lib/espn";
 import { refreshPerformanceCache } from "@/lib/refresh-performance";
-import { sendAdminNotification } from "@/lib/telegram";
+import { sendAdminNotification, sendWinCelebration } from "@/lib/telegram";
 
 type SettlementLog = {
   pickId: string;
@@ -153,6 +153,17 @@ export async function GET(req: Request) {
             .where(eq(picks.id, pick.id));
 
           log.autoSettled = true;
+
+          // Post win celebration to Telegram (fire-and-forget)
+          if (settlement.result === "win") {
+            sendWinCelebration({
+              sport: pick.sport,
+              matchup: pick.matchup,
+              pickText: pick.pickText,
+            }).catch((err) =>
+              console.error("[settle-picks] Win celebration failed:", err)
+            );
+          }
         }
 
         logs.push(log);

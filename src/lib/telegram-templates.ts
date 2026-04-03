@@ -5,7 +5,7 @@
 const recentTemplates: Map<string, number[]> = new Map();
 
 export function getRandomTemplate(
-  category: "free_pick" | "vip_teaser" | "vip_update" | "general_update",
+  category: "free_pick" | "vip_teaser" | "vip_update" | "general_update" | "win_celebration",
   language: "en" | "es"
 ): string {
   const key = `${category}_${language}`;
@@ -231,6 +231,37 @@ const TEMPLATES = {
     ],
   },
 
+
+  // ============================================================
+  // CATEGORY 5: WIN CELEBRATION — Posted when auto-settler confirms a win
+  // ============================================================
+  win_celebration: {
+    en: [
+      `CASH IT\n\n{pickText}\n{matchup} -- {sport}\n\nAnother one in the books`,
+      `Winner winner\n\n{pickText} hits!\n\nThat's what the model does`,
+      `CASHED! {pickText}\n{sport}: {matchup}\n\nEasy money`,
+      `Hit! {pickText}\n\nThe data doesn't lie`,
+      `Another one\n\n{pickText} -- {sport}\nLet's keep it rolling`,
+      `{pickText}\n\nSmoked it. {sport}`,
+      `Add it to the record\n\n{pickText}\n{matchup}\n\nWe move`,
+      `That's a W\n\n{pickText} cashes\n{sport} keeping us fed`,
+      `Bingo. {pickText}\n\nModel edge confirmed`,
+      `WINNER {pickText}\n\nAnother clean hit for the crew`,
+    ],
+    es: [
+      `COBRADO\n\n{pickText}\n{matchup} -- {sport}\n\nOtro mas para el record`,
+      `A cobrar\n\n{pickText} pega!\n\nEso hace el modelo`,
+      `COBRADO! {pickText}\n{sport}: {matchup}\n\nDinero facil`,
+      `Pega! {pickText}\n\nLos datos no mienten`,
+      `Otro mas\n\n{pickText} -- {sport}\nSeguimos sumando`,
+      `{pickText}\n\nSin susto. {sport}`,
+      `Sumenlo al record\n\n{pickText}\n{matchup}\n\nVamos`,
+      `Eso es W\n\n{pickText} cobra\n{sport} nos tiene comiendo`,
+      `Bingo. {pickText}\n\nEdge del modelo confirmado`,
+      `GANADOR {pickText}\n\nOtra jugada limpia para la familia`,
+    ],
+  },
+
 } as const;
 
 export { TEMPLATES };
@@ -307,4 +338,21 @@ export function formatGeneralUpdateMessage(): string {
   const en = getRandomTemplate("general_update", "en");
   const es = getRandomTemplate("general_update", "es");
   return `${en}\n\n---\n\n${es}`;
+}
+
+/**
+ * Format a win celebration message. Single language (randomly chosen by caller).
+ */
+export function formatWinCelebrationMessage(pick: {
+  sport: string;
+  matchup: string;
+  pickText: string;
+}): string {
+  const language = Math.random() < 0.6 ? "es" : "en";
+  const template = getRandomTemplate("win_celebration", language);
+
+  return template
+    .replace(/\{pickText\}/g, pick.pickText)
+    .replace(/\{matchup\}/g, pick.matchup)
+    .replace(/\{sport\}/g, pick.sport);
 }
