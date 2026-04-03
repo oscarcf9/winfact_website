@@ -9,7 +9,7 @@ import { getSiteContent } from "@/db/queries/site-content";
 import { postToBuffer } from "@/lib/buffer";
 
 // Defaults — overridden by siteContent settings if configured
-const DEFAULT_COOLDOWN_MINUTES = 45;
+const DEFAULT_COOLDOWN_MINUTES = 90;
 const DEFAULT_WEEKDAY_START = 12;
 const DEFAULT_WEEKDAY_END = 1; // 1 AM next day (wraps past midnight)
 const DEFAULT_WEEKEND_START = 10;
@@ -112,9 +112,15 @@ export async function GET(req: Request) {
   }
 
   try {
-    // Random skip: ~35% chance to skip this cycle, creating irregular 15-45 min gaps
-    // This prevents the bot from posting at exact :00/:15/:30/:45 intervals
-    if (Math.random() < 0.35) {
+    // Dual-frequency posting:
+    // - Buffer (Twitter/Threads): ~50% skip = post every ~30 min
+    // - Telegram: ~75% skip = post every ~1 hour
+    const roll = Math.random();
+    const skipBuffer = roll < 0.50;   // 50% skip = ~1 post per 30 min
+    const skipTelegram = roll < 0.75; // 75% skip = ~1 post per hour
+
+    // If both channels would be skipped, skip entirely
+    if (skipBuffer && skipTelegram) {
       return NextResponse.json({ status: "skipped", reason: "random_delay" });
     }
 
@@ -175,26 +181,30 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: "error", reason: "commentary_generation_failed" });
     }
 
-    // 6. Post to Telegram
-    const chatId = process.env.TELEGRAM_FREE_CHAT_ID;
-    if (!chatId) {
-      return NextResponse.json({ status: "error", reason: "telegram_not_configured" });
+    let telegramSent = false;
+    let bufferSent = false;
+
+    // 6. Post to Telegram (~1 per hour)
+    if (!skipTelegram) {
+      const chatId = process.env.TELEGRAM_FREE_CHAT_ID;
+      if (chatId) {
+        const result = await sendTelegramMessage(chatId, comment, { parseMode: "none" });
+        telegramSent = result.ok;
+        if (!result.ok) console.error("[commentary] Telegram failed:", result.error);
+      }
     }
 
-    const result = await sendTelegramMessage(chatId, comment, { parseMode: "none" });
-
-    if (!result.ok) {
-      return NextResponse.json({ status: "error", reason: "telegram_send_failed", error: result.error });
+    // 7. Cross-post to Twitter/Threads via Buffer (~1 per 30 min)
+    if (!skipBuffer) {
+      const bufferResult = await postToBuffer(comment).catch((err) => {
+        console.error("[commentary] Buffer error:", err);
+        return { ok: false, error: String(err) } as const;
+      });
+      bufferSent = bufferResult.ok;
+      console.log(`[commentary] Buffer: ${bufferResult.ok ? "sent" : `failed: ${bufferResult.error}`}`);
     }
 
-    // Cross-post to Twitter/Threads via Buffer
-    const bufferResult = await postToBuffer(comment).catch((err) => {
-      console.error("[commentary] Buffer cross-post error:", err);
-      return { ok: false, error: String(err) } as const;
-    });
-    console.log(`[commentary] Buffer result: ${bufferResult.ok ? "sent" : `failed: ${bufferResult.error}`}`);
-
-    // 7. Log the commentary
+    // 8. Log the commentary
     await db.insert(commentaryLog).values({
       id: crypto.randomUUID(),
       gameId: selectedGame.gameId,
@@ -219,6 +229,7 @@ export async function GET(req: Request) {
       status: "posted",
       game: `${selectedGame.team1} vs ${selectedGame.team2}`,
       sport: selectedGame.sport,
+      channels: { telegram: telegramSent, buffer: bufferSent },
       comment,
     });
   } catch (error) {
