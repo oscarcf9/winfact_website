@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Loader2,
   AlertCircle,
+  MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -154,6 +155,24 @@ export function ContentQueueDashboard() {
       status: "scheduled",
       scheduledAt: new Date().toISOString(),
     });
+  };
+
+  const sendToTelegram = async (id: string) => {
+    setActionLoading(id);
+    try {
+      const res = await fetch(`/api/admin/content-queue/${id}/telegram`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Failed to send to Telegram");
+      }
+    } catch (err) {
+      console.error("Telegram send error:", err);
+      alert("Failed to send to Telegram");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleTabChange = (newTab: StatusTab) => {
@@ -305,6 +324,13 @@ export function ContentQueueDashboard() {
                                   </button>
                                 </>
                               )}
+                              <button
+                                onClick={() => sendToTelegram(item.id)}
+                                title={t("sendTelegram")}
+                                className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-400 hover:text-blue-600 transition-colors cursor-pointer"
+                              >
+                                <MessageCircle className="h-4 w-4" />
+                              </button>
                               <button
                                 onClick={() => deleteItem(item.id)}
                                 title={t("delete")}

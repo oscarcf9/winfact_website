@@ -73,6 +73,41 @@ export async function sendTelegramMessage(
   }
 }
 
+/**
+ * Send a photo with caption to a Telegram chat.
+ * Used for matchup graphics, victory posts, and blog previews.
+ */
+export async function sendTelegramPhoto(
+  chatId: string,
+  photoUrl: string,
+  caption?: string,
+  options?: { parseMode?: "Markdown" | "HTML" | "none" }
+): Promise<{ ok: boolean; messageId?: number; error?: string }> {
+  try {
+    const parseMode = options?.parseMode ?? "HTML";
+    const body: Record<string, unknown> = {
+      chat_id: chatId,
+      photo: photoUrl,
+    };
+    if (caption) body.caption = caption;
+    if (parseMode !== "none") body.parse_mode = parseMode;
+
+    const res = await fetch(`${TELEGRAM_API}/sendPhoto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    const data = await res.json();
+    if (data.ok) {
+      return { ok: true, messageId: data.result?.message_id };
+    }
+    return { ok: false, error: data.description || "Failed to send photo" };
+  } catch (error) {
+    return { ok: false, error: String(error) };
+  }
+}
+
 function formatVipTeaserMessage(pick: Pick): string {
   return formatVipTeaserFromTemplates(pick);
 }

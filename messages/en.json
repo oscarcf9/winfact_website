@@ -1394,7 +1394,8 @@
       "actions": "Actions",
       "blog": "Blog",
       "victoryPost": "Victory Post",
-      "filler": "Filler"
+      "filler": "Filler",
+      "sendTelegram": "Send to Telegram"
     }
   },
   "common": {

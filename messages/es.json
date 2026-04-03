@@ -1394,7 +1394,8 @@
       "actions": "Acciones",
       "blog": "Blog",
       "victoryPost": "Post de Victoria",
-      "filler": "Relleno"
+      "filler": "Relleno",
+      "sendTelegram": "Enviar a Telegram"
     }
   },
   "common": {
