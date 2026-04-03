@@ -1,6 +1,14 @@
 {
   "crons": [
     {
+      "path": "/api/cron/refresh-games",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-games",
+      "schedule": "0 16 * * *"
+    },
+    {
       "path": "/api/cron/settle-picks",
       "schedule": "0 19-23,0-5 * * *"
     },
