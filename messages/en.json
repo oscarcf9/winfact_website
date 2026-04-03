@@ -1118,7 +1118,16 @@
       "pickPublished": "Pick published and sent",
       "weeklyRecap": "Weekly Recap",
       "generateRecap": "Generate Recap",
-      "closePanel": "Close"
+      "closePanel": "Close",
+      "searchGames": "Search games...",
+      "sportLabel": "Sport",
+      "matchupLabel": "Matchup",
+      "timeLabel": "Time",
+      "marketData": "Market Data",
+      "bestLines": "Best Lines",
+      "teamRecords": "Team Records",
+      "loadingGameData": "Loading game data...",
+      "noEnrichmentData": "Game enrichment data unavailable. Cached odds will be used."
     },
     "revenue": {
       "title": "Revenue",

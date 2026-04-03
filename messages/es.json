@@ -1118,7 +1118,16 @@
       "pickPublished": "Pick publicado y enviado",
       "weeklyRecap": "Resumen Semanal",
       "generateRecap": "Generar Resumen",
-      "closePanel": "Cerrar"
+      "closePanel": "Cerrar",
+      "searchGames": "Buscar juegos...",
+      "sportLabel": "Deporte",
+      "matchupLabel": "Enfrentamiento",
+      "timeLabel": "Hora",
+      "marketData": "Datos del Mercado",
+      "bestLines": "Mejores Lineas",
+      "teamRecords": "Records de Equipos",
+      "loadingGameData": "Cargando datos del juego...",
+      "noEnrichmentData": "Datos de enriquecimiento no disponibles. Se usaran las cuotas en cache."
     },
     "revenue": {
       "title": "Ingresos",
