@@ -187,10 +187,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: "error", reason: "telegram_send_failed", error: result.error });
     }
 
-    // Cross-post to Twitter/Threads via Buffer (fire-and-forget)
-    postToBuffer(comment).catch((err) =>
-      console.error("[commentary] Buffer cross-post failed:", err)
-    );
+    // Cross-post to Twitter/Threads via Buffer
+    const bufferResult = await postToBuffer(comment).catch((err) => {
+      console.error("[commentary] Buffer cross-post error:", err);
+      return { ok: false, error: String(err) } as const;
+    });
+    console.log(`[commentary] Buffer result: ${bufferResult.ok ? "sent" : `failed: ${bufferResult.error}`}`);
 
     // 7. Log the commentary
     await db.insert(commentaryLog).values({

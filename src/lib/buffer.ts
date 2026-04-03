@@ -16,10 +16,12 @@ export async function postToBuffer(text: string): Promise<{ ok: boolean; error?:
   const profileIds = process.env.BUFFER_PROFILE_IDS;
 
   if (!token || !profileIds) {
+    console.log(`[buffer] Not configured: token=${!!token}, profileIds=${!!profileIds}`);
     return { ok: false, error: "Buffer not configured" };
   }
 
   const ids = profileIds.split(",").map((id) => id.trim()).filter(Boolean);
+  console.log(`[buffer] Posting to ${ids.length} profiles: ${ids.join(", ")}`);
   if (ids.length === 0) {
     return { ok: false, error: "No Buffer profile IDs configured" };
   }
