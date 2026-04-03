@@ -1,3 +1,8 @@
+import {
+  formatFreePickMessage as formatFreePickFromTemplates,
+  formatVipTeaserMessage as formatVipTeaserFromTemplates,
+} from "./telegram-templates";
+
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_FREE_CHAT_ID = process.env.TELEGRAM_FREE_CHAT_ID || "";
 const TELEGRAM_ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || "";
@@ -18,34 +23,7 @@ type Pick = {
 };
 
 function formatPickMessage(pick: Pick): string {
-  const oddsStr = pick.odds != null ? (pick.odds > 0 ? `+${pick.odds}` : String(pick.odds)) : "N/A";
-  const starCount = pick.stars || (pick.confidence === "top" ? 5 : pick.confidence === "strong" ? 3 : 2);
-
-  let msg = `🎯 *NEW PICK*\n\n`;
-  msg += `🏟 *${pick.sport}*\n`;
-  msg += `📋 ${pick.matchup}\n\n`;
-  msg += `✅ *${pick.pickText}*\n`;
-  if (pick.odds != null) msg += `📊 Odds: \`${oddsStr}\`\n`;
-  if (pick.units != null) msg += `💰 Units: \`${pick.units}\`\n`;
-  msg += `${"⭐".repeat(starCount)} *${starCount}/5*\n`;
-
-  if (pick.modelEdge) {
-    msg += `📈 Edge: \`${pick.modelEdge.toFixed(1)}%\`\n`;
-  }
-
-  if (pick.analysisEn) {
-    msg += `\n📝 _${pick.analysisEn}_\n`;
-  }
-
-  if (pick.tier === "vip") {
-    msg += `\n🔒 *VIP PICK*`;
-  } else {
-    msg += `\n🆓 *FREE PICK*`;
-  }
-
-  msg += `\n\n⏰ ${new Date().toLocaleString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit", hour12: true })} ET`;
-
-  return msg;
+  return formatFreePickFromTemplates(pick);
 }
 
 function formatResultMessage(pick: Pick & { result: string }): string {
@@ -87,23 +65,8 @@ export async function sendTelegramMessage(
   }
 }
 
-const VIP_TEASER_TEMPLATES = [
-  (sport: string, siteUrl: string) =>
-    `🔒 *NEW VIP PICK AVAILABLE*\n\n🏟 *${sport}* action just locked in by our analysts.\n\n📊 Our model found an edge — VIP members, check your dashboard.\n\n👉 Already a member? [View pick](${siteUrl}/dashboard)\n⬆️ Want access? [Upgrade now](${siteUrl}/pricing)\n\n#WinFactPicks #VIP #${sport}`,
-  (sport: string, siteUrl: string) =>
-    `🔥 *VIP PICK JUST DROPPED*\n\n🏟 Our analysts locked in a *${sport}* play with a strong model edge.\n\n💎 VIP members — your pick is live on the dashboard.\n\n👉 [Check your dashboard](${siteUrl}/dashboard)\n⬆️ Not a member yet? [Join VIP](${siteUrl}/pricing)\n\n#WinFactPicks #VIP #${sport}`,
-  (sport: string, siteUrl: string) =>
-    `🎯 *ALERT: New VIP Pick*\n\n🏟 *${sport}* — our model just flagged a high-value play.\n\n🔒 Full details available exclusively for VIP members.\n\n👉 [Open dashboard](${siteUrl}/dashboard)\n⬆️ [Upgrade to VIP](${siteUrl}/pricing)\n\n#WinFactPicks #VIP #${sport}`,
-  (sport: string, siteUrl: string) =>
-    `💰 *VIP PLAY LOCKED IN*\n\n🏟 *${sport}* edge detected. Our analysts have made their move.\n\n📈 VIP members — head to your dashboard for full details.\n\n👉 [View pick](${siteUrl}/dashboard)\n⬆️ [Get VIP access](${siteUrl}/pricing)\n\n#WinFactPicks #VIP #${sport}`,
-  (sport: string, siteUrl: string) =>
-    `⚡ *NEW VIP PICK ALERT*\n\n🏟 A *${sport}* VIP pick just went live.\n\n🔒 Matchup, odds, and full analysis — available on your dashboard.\n\n👉 [Go to dashboard](${siteUrl}/dashboard)\n⬆️ [Become a VIP member](${siteUrl}/pricing)\n\n#WinFactPicks #VIP #${sport}`,
-];
-
 function formatVipTeaserMessage(pick: Pick): string {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com";
-  const idx = Math.floor(Math.random() * VIP_TEASER_TEMPLATES.length);
-  return VIP_TEASER_TEMPLATES[idx](pick.sport, siteUrl);
+  return formatVipTeaserFromTemplates(pick);
 }
 
 export async function sendPickToTelegram(

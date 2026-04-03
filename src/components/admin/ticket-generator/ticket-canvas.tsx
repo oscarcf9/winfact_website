@@ -5,7 +5,8 @@ import type { BetFormData } from "./ticket-types";
 import { getDisplayForSubType } from "./sport-config";
 import { calculateParlayOdds } from "./payout-calculator";
 
-// Inline SVG icons (replacing the 467KB share.png and 6.7KB copy_icon.png)
+// ── Inline SVG Icons ─────────────────────────────────────────
+
 function ShareIcon() {
   return (
     <svg
@@ -17,7 +18,7 @@ function ShareIcon() {
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={{ transform: "translateY(-3px)" }}
+      style={{ position: "relative", top: -3 }}
     >
       <path d="M22 2L11 13" />
       <path d="M22 2L15 22L11 13L2 9L22 2Z" />
@@ -43,6 +44,8 @@ function CopyIcon() {
   );
 }
 
+// ── Helpers ───────────────────────────────────────────────────
+
 function generateTicketId(): string {
   const firstDigit = Math.floor(Math.random() * 9) + 1;
   const rest = Array.from({ length: 18 }, () =>
@@ -52,10 +55,10 @@ function generateTicketId(): string {
 }
 
 function formatAmount(amountStr: string | undefined): string {
-  if (!amountStr) return "$0.00";
+  if (!amountStr) return "$0";
   try {
     const amount = parseFloat(amountStr.replace(/[$,]/g, ""));
-    if (isNaN(amount)) return amountStr;
+    if (isNaN(amount) || amount === 0) return "$0";
 
     if (amount >= 1000) {
       const parts = amount.toFixed(2).split(".");
@@ -70,6 +73,8 @@ function formatAmount(amountStr: string | undefined): string {
   }
 }
 
+// ── Ticket Canvas ────────────────────────────────────────────
+
 interface TicketCanvasProps {
   data: BetFormData;
 }
@@ -79,14 +84,16 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
     const ticketId = useMemo(() => generateTicketId(), []);
     const isSingle = data.betType === "Single";
 
+    // Odds display: calculated for parlays, direct for singles
     const displayOdds = isSingle
-      ? data.odds || "-110"
+      ? data.odds || "—"
       : (() => {
           const legOdds = data.parlayLegs.map((l) => l.odds).filter(Boolean);
           const result = calculateParlayOdds(legOdds);
-          return result ? result.americanOdds : "+264";
+          return result ? result.americanOdds : "—";
         })();
 
+    // Bet type label for the ticket
     const betTypeDisplay = isSingle
       ? getDisplayForSubType(data.subBetType)
       : (() => {
@@ -108,23 +115,36 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
           overflow: "hidden",
           borderRadius: 15,
           backgroundColor: "#05D17A",
-          fontSmooth: "always",
           WebkitFontSmoothing: "antialiased",
+          MozOsxFontSmoothing: "grayscale",
         }}
       >
-        {/* Banner */}
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 107 }}>
+        {/* ── Banner (0–107px) ── */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 107,
+          }}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/admin/ticket-assets/hero4_new.png"
             alt=""
             width={885}
             height={107}
-            style={{ width: 885, height: 107, objectFit: "cover", display: "block" }}
+            style={{
+              width: 885,
+              height: 107,
+              objectFit: "cover",
+              display: "block",
+            }}
           />
         </div>
 
-        {/* Main Content */}
+        {/* ── Main Content (starts at 157px = 107 banner + 50 gap) ── */}
         <div
           style={{
             position: "absolute",
@@ -133,7 +153,7 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
             right: 40,
           }}
         >
-          {/* Bet Title Row */}
+          {/* Row: Bet Title (left) + Odds (right) */}
           <div
             style={{
               display: "flex",
@@ -141,6 +161,7 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
               alignItems: "flex-start",
             }}
           >
+            {/* Left: Parlay badge + title, or just title for singles */}
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {!isSingle && (
                 <div
@@ -148,6 +169,7 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
                     padding: "2px 10px",
                     backgroundColor: "#FFFFFF",
                     borderRadius: 8,
+                    lineHeight: 1,
                   }}
                 >
                   <span
@@ -172,9 +194,11 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
                   letterSpacing: isSingle ? 0.7 : 0,
                 }}
               >
-                {data.betDescription || "Bet Description"}
+                {data.betDescription || "\u00A0"}
               </span>
             </div>
+
+            {/* Right: Odds */}
             <span
               style={{
                 fontFamily: "TicketCustomFont, sans-serif",
@@ -182,13 +206,14 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
                 color: "#FCFCFE",
                 fontWeight: 600,
                 letterSpacing: 0.5,
+                whiteSpace: "nowrap",
               }}
             >
               {displayOdds}
             </span>
           </div>
 
-          {/* Bet Type Display */}
+          {/* Bet Type Label (8px below title) */}
           <div style={{ marginTop: 8 }}>
             <span
               style={{
@@ -203,9 +228,22 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
             </span>
           </div>
 
-          {/* Wager / Paid */}
-          <div style={{ marginTop: 40, display: "flex", gap: 280 }}>
-            <div style={{ display: "flex", flexDirection: "column" }}>
+          {/* Wager / Paid (40px below bet type) */}
+          <div
+            style={{
+              marginTop: 40,
+              display: "flex",
+              alignItems: "flex-start",
+            }}
+          >
+            {/* Wager column */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+              }}
+            >
               <span
                 style={{
                   fontFamily: "TicketCustomFont, sans-serif",
@@ -221,12 +259,24 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
                   fontSize: 53,
                   color: "#FCFCFE",
                   marginTop: 8,
+                  lineHeight: 1,
                 }}
               >
                 {formatAmount(data.wager ? `$${data.wager}` : undefined)}
               </span>
             </div>
-            <div style={{ display: "flex", flexDirection: "column" }}>
+
+            {/* 280px spacer */}
+            <div style={{ width: 280, flexShrink: 0 }} />
+
+            {/* Paid column */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+              }}
+            >
               <span
                 style={{
                   fontFamily: "TicketCustomFont, sans-serif",
@@ -242,6 +292,7 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
                   fontSize: 53,
                   color: "#FCFCFE",
                   marginTop: 8,
+                  lineHeight: 1,
                 }}
               >
                 {formatAmount(data.paid)}
@@ -250,40 +301,50 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
           </div>
         </div>
 
-        {/* Bottom Section */}
+        {/* ── Bottom Section (absolute bottom: 32, left: 37, right: 37) ── */}
+        {/* This matches Flutter: Positioned(bottom: 32, left: 37, right: 37) */}
         <div
           style={{
             position: "absolute",
             bottom: 32,
             left: 37,
             right: 37,
+            display: "flex",
+            flexDirection: "column",
           }}
         >
-          {/* Score Bar (Single bets only) */}
+          {/* Score Bar — Single bets only */}
           {isSingle && (
             <div
               style={{
+                width: "100%",
                 height: 85,
                 backgroundColor: "#EEEDF3",
                 borderRadius: 14,
                 position: "relative",
                 overflow: "hidden",
+                flexShrink: 0,
               }}
             >
-              {/* Center: Final Score */}
+              {/* Center: "Final Score" label */}
               <div
                 style={{
                   position: "absolute",
-                  inset: 0,
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  zIndex: 0,
                 }}
               >
                 <span
                   style={{
                     fontFamily: "TicketCustomFont, sans-serif",
                     fontSize: 27,
+                    fontWeight: 400,
                     color: "#41414D",
                   }}
                 >
@@ -291,7 +352,7 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
                 </span>
               </div>
 
-              {/* Left: Team 1 */}
+              {/* Left: Team 1 — logo + acronym + score box */}
               <div
                 style={{
                   position: "absolute",
@@ -299,7 +360,7 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
                   top: 17,
                   display: "flex",
                   alignItems: "center",
-                  gap: 0,
+                  zIndex: 1,
                 }}
               >
                 {data.team1.logoDataUrl && (
@@ -307,19 +368,23 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
                   <img
                     src={data.team1.logoDataUrl}
                     alt=""
-                    style={{ height: 40, objectFit: "contain", marginRight: 10 }}
+                    style={{
+                      height: 40,
+                      objectFit: "contain",
+                      marginRight: 10,
+                    }}
                   />
                 )}
                 <span
                   style={{
                     fontFamily: "NeusaMedium, sans-serif",
                     fontSize: 35,
-                    color: "#414149",
                     fontWeight: 600,
+                    color: "#414149",
                     marginRight: 15,
                   }}
                 >
-                  {data.team1.acronym || "T1"}
+                  {data.team1.acronym || "\u2014"}
                 </span>
                 <div
                   style={{
@@ -330,14 +395,15 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
+                    flexShrink: 0,
                   }}
                 >
                   <span
                     style={{
                       fontFamily: "TicketCustomFont, sans-serif",
                       fontSize: 26,
-                      color: "#1A181B",
                       fontWeight: 700,
+                      color: "#1A181B",
                     }}
                   >
                     {data.team1.score || "0"}
@@ -345,7 +411,7 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
                 </div>
               </div>
 
-              {/* Right: Team 2 */}
+              {/* Right: Team 2 — score box + acronym + logo (mirrored) */}
               <div
                 style={{
                   position: "absolute",
@@ -353,7 +419,7 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
                   top: 17,
                   display: "flex",
                   alignItems: "center",
-                  gap: 0,
+                  zIndex: 1,
                 }}
               >
                 <div
@@ -365,6 +431,7 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
+                    flexShrink: 0,
                     marginRight: 15,
                   }}
                 >
@@ -372,8 +439,8 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
                     style={{
                       fontFamily: "TicketCustomFont, sans-serif",
                       fontSize: 26,
-                      color: "#1A181B",
                       fontWeight: 700,
+                      color: "#1A181B",
                     }}
                   >
                     {data.team2.score || "0"}
@@ -383,38 +450,46 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
                   style={{
                     fontFamily: "NeusaMedium, sans-serif",
                     fontSize: 35,
-                    color: "#414149",
                     fontWeight: 600,
+                    color: "#414149",
                   }}
                 >
-                  {data.team2.acronym || "T2"}
+                  {data.team2.acronym || "\u2014"}
                 </span>
                 {data.team2.logoDataUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={data.team2.logoDataUrl}
                     alt=""
-                    style={{ height: 40, objectFit: "contain", marginLeft: 10 }}
+                    style={{
+                      height: 40,
+                      objectFit: "contain",
+                      marginLeft: 10,
+                    }}
                   />
                 )}
               </div>
             </div>
           )}
 
-          {/* Footer: ID + Share */}
+          {/* 40px gap between score bar and footer */}
+          <div style={{ height: 40, flexShrink: 0 }} />
+
+          {/* Footer: ID (left) + Share (right) */}
           <div
             style={{
-              marginTop: 40,
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
             }}
           >
+            {/* Left: Ticket ID + copy icon */}
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span
                 style={{
                   fontFamily: "TicketCustomFont, sans-serif",
                   fontSize: 21,
+                  fontWeight: 400,
                   color: "#FCFCFE",
                 }}
               >
@@ -422,11 +497,14 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
               </span>
               <CopyIcon />
             </div>
+
+            {/* Right: Share text + icon */}
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               <span
                 style={{
                   fontFamily: "TicketCustomFont, sans-serif",
                   fontSize: 30,
+                  fontWeight: 400,
                   color: "#FCFCFE",
                 }}
               >
@@ -436,49 +514,49 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
             </div>
           </div>
 
-          {/* Parlay: Show selections */}
+          {/* Parlay footer: divider + "Show selections" */}
           {!isSingle && (
-            <>
-              <div style={{ marginTop: 20 }}>
-                <div
+            <div style={{ marginTop: 20 }}>
+              <div
+                style={{
+                  height: 1,
+                  backgroundColor: "#FFFFFF",
+                  width: "100%",
+                }}
+              />
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "14px 0",
+                  gap: 6,
+                }}
+              >
+                <span
                   style={{
-                    height: 1,
-                    backgroundColor: "#FFFFFF",
-                  }}
-                />
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "14px 0",
-                    gap: 6,
+                    fontFamily: "TicketCustomFont, sans-serif",
+                    fontSize: 22,
+                    fontWeight: 400,
+                    color: "#FFFFFF",
                   }}
                 >
-                  <span
-                    style={{
-                      fontFamily: "TicketCustomFont, sans-serif",
-                      fontSize: 22,
-                      color: "#FFFFFF",
-                    }}
-                  >
-                    Show selections
-                  </span>
-                  <svg
-                    width="28"
-                    height="28"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#FFFFFF"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </div>
+                  Show selections
+                </span>
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#FFFFFF"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
