@@ -10,6 +10,7 @@ import { refreshPerformanceCache } from "@/lib/refresh-performance";
 import { sendAdminNotification, sendTelegramMessage } from "@/lib/telegram";
 import { formatWinCelebrationMessage } from "@/lib/telegram-templates";
 import { postToBuffer } from "@/lib/buffer";
+import { queueVictoryPost } from "@/lib/victory-post-pipeline";
 
 const TELEGRAM_FREE_CHAT_ID = process.env.TELEGRAM_FREE_CHAT_ID || "";
 
@@ -178,6 +179,21 @@ export async function GET(req: Request) {
 
             postToBuffer(message).catch((err) =>
               console.error("[settle-picks] Buffer win celebration failed:", err)
+            );
+
+            // Queue victory post for generation (fast DB write, no API calls)
+            queueVictoryPost({
+              id: pick.id,
+              sport: pick.sport,
+              matchup: pick.matchup,
+              pickText: pick.pickText,
+              odds: pick.odds,
+              units: pick.units,
+              tier: (pick.tier as "free" | "vip") || "free",
+              team1Score: game.awayScore,
+              team2Score: game.homeScore,
+            }).catch((err) =>
+              console.error("[settle-picks] Victory post queue failed:", err)
             );
           }
         }

@@ -7,6 +7,7 @@ import { refreshPerformanceCache } from "@/lib/refresh-performance";
 import { distributePickOnPublish } from "@/lib/delivery";
 import { logAdminAction } from "@/lib/audit";
 import { updatePickSchema } from "@/lib/validations";
+import { queueVictoryPost } from "@/lib/victory-post-pipeline";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -76,6 +77,19 @@ export async function PUT(req: NextRequest, context: RouteContext) {
     // Refresh performance cache when settling a pick
     if (data.status === "settled") {
       await refreshPerformanceCache();
+
+      // Queue victory post on manual win settle
+      if (data.result === "win") {
+        queueVictoryPost({
+          id,
+          sport: data.sport || current.sport,
+          matchup: data.matchup || current.matchup,
+          pickText: data.pickText || current.pickText,
+          odds: data.odds ?? current.odds ?? null,
+          units: data.units ?? current.units ?? null,
+          tier: ((data.tier || current.tier || "free") as "free" | "vip"),
+        }).catch((err) => console.error("[admin-picks] Victory post queue failed:", err));
+      }
     }
 
     // Determine audit action based on status transition
