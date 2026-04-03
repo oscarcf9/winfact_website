@@ -2,7 +2,7 @@
 
 import { forwardRef, useMemo } from "react";
 import type { BetFormData } from "./ticket-types";
-import { getDisplayForSubType } from "./sport-config";
+import { getDisplayForSubType, shouldShowScoreBar } from "./sport-config";
 import { calculateParlayOdds } from "./payout-calculator";
 
 // ── Icons (original assets from Flutter project) ─────────────
@@ -67,6 +67,9 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
             .join(", ");
           return names || "PARLAY";
         })();
+
+    // Whether to show score bar (full game bets) or matchup subtitle (props)
+    const showScore = isSingle && shouldShowScoreBar(data.subBetType);
 
     return (
       <div
@@ -191,6 +194,22 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
             </span>
           </div>
 
+          {/* Matchup subtitle — shown for prop bets without score bar */}
+          {isSingle && !showScore && data.matchup && (
+            <div style={{ marginTop: 4 }}>
+              <span
+                style={{
+                  fontFamily: "TicketCustomFont, sans-serif",
+                  fontSize: 22,
+                  color: "#FCFCFE",
+                  fontWeight: 400,
+                }}
+              >
+                {data.matchup}
+              </span>
+            </div>
+          )}
+
           {/* Wager / Paid (40px below bet type) */}
           <div
             style={{
@@ -276,8 +295,8 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
             flexDirection: "column",
           }}
         >
-          {/* Score Bar — Single bets only */}
-          {isSingle && (
+          {/* Score Bar — only for full-game single bets */}
+          {showScore && (
             <div
               style={{
                 width: "100%",

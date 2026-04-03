@@ -16,6 +16,7 @@ export interface BetFormData {
   betType: BetType;
   subBetType: string;
   betDescription: string;
+  matchup: string; // e.g., "Magic @ Cavaliers" — shown when no score bar
   team1: TeamData;
   team2: TeamData;
   odds: string; // American odds for single bets
@@ -40,6 +41,7 @@ export const INITIAL_FORM_DATA: BetFormData = {
   betType: "Single",
   subBetType: "moneyline",
   betDescription: "",
+  matchup: "",
   team1: { ...DEFAULT_TEAM },
   team2: { ...DEFAULT_TEAM },
   odds: "",

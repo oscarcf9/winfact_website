@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import type { BetFormData, ParlayLeg, TeamData } from "./ticket-types";
 import { DEFAULT_TEAM } from "./ticket-types";
-import { SINGLE_BET_SUB_TYPES, PARLAY_OPTIONS } from "./sport-config";
+import { SINGLE_BET_SUB_TYPES, PARLAY_OPTIONS, shouldShowScoreBar } from "./sport-config";
 
 interface TicketFormProps {
   data: BetFormData;
@@ -221,30 +221,50 @@ export default function TicketForm({ data, onChange }: TicketFormProps) {
           type="text"
           value={data.betDescription}
           onChange={(e) => update({ betDescription: e.target.value })}
-          placeholder="e.g., STL Cardinals -1.5, Over 8.5 Runs"
+          placeholder="e.g., STL Cardinals -1.5, Over 52.5, Nuggets -1.5"
           className="w-full mt-2 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none placeholder:text-gray-400"
         />
 
         {isSingle ? (
           <>
-            <div className="mt-4 space-y-3">
-              <TeamInput
-                label="Team 1"
-                team={data.team1}
-                onChange={(t) => updateTeam("team1", t)}
-                onLogoUpload={(f) =>
-                  handleLogoUpload(f, { type: "single", which: "team1" })
-                }
-              />
-              <TeamInput
-                label="Team 2"
-                team={data.team2}
-                onChange={(t) => updateTeam("team2", t)}
-                onLogoUpload={(f) =>
-                  handleLogoUpload(f, { type: "single", which: "team2" })
-                }
-              />
-            </div>
+            {/* Matchup — shown for prop bets that don't use the score bar */}
+            {!shouldShowScoreBar(data.subBetType) && (
+              <div className="mt-3">
+                <label className="text-sm font-semibold text-gray-900">
+                  Matchup
+                </label>
+                <input
+                  type="text"
+                  value={data.matchup}
+                  onChange={(e) => update({ matchup: e.target.value })}
+                  placeholder="e.g., Magic @ Cavaliers, Twins @ Orioles"
+                  className="w-full mt-2 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none placeholder:text-gray-400"
+                />
+              </div>
+            )}
+
+            {/* Team inputs — shown when score bar is visible */}
+            {shouldShowScoreBar(data.subBetType) && (
+              <div className="mt-4 space-y-3">
+                <TeamInput
+                  label="Team 1"
+                  team={data.team1}
+                  onChange={(t) => updateTeam("team1", t)}
+                  onLogoUpload={(f) =>
+                    handleLogoUpload(f, { type: "single", which: "team1" })
+                  }
+                />
+                <TeamInput
+                  label="Team 2"
+                  team={data.team2}
+                  onChange={(t) => updateTeam("team2", t)}
+                  onLogoUpload={(f) =>
+                    handleLogoUpload(f, { type: "single", which: "team2" })
+                  }
+                />
+              </div>
+            )}
+
             <label className="text-sm font-semibold text-gray-900 mt-4 block">
               Odds
             </label>
