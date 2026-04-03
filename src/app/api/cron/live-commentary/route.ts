@@ -1,16 +1,53 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { commentaryLog } from "@/db/schema";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
+import { commentaryLog, siteContent } from "@/db/schema";
+import { eq, and, gte, lte, desc, inArray } from "drizzle-orm";
 import { fetchAllLiveGames } from "@/lib/espn-live";
 import { generateCommentary } from "@/lib/commentary-generator";
 import { sendTelegramMessage } from "@/lib/telegram";
 import { getSiteContent } from "@/db/queries/site-content";
 import { postToBuffer } from "@/lib/buffer";
 
-const COOLDOWN_MINUTES = 45;
+// Defaults — overridden by siteContent settings if configured
+const DEFAULT_COOLDOWN_MINUTES = 45;
+const DEFAULT_WEEKDAY_START = 12;
+const DEFAULT_WEEKDAY_END = 1; // 1 AM next day (wraps past midnight)
+const DEFAULT_WEEKEND_START = 10;
+const DEFAULT_WEEKEND_END = 1;
 
-function isGameTime(): boolean {
+type CommentarySettings = {
+  cooldownMinutes: number;
+  weekdayStart: number;
+  weekdayEnd: number;
+  weekendStart: number;
+  weekendEnd: number;
+};
+
+async function loadSettings(): Promise<CommentarySettings> {
+  const keys = [
+    "commentary_cooldown_minutes",
+    "commentary_weekday_start_hour",
+    "commentary_weekday_end_hour",
+    "commentary_weekend_start_hour",
+    "commentary_weekend_end_hour",
+  ];
+  const rows = await db
+    .select()
+    .from(siteContent)
+    .where(inArray(siteContent.key, keys));
+
+  const map = new Map(rows.map((r) => [r.key, r.value]));
+
+  return {
+    cooldownMinutes: parseInt(map.get("commentary_cooldown_minutes") || "") || DEFAULT_COOLDOWN_MINUTES,
+    weekdayStart: parseInt(map.get("commentary_weekday_start_hour") || "") || DEFAULT_WEEKDAY_START,
+    weekdayEnd: parseInt(map.get("commentary_weekday_end_hour") || "") || DEFAULT_WEEKDAY_END,
+    weekendStart: parseInt(map.get("commentary_weekend_start_hour") || "") || DEFAULT_WEEKEND_START,
+    weekendEnd: parseInt(map.get("commentary_weekend_end_hour") || "") || DEFAULT_WEEKEND_END,
+  };
+}
+
+function isGameTime(settings: CommentarySettings): boolean {
   const now = new Date();
   const etHour = parseInt(
     now.toLocaleString("en-US", {
@@ -20,24 +57,24 @@ function isGameTime(): boolean {
     })
   );
 
-  // Use ET day-of-week, not UTC — fixes midnight boundary bug
   const etDay = now.toLocaleString("en-US", {
     timeZone: "America/New_York",
     weekday: "short",
   });
   const isWeekend = etDay === "Sat" || etDay === "Sun";
 
-  if (isWeekend) {
-    // Weekends: 10 AM - 1 AM ET (covers late West Coast games)
-    return etHour >= 10 || etHour <= 1;
-  }
+  const start = isWeekend ? settings.weekendStart : settings.weekdayStart;
+  const end = isWeekend ? settings.weekendEnd : settings.weekdayEnd;
 
-  // Weekdays: noon - 1 AM ET (covers late West Coast NBA/MLB)
-  return etHour >= 12 || etHour <= 1;
+  // Handle wrap-around (e.g. start=12, end=1 means 12pm to 1am next day)
+  if (end < start) {
+    return etHour >= start || etHour <= end;
+  }
+  return etHour >= start && etHour <= end;
 }
 
-async function hasRecentComment(gameId: string): Promise<boolean> {
-  const cutoff = Math.floor(Date.now() / 1000) - COOLDOWN_MINUTES * 60;
+async function hasRecentComment(gameId: string, cooldownMinutes: number): Promise<boolean> {
+  const cutoff = Math.floor(Date.now() / 1000) - cooldownMinutes * 60;
 
   const recent = await db
     .select()
@@ -66,8 +103,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ status: "skipped", reason: "commentary_disabled" });
   }
 
+  // Load configurable settings
+  const settings = await loadSettings();
+
   // Time check
-  if (!isGameTime()) {
+  if (!isGameTime(settings)) {
     return NextResponse.json({ status: "skipped", reason: "outside_game_hours" });
   }
 
@@ -88,7 +128,7 @@ export async function GET(req: Request) {
     const shuffled = [...pool].sort(() => Math.random() - 0.5);
 
     for (const game of shuffled) {
-      const recent = await hasRecentComment(game.gameId);
+      const recent = await hasRecentComment(game.gameId, settings.cooldownMinutes);
       if (!recent) {
         selectedGame = game;
         break;
