@@ -3,6 +3,7 @@
 import { forwardRef, useMemo } from "react";
 import type { BetFormData } from "./ticket-types";
 import { getDisplayForSubType, shouldShowScoreBar } from "./sport-config";
+
 import { calculateParlayOdds } from "./payout-calculator";
 
 // ── Icons (original assets from Flutter project) ─────────────
@@ -56,9 +57,9 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
           return result ? result.americanOdds : "—";
         })();
 
-    // Bet type label for the ticket
+    // Bet type label for the ticket (e.g., "TO WIN", "BREWERS TOTAL RUNS")
     const betTypeDisplay = isSingle
-      ? getDisplayForSubType(data.subBetType)
+      ? getDisplayForSubType(data.subBetType, data.teamName)
       : (() => {
           const names = data.parlayLegs
             .slice(0, 3)
@@ -196,11 +197,11 @@ const TicketCanvas = forwardRef<HTMLDivElement, TicketCanvasProps>(
 
           {/* Matchup subtitle — shown for prop bets without score bar */}
           {isSingle && !showScore && data.matchup && (
-            <div style={{ marginTop: 4 }}>
+            <div style={{ marginTop: 8 }}>
               <span
                 style={{
                   fontFamily: "TicketCustomFont, sans-serif",
-                  fontSize: 22,
+                  fontSize: 25,
                   color: "#FCFCFE",
                   fontWeight: 400,
                 }}
