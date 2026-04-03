@@ -9,14 +9,25 @@ function getClient(): Anthropic {
   return _client;
 }
 
-type PickContext = {
+export type PickContext = {
   sport: string;
   matchup: string;
+  gameTime?: string;
+  homeTeam?: string;
+  awayTeam?: string;
+  homeOdds?: number;
+  awayOdds?: number;
+  homeSpread?: number;
+  totalLine?: number;
+  overOdds?: number;
+  underOdds?: number;
   odds?: number;
   modelEdge?: number;
   injuries?: string;
   lineHistory?: string;
   sharpAction?: string;
+  capperNotes?: string;
+  betTypePreference?: string;
 };
 
 export async function generatePickAnalysis(
@@ -24,48 +35,71 @@ export async function generatePickAnalysis(
 ): Promise<{ en: string; es: string; error?: string }> {
   try {
     const client = getClient();
-    const prompt = `You are the head analyst at WinFact Picks, a premium sports betting advisory service. Produce a professional pick analysis.
 
-GAME INFO:
-- Sport: ${context.sport}
-- Matchup: ${context.matchup}
-${context.odds ? `- Current Odds: ${context.odds > 0 ? "+" : ""}${context.odds}` : ""}
+    const systemPrompt = `Eres el analista principal de WinFact Picks, un servicio premium de analisis de apuestas deportivas. Tu analisis debe ser 100% basado en los datos proporcionados. NO inventes estadisticas. Si los datos son insuficientes para una recomendacion solida, dilo claramente. Responde SOLO en espanol.`;
+
+    const homeLabel = context.homeTeam || context.matchup.split(" vs ")[1]?.trim() || "Home";
+    const awayLabel = context.awayTeam || context.matchup.split(" vs ")[0]?.trim() || "Away";
+
+    const prompt = `Analiza el siguiente partido y proporciona una recomendacion de apuesta.
+
+PARTIDO:
+- Deporte: ${context.sport}
+- Enfrentamiento: ${context.matchup}
+${context.gameTime ? `- Hora: ${context.gameTime}` : ""}
+
+DATOS DEL MERCADO:
+${context.homeOdds && context.awayOdds ? `- Moneyline: ${homeLabel} ${context.homeOdds > 0 ? "+" : ""}${context.homeOdds} / ${awayLabel} ${context.awayOdds > 0 ? "+" : ""}${context.awayOdds}` : ""}
+${context.homeSpread != null ? `- Spread: ${homeLabel} ${context.homeSpread > 0 ? "+" : ""}${context.homeSpread}` : ""}
+${context.totalLine ? `- Total: ${context.totalLine} (Over ${context.overOdds || ""} / Under ${context.underOdds || ""})` : ""}
+${context.odds ? `- Odds: ${context.odds > 0 ? "+" : ""}${context.odds}` : ""}
 ${context.modelEdge ? `- Model Edge: ${context.modelEdge}%` : ""}
-${context.injuries ? `- Key Injuries: ${context.injuries}` : ""}
-${context.lineHistory ? `- Line Movement: ${context.lineHistory}` : ""}
-${context.sharpAction ? `- Sharp Action: ${context.sharpAction}` : ""}
+${context.sharpAction ? `- Accion Sharp: ${context.sharpAction}` : ""}
+${context.lineHistory ? `- Movimiento de linea: ${context.lineHistory}` : ""}
 
-Write a structured analysis in this EXACT format (use the headers exactly as shown):
+LESIONES:
+${context.injuries || "No hay informacion de lesiones disponible."}
 
-EN:
-**Pick:** [The specific bet recommendation]
-**Confidence:** [Standard / Strong / Top Play]
+CONTEXTO ADICIONAL DEL CAPPER:
+${context.capperNotes || "Ninguno."}
 
-**Why We Like This:**
-[2-3 sentences on the key factors driving this pick. Be specific about matchup advantages, trends, or situational spots.]
+${context.betTypePreference ? `PREFERENCIA DE MERCADO: ${context.betTypePreference}` : "Elige el mercado con mayor ventaja estadistica."}
 
-**Key Factor:**
-[1 sentence on the single most important reason this bet has value]
+Responde con esta estructura EXACTA:
 
-**Risk:**
-[1 sentence on what could go wrong]
+**PICK:** [La apuesta especifica, ej: "Lakers -6.5 (-110)"]
+**CONFIANZA:** [Estandar / Fuerte / Top Play]
+**UNIDADES:** [1-5, donde 5 = maxima confianza]
 
-ES:
-[Same structure fully translated to natural Spanish - not robotic translation]`;
+**ANALISIS:**
+[3-5 oraciones analizando el enfrentamiento. Usa los datos proporcionados. Menciona factores situacionales, tendencias relevantes basadas en lo que sabes del deporte, y por que esta linea tiene valor.]
+
+**IMPACTO DE LESIONES:**
+[1-2 oraciones sobre como las lesiones afectan la linea y el resultado esperado. Si no hay lesiones reportadas, indica que esto es favorable o neutral.]
+
+**FACTOR CLAVE:**
+[1 oracion sobre la razon principal por la que esta apuesta tiene valor]
+
+**RIESGO:**
+[1 oracion sobre que podria salir mal]
+
+**MERCADOS ALTERNATIVOS:**
+[Si hay valor en otros mercados (total, prop, etc.), mencionalos brevemente. Si no, omite esta seccion.]`;
 
     const response = await client.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 800,
-      messages: [{ role: "user", content: prompt }],
+      max_tokens: 1200,
+      messages: [
+        { role: "user", content: prompt },
+      ],
+      system: systemPrompt,
     });
 
     const text = response.content[0].type === "text" ? response.content[0].text : "";
-    const enMatch = text.match(/EN:\s*([\s\S]*?)(?=\nES:)/);
-    const esMatch = text.match(/ES:\s*([\s\S]*?)$/);
 
     return {
-      en: enMatch?.[1]?.trim() || text,
-      es: esMatch?.[1]?.trim() || "",
+      en: "",
+      es: text.trim(),
     };
   } catch (error) {
     return { en: "", es: "", error: String(error) };
@@ -143,34 +177,32 @@ export async function generateWeeklyRecap(
       return sum;
     }, 0);
 
-    const prompt = `Write a weekly recap for WinFact Picks subscribers. Conversational, confident tone.
+    const prompt = `Eres el director de contenido de WinFact Picks. Genera un resumen semanal para el grupo de Telegram en espanol. Tono: conversacional, confiado, como hablando con amigos que apuestan. NO inventes datos, usa solo los numeros proporcionados.
 
-RESULTS:
+RESULTADOS DE LA SEMANA:
 Record: ${wins}-${losses}${pushes > 0 ? `-${pushes}` : ""}
-Units: ${units >= 0 ? "+" : ""}${units.toFixed(1)}u
+Unidades: ${units >= 0 ? "+" : ""}${units.toFixed(1)}u
 ROI: ${picks.length > 0 ? ((units / picks.reduce((s, p) => s + p.units, 0)) * 100).toFixed(1) : 0}%
 
 PICKS:
-${picksStr || "No picks this week."}
+${picksStr || "No hubo picks esta semana."}
 
-Write 200-300 words. Structure:
+Escribe 200-300 palabras con esta estructura:
 
-**Week in Review:**
-[Summary of the week's performance, highlight biggest wins]
+**Resumen Semanal WinFact**
 
-**What Worked:**
-[What betting angles hit this week]
+**Record:** ${wins}-${losses}${pushes > 0 ? `-${pushes}` : ""} | **Unidades:** ${units >= 0 ? "+" : ""}${units.toFixed(1)}u | **ROI:** ${picks.length > 0 ? ((units / picks.reduce((s, p) => s + p.units, 0)) * 100).toFixed(1) : 0}%
 
-**Looking Ahead:**
-[Brief preview of what's coming next week]
+**Lo que paso:**
+[2-3 oraciones resumiendo la semana. Menciona los mejores hits.]
 
-Keep it real, no fluff. Write like you're texting a friend who bets, not writing a corporate newsletter.
+**Lo que funciono:**
+[2-3 oraciones sobre que angulos de apuesta funcionaron mejor.]
 
-Format:
-EN:
-[English recap with **bold** headers]
-ES:
-[Spanish recap - natural, not robotic]`;
+**Mirando adelante:**
+[1-2 oraciones sobre lo que viene la proxima semana.]
+
+Unete a WinFact VIP en winfactpicks.com/pricing`;
 
     const response = await client.messages.create({
       model: "claude-sonnet-4-20250514",
@@ -179,12 +211,10 @@ ES:
     });
 
     const text = response.content[0].type === "text" ? response.content[0].text : "";
-    const enMatch = text.match(/EN:\s*([\s\S]*?)(?=\nES:)/);
-    const esMatch = text.match(/ES:\s*([\s\S]*?)$/);
 
     return {
-      en: enMatch?.[1]?.trim() || text,
-      es: esMatch?.[1]?.trim() || "",
+      en: "",
+      es: text.trim(),
     };
   } catch (error) {
     return { en: "", es: "", error: String(error) };

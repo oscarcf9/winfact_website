@@ -46,8 +46,41 @@ export async function POST(req: NextRequest) {
           .where(eq(gamesToday.gameId, event.id))
           .then((r) => r[0]);
 
-        const _h2hMarket = event.bookmakers[0]?.markets.find((m) => m.key === "h2h");
-        const _spreadsMarket = event.bookmakers[0]?.markets.find((m) => m.key === "spreads");
+        // Extract odds from first bookmaker (consensus-like)
+        const bk = event.bookmakers[0];
+        const h2h = bk?.markets.find((m) => m.key === "h2h");
+        const spreads = bk?.markets.find((m) => m.key === "spreads");
+        const totals = bk?.markets.find((m) => m.key === "totals");
+
+        const homeH2h = h2h?.outcomes.find((o) => o.name === event.home_team);
+        const awayH2h = h2h?.outcomes.find((o) => o.name === event.away_team);
+        const homeSpreadOutcome = spreads?.outcomes.find((o) => o.name === event.home_team);
+        const overOutcome = totals?.outcomes.find((o) => o.name === "Over");
+        const underOutcome = totals?.outcomes.find((o) => o.name === "Under");
+
+        // Compute edge tier by comparing spreads across bookmakers
+        let edgeTier: "strong" | "moderate" | "none" = "none";
+        if (event.bookmakers.length >= 2) {
+          const allSpreads = event.bookmakers
+            .map((b) => {
+              const sm = b.markets.find((m) => m.key === "spreads");
+              const ho = sm?.outcomes.find((o) => o.name === event.home_team);
+              return ho?.point;
+            })
+            .filter((p): p is number => p !== undefined);
+
+          if (allSpreads.length >= 2) {
+            const maxSpread = Math.max(...allSpreads);
+            const minSpread = Math.min(...allSpreads);
+            const diff = Math.abs(maxSpread - minSpread);
+
+            if (diff >= 1.5) {
+              edgeTier = "strong";
+            } else if (diff >= 0.5) {
+              edgeTier = "moderate";
+            }
+          }
+        }
 
         const values = {
           sport: s,
@@ -55,6 +88,13 @@ export async function POST(req: NextRequest) {
           homeTeam: event.home_team,
           awayTeam: event.away_team,
           commenceTime: event.commence_time,
+          homeOdds: homeH2h?.price ?? null,
+          awayOdds: awayH2h?.price ?? null,
+          homeSpread: homeSpreadOutcome?.point ?? null,
+          totalLine: overOutcome?.point ?? null,
+          overOdds: overOutcome?.price ?? null,
+          underOdds: underOutcome?.price ?? null,
+          edgeTier,
           fetchedAt: new Date().toISOString(),
         };
 

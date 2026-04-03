@@ -17,7 +17,6 @@ import {
   Menu,
   X,
   Send,
-  Activity,
   DollarSign,
   Tag,
   UserCheck,
@@ -42,9 +41,8 @@ const NAV_SECTIONS = [
     items: [
       { href: "/admin", labelKey: "dashboard", icon: LayoutDashboard, exact: true },
       { href: "/admin/picks", labelKey: "picks", icon: Target, exact: false },
-      { href: "/admin/intelligence", labelKey: "intelligence", icon: Brain, exact: false },
+      { href: "/admin/intelligence", labelKey: "commandCenter", icon: Brain, exact: false },
       { href: "/admin/distribution", labelKey: "distribution", icon: Send, exact: false },
-      { href: "/admin/ai", labelKey: "aiAssistant", icon: Activity, exact: false },
     ],
   },
   {

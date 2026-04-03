@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { generateWeeklyRecap } from "@/lib/ai-assistant";
 import { db } from "@/db";
 import { picks } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 
 export async function POST(_req: NextRequest) {
   const admin = await requireAdmin();
@@ -15,8 +15,7 @@ export async function POST(_req: NextRequest) {
     const recentPicks = await db
       .select()
       .from(picks)
-      .where(eq(picks.status, "settled"))
-      .then((all) => all.filter((p) => p.settledAt && p.settledAt >= sevenDaysAgo));
+      .where(and(eq(picks.status, "settled"), gte(picks.settledAt, sevenDaysAgo)));
 
     const result = await generateWeeklyRecap(
       recentPicks.map((p) => ({

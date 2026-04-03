@@ -20,6 +20,12 @@ export const gamesToday = sqliteTable("games_today", {
   publicMoneyPct: real("public_money_pct"),
   injuryReport: text("injury_report"), // JSON array
   weather: text("weather"), // JSON: { temp, wind, precip }
+  homeOdds: real("home_odds"),
+  awayOdds: real("away_odds"),
+  homeSpread: real("home_spread"),
+  totalLine: real("total_line"),
+  overOdds: real("over_odds"),
+  underOdds: real("under_odds"),
   pickStatus: text("pick_status", {
     enum: ["pending", "posted", "skip"],
   }).default("pending"),

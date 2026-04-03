@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { db } from "@/db";
-import { picks, users } from "@/db/schema";
+import { picks, users, gamesToday } from "@/db/schema";
 import { eq, desc, and, gte, inArray } from "drizzle-orm";
 import { distributePickOnPublish } from "@/lib/delivery";
 import { logAdminAction } from "@/lib/audit";
@@ -181,6 +181,26 @@ export async function POST(req: NextRequest) {
       details: { sport: data.sport, matchup: data.matchup, tier: data.tier, status: data.status },
       request: req,
     });
+
+    // Backlink to gamesToday record if this pick matches a game
+    try {
+      const allGames = await db.select().from(gamesToday).where(eq(gamesToday.sport, data.sport));
+      const matchupLower = data.matchup.toLowerCase();
+      const matchingGame = allGames.find((g) => {
+        const gameMatchup = `${g.awayTeam} vs ${g.homeTeam}`.toLowerCase();
+        const gameMatchupAlt = `${g.homeTeam} vs ${g.awayTeam}`.toLowerCase();
+        return (
+          (matchupLower.includes(g.homeTeam.toLowerCase()) && matchupLower.includes(g.awayTeam.toLowerCase()))
+          || matchupLower === gameMatchup
+          || matchupLower === gameMatchupAlt
+        );
+      });
+      if (matchingGame) {
+        await db.update(gamesToday).set({ pickStatus: "posted", pickId: id }).where(eq(gamesToday.id, matchingGame.id));
+      }
+    } catch (e) {
+      console.error("Failed to update gamesToday backlink:", e);
+    }
 
     // Distribute if requested — await so we can report status, but never block save
     let distributed = false;

@@ -1,6 +1,5 @@
 import { db } from "@/db";
-import { gamesToday, picks } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { gamesToday } from "@/db/schema";
 import { IntelligenceDashboard } from "@/components/admin/intelligence-dashboard";
 
 export default async function AdminIntelligencePage() {
@@ -10,19 +9,11 @@ export default async function AdminIntelligencePage() {
     .orderBy(gamesToday.commenceTime)
     .limit(100);
 
-  const publishedPicks = await db
-    .select()
-    .from(picks)
-    .where(eq(picks.status, "published"))
-    .orderBy(desc(picks.createdAt))
-    .limit(50);
-
   const sports = [...new Set(games.map((g) => g.sport))];
 
   return (
     <IntelligenceDashboard
       games={games}
-      publishedPicks={publishedPicks}
       sports={sports}
     />
   );
