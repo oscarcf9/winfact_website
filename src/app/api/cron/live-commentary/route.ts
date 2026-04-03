@@ -139,7 +139,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: "skipped", reason: "all_games_on_cooldown" });
     }
 
-    // 4. Fetch recent commentary for dedup context
+    // 4. Fetch recent commentary for dedup + follow-up context
     const recentMessages = await db
       .select({ message: commentaryLog.message })
       .from(commentaryLog)
@@ -147,8 +147,23 @@ export async function GET(req: Request) {
       .limit(5);
     const recentCommentary = recentMessages.map((r) => r.message);
 
+    // 4b. Check if we've commented on THIS game before (for follow-up)
+    const priorOnGame = await db
+      .select({ message: commentaryLog.message, gameState: commentaryLog.gameState })
+      .from(commentaryLog)
+      .where(eq(commentaryLog.gameId, selectedGame.gameId))
+      .orderBy(desc(commentaryLog.postedAt))
+      .limit(1);
+
+    let followUpContext = "";
+    if (priorOnGame.length > 0) {
+      const prior = priorOnGame[0];
+      const priorState = prior.gameState ? JSON.parse(prior.gameState) : null;
+      followUpContext = `\nYou already commented on this game earlier when the score was ${priorState?.score || "unknown"}. Your previous comment: "${prior.message}"\nNow the score has changed. Give a FOLLOW-UP take. Reference how the game has shifted since your last comment. Did the team you mentioned come back? Did the lead grow? React to the change.\n`;
+    }
+
     // 5. Generate commentary
-    const comment = await generateCommentary(selectedGame, recentCommentary);
+    const comment = await generateCommentary(selectedGame, recentCommentary, followUpContext);
 
     if (!comment) {
       return NextResponse.json({ status: "error", reason: "commentary_generation_failed" });

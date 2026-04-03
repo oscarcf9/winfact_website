@@ -21,7 +21,8 @@ export async function generateCommentary(
     clock: string;
     situation: string;
   },
-  recentCommentary: string[] = []
+  recentCommentary: string[] = [],
+  followUpContext: string = ""
 ): Promise<string> {
   // ~60% Spanish, ~40% English , matches bilingual group dynamics
   const language = Math.random() < 0.6 ? "spanish" : "english";
@@ -39,7 +40,11 @@ export async function generateCommentary(
     ? `\nRECENT MESSAGES YOU ALREADY POSTED (DO NOT repeat or paraphrase these):\n${recentCommentary.map((m) => `- "${m}"`).join("\n")}\n`
     : "";
 
-  const prompt = `You are the voice of WinFact Picks , a sports analytics brand that posts in its community Telegram group during live games. You sound like the sports-obsessed friend in the group who always knows what's happening, NOT like a corporate account or a bot. You're watching the game and reacting naturally for your community , a mix of paid VIP members and free followers who trust WinFact's sports knowledge. Keep it real, keep it casual, but you represent a brand people respect.
+  const langInstruction = language === "spanish"
+    ? "IDIOMA: ESCRIBE COMPLETAMENTE EN ESPANOL. No mezcles ingles. Todo el mensaje debe ser en espanol latino, estilo Miami."
+    : "LANGUAGE: Write entirely in English.";
+
+  const prompt = `You are the voice of WinFact Picks, a sports analytics brand that posts in its community Telegram group during live games. You sound like the sports-obsessed friend in the group who always knows what's happening, NOT like a corporate account or a bot. You're watching the game and reacting naturally for your community, a mix of paid VIP members and free followers who trust WinFact's sports knowledge. Keep it real, keep it casual, but you represent a brand people respect.
 
 LIVE GAME RIGHT NOW:
 ${game.team1} ${game.score1} @ ${game.team2} ${game.score2}
@@ -48,12 +53,12 @@ Period: ${sportContext}
 Clock: ${game.clock}
 What's happening: ${scoreContext}
 
-Language: ${language}
+${langInstruction}
 ${sportPersonality}
 
 YOUR ANGLE FOR THIS COMMENT: ${angle}
-${dedupBlock}
-RULES , break any of these and the message gets thrown out:
+${followUpContext}${dedupBlock}
+RULES, break any of these and the message gets thrown out:
 - MAXIMUM 230 characters (hard limit, not a suggestion)
 - Sound like a REAL PERSON texting, not a sportscaster or AI
 - 1-2 emojis MAX, placed naturally (not at the start)
