@@ -488,7 +488,8 @@
         "team": "Team",
         "integrations": "Integrations",
         "ticketGenerator": "Ticket Generator",
-        "commentary": "Commentary"
+        "commentary": "Commentary",
+        "contentQueue": "Content Queue"
       }
     },
     "commentary": {
@@ -1371,6 +1372,29 @@
       "out": "OUT",
       "requestsToday": "requests today",
       "noWebhooks": "No webhooks recorded yet."
+    },
+    "contentQueue": {
+      "title": "Content Queue",
+      "subtitle": "Schedule and manage auto-generated content from one place",
+      "all": "All",
+      "draft": "Drafts",
+      "scheduled": "Scheduled",
+      "posted": "Posted",
+      "failed": "Failed",
+      "noItems": "No items in the queue",
+      "schedule": "Schedule",
+      "postNow": "Post Now",
+      "delete": "Delete",
+      "previous": "Previous",
+      "next": "Next",
+      "type": "Type",
+      "statusLabel": "Status",
+      "scheduledFor": "Scheduled For",
+      "createdAt": "Created",
+      "actions": "Actions",
+      "blog": "Blog",
+      "victoryPost": "Victory Post",
+      "filler": "Filler"
     }
   },
   "common": {

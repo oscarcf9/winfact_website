@@ -27,3 +27,4 @@ export { pushTokens } from "./push-tokens";
 export { commentaryLog } from "./commentary-log";
 export { ticketHistory } from "./ticket-history";
 export { victoryPosts } from "./victory-posts";
+export { contentQueue } from "./content-queue";

@@ -30,6 +30,7 @@ import {
   Upload,
   Receipt,
   MessageSquare,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useCallback } from "react";
@@ -50,6 +51,7 @@ const NAV_SECTIONS = [
     key: "content",
     items: [
       { href: "/admin/blog", labelKey: "blog", icon: FileText, exact: false },
+      { href: "/admin/content-queue", labelKey: "contentQueue", icon: Clock, exact: false },
       { href: "/admin/media", labelKey: "media", icon: Image, exact: false },
       { href: "/admin/content", labelKey: "siteContent", icon: Settings, exact: false },
     ],

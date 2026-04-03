@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { victoryPosts, media } from "@/db/schema";
+import { victoryPosts, media, contentQueue } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { resolveWinningTeamVisuals } from "@/data/team-visuals";
@@ -187,7 +187,22 @@ export async function processNextVictoryPost(): Promise<boolean> {
       status: "draft",
     }).where(eq(victoryPosts.id, pending.id));
 
-    // 10. Notify admin via Telegram + email
+    // 10. Insert into content queue for scheduling
+    await db.insert(contentQueue).values({
+      id: randomUUID(),
+      type: "victory_post",
+      referenceId: pending.id,
+      title: `${pick.sport}: ${pick.pickText} ✅`,
+      preview: `${pick.matchup} — ${pick.pickText}`,
+      imageUrl,
+      captionEn: caption,
+      captionEs: caption,
+      hashtags: `#${pick.sport} #WinFactPicks #Winner #SportsBetting`,
+      platform: "all",
+      status: "draft",
+    }).catch((err) => console.error("[victory-post] Content queue insert failed:", err));
+
+    // 11. Notify admin via Telegram + email
     await notifyVictoryPostReady({
       sport: pick.sport,
       matchup: pick.matchup,

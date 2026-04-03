@@ -488,7 +488,8 @@
         "team": "Equipo",
         "integrations": "Integraciones",
         "ticketGenerator": "Generador de Tickets",
-        "commentary": "Comentarios"
+        "commentary": "Comentarios",
+        "contentQueue": "Cola de Contenido"
       }
     },
     "commentary": {
@@ -1371,6 +1372,29 @@
       "out": "SAL",
       "requestsToday": "solicitudes hoy",
       "noWebhooks": "No se han registrado webhooks aún."
+    },
+    "contentQueue": {
+      "title": "Cola de Contenido",
+      "subtitle": "Programa y gestiona contenido autogenerado desde un solo lugar",
+      "all": "Todo",
+      "draft": "Borradores",
+      "scheduled": "Programados",
+      "posted": "Publicados",
+      "failed": "Fallidos",
+      "noItems": "No hay elementos en la cola",
+      "schedule": "Programar",
+      "postNow": "Publicar Ahora",
+      "delete": "Eliminar",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "type": "Tipo",
+      "statusLabel": "Estado",
+      "scheduledFor": "Programado Para",
+      "createdAt": "Creado",
+      "actions": "Acciones",
+      "blog": "Blog",
+      "victoryPost": "Post de Victoria",
+      "filler": "Relleno"
     }
   },
   "common": {

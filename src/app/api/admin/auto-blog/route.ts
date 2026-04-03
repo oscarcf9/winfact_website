@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { db } from "@/db";
-import { posts, postTags, media } from "@/db/schema";
+import { posts, postTags, media, contentQueue } from "@/db/schema";
 import { generateGameBlog } from "@/lib/ai-blog-engine";
 import { generateMatchupImage } from "@/lib/ai-image";
 import { notifyBlogDraftReady } from "@/lib/notifications";
@@ -139,12 +139,24 @@ export async function POST(req: NextRequest) {
       await db.insert(postTags).values([{ postId, sport: sportTag }]);
     }
 
-    // Notify admin via Telegram (fire-and-forget)
+    // Insert into content queue for scheduling
+    await db.insert(contentQueue).values({
+      id: crypto.randomUUID(),
+      type: "blog",
+      referenceId: postId,
+      title: blogResult.titleEn || data.matchup,
+      preview: blogResult.seoDescription || `${data.sport}: ${data.matchup}`,
+      imageUrl: featuredImage || null,
+      status: "draft",
+    }).catch((err) => console.error("[auto-blog] Content queue insert failed:", err));
+
+    // Notify admin via Telegram + email (fire-and-forget)
     notifyBlogDraftReady({
       title: blogResult.titleEn || data.matchup,
       sport: data.sport,
       matchup: data.matchup,
       slug,
+      postId,
     }).catch((err) => console.error("Blog draft notification failed:", err));
 
     return NextResponse.json({
