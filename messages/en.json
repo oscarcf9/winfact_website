@@ -487,8 +487,20 @@
         "auditTrail": "Audit Trail",
         "team": "Team",
         "integrations": "Integrations",
-        "ticketGenerator": "Ticket Generator"
+        "ticketGenerator": "Ticket Generator",
+        "commentary": "Commentary"
       }
+    },
+    "commentary": {
+      "title": "Commentary History",
+      "subtitle": "Live commentary posted by the bot across all games",
+      "totalComments": "Total Comments",
+      "commentsToday": "Today",
+      "commentsThisWeek": "This Week",
+      "noComments": "No commentary found",
+      "previous": "Previous",
+      "next": "Next",
+      "allSports": "All Sports"
     },
     "common": {
       "management": "Management",
@@ -868,7 +880,10 @@
       "homepageHero": "Homepage Hero",
       "homepageHeroDesc": "Override headline and subheadline (leave empty to use defaults)",
       "customContentBlocks": "Custom Content Blocks",
-      "leaveEmptyNoExpiration": "Leave empty for no expiration"
+      "leaveEmptyNoExpiration": "Leave empty for no expiration",
+      "automationControls": "Automation Controls",
+      "automationControlsDesc": "Enable or disable automated content generation features",
+      "lastActivity": "Last Activity"
     },
     "media": {
       "title": "Media Library",

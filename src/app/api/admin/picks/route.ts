@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { db } from "@/db";
-import { picks, users, gamesToday } from "@/db/schema";
+import { picks, users, gamesToday, siteContent } from "@/db/schema";
 import { eq, desc, and, gte, inArray } from "drizzle-orm";
 import { distributePickOnPublish } from "@/lib/delivery";
 import { logAdminAction } from "@/lib/audit";
@@ -229,8 +229,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Auto-blog generation — fire-and-forget, never blocks pick creation
-    // Disabled by default. Set ENABLE_AUTO_BLOG=true in env to enable.
-    if (data.status === "published" && process.env.ENABLE_AUTO_BLOG === "true") {
+    // Controlled by siteContent toggle "blog_auto_generator" OR env var ENABLE_AUTO_BLOG
+    const blogToggleRow = await db.select().from(siteContent).where(eq(siteContent.key, "blog_auto_generator")).limit(1);
+    const blogEnabled = blogToggleRow[0]?.value === "true" || process.env.ENABLE_AUTO_BLOG === "true";
+    if (data.status === "published" && blogEnabled) {
       try {
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
         console.log(`[auto-blog] Triggering for pick ${id}: ${data.matchup}`);

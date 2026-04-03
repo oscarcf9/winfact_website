@@ -487,8 +487,20 @@
         "auditTrail": "Registro de Auditoría",
         "team": "Equipo",
         "integrations": "Integraciones",
-        "ticketGenerator": "Generador de Tickets"
+        "ticketGenerator": "Generador de Tickets",
+        "commentary": "Comentarios"
       }
+    },
+    "commentary": {
+      "title": "Historial de Comentarios",
+      "subtitle": "Comentarios en vivo publicados por el bot en todos los juegos",
+      "totalComments": "Total de Comentarios",
+      "commentsToday": "Hoy",
+      "commentsThisWeek": "Esta Semana",
+      "noComments": "No se encontraron comentarios",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "allSports": "Todos los Deportes"
     },
     "common": {
       "management": "Gestión",
@@ -868,7 +880,10 @@
       "homepageHero": "Hero de Inicio",
       "homepageHeroDesc": "Sobrescribir título y subtítulo (dejar vacío para usar valores predeterminados)",
       "customContentBlocks": "Bloques de Contenido Personalizados",
-      "leaveEmptyNoExpiration": "Dejar vacío para sin expiración"
+      "leaveEmptyNoExpiration": "Dejar vacío para sin expiración",
+      "automationControls": "Controles de Automatizacion",
+      "automationControlsDesc": "Activar o desactivar funciones de generacion automatica de contenido",
+      "lastActivity": "Ultima Actividad"
     },
     "media": {
       "title": "Biblioteca de Medios",

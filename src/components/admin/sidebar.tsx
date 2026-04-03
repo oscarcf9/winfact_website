@@ -29,6 +29,7 @@ import {
   Globe,
   Upload,
   Receipt,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useCallback } from "react";
@@ -57,6 +58,7 @@ const NAV_SECTIONS = [
     key: "analytics",
     items: [
       { href: "/admin/performance", labelKey: "performance", icon: BarChart3, exact: false },
+      { href: "/admin/commentary", labelKey: "commentary", icon: MessageSquare, exact: false },
       { href: "/admin/subscribers", labelKey: "subscribers", icon: Users, exact: false },
       { href: "/admin/revenue", labelKey: "revenue", icon: DollarSign, exact: false },
       { href: "/admin/referrals", labelKey: "referrals", icon: Gift, exact: false },

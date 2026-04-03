@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Save, Plus, Check, Megaphone, Type, Eye, EyeOff, ChevronDown, Sparkles } from "lucide-react";
+import { Save, Plus, Check, Megaphone, Type, ChevronDown, ChevronUp, Sparkles, Bot, Trophy, FileText, Clock } from "lucide-react";
 
 type ContentItem = { key: string; value: string; updatedAt: string | null };
+
+type AutomationStatus = {
+  lastBlog: string | null;
+  lastVictoryPost: string | null;
+  lastCommentary: string | null;
+};
 
 type Props = { initialContent: ContentItem[] };
 
@@ -24,9 +30,21 @@ const ANNOUNCEMENT_KEYS = [
   { key: "announcement_bar_style", label: "Style", type: "select", default: "default", options: ["default", "urgent", "success"] },
 ];
 
-const FEATURE_KEYS = [
-  { key: "live_commentary_enabled", label: "Live Commentary Bot", type: "toggle", default: "false" },
-  { key: "victory_posts_enabled", label: "Victory Post Generator", type: "toggle", default: "false" },
+type FeatureConfig = {
+  key: string;
+  label: string;
+  description: string;
+  type: "toggle";
+  default: string;
+  icon: typeof Bot;
+  disabled?: boolean;
+};
+
+const FEATURE_KEYS: FeatureConfig[] = [
+  { key: "blog_auto_generator", label: "Blog Auto-Generator", description: "Auto-generate blog posts when picks are published", type: "toggle", default: "false", icon: FileText },
+  { key: "victory_posts_enabled", label: "Victory Post Generator", description: "Generate celebration graphics when picks win", type: "toggle", default: "false", icon: Trophy },
+  { key: "live_commentary_enabled", label: "Live Commentary Bot", description: "Post live game commentary to Telegram", type: "toggle", default: "false", icon: Bot },
+  { key: "filler_content_enabled", label: "Filler Content Bot", description: "Daily matchup graphics for social media", type: "toggle", default: "false", icon: Sparkles, disabled: true },
 ];
 
 const HERO_KEYS = [
@@ -40,6 +58,21 @@ const HERO_KEYS = [
   { key: "social_proof_win_rate", label: "Social Proof: Win Rate", type: "text", default: "" },
 ];
 
+function formatTimeAgo(dateStr: string | null): string {
+  if (!dateStr) return "Never";
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "Just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHrs = Math.floor(diffMin / 60);
+  if (diffHrs < 24) return `${diffHrs}h ago`;
+  const diffDays = Math.floor(diffHrs / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return d.toLocaleDateString();
+}
+
 export function ContentEditor({ initialContent }: Props) {
   const t = useTranslations("admin.contentEditor");
   const tc = useTranslations("admin.common");
@@ -49,6 +82,16 @@ export function ContentEditor({ initialContent }: Props) {
   const [newValue, setNewValue] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  const [showAnnouncement, setShowAnnouncement] = useState(false);
+  const [showHero, setShowHero] = useState(false);
+  const [automationStatus, setAutomationStatus] = useState<AutomationStatus | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/content/automation-status")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setAutomationStatus(data); })
+      .catch(() => {});
+  }, []);
 
   const contentMap = new Map(items.map((i) => [i.key, i]));
 
@@ -200,52 +243,121 @@ export function ContentEditor({ initialContent }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Announcement Bar Section */}
-      <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-accent/10 flex items-center justify-center">
-            <Megaphone className="h-4 w-4 text-accent" />
-          </div>
-          <div>
-            <h2 className="font-heading font-bold text-lg text-navy">{t("announcementBar")}</h2>
-            <p className="text-xs text-gray-400">{t("announcementBarDesc")}</p>
-          </div>
-        </div>
-        <div className="px-6 py-2 divide-y divide-gray-100">
-          {ANNOUNCEMENT_KEYS.map(renderField)}
-        </div>
-      </div>
-
-      {/* Feature Toggles */}
+      {/* SECTION 1: Automation Controls — Always visible at top */}
       <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-success/10 flex items-center justify-center">
             <Sparkles className="h-4 w-4 text-success" />
           </div>
           <div>
-            <h2 className="font-heading font-bold text-lg text-navy">Features</h2>
-            <p className="text-xs text-gray-400">Enable or disable automated features</p>
+            <h2 className="font-heading font-bold text-lg text-navy">{t("automationControls")}</h2>
+            <p className="text-xs text-gray-400">{t("automationControlsDesc")}</p>
           </div>
         </div>
-        <div className="px-6 py-2 divide-y divide-gray-100">
-          {FEATURE_KEYS.map(renderField)}
+        <div className="px-6 py-4 space-y-1">
+          {FEATURE_KEYS.map((cfg) => {
+            const current = contentMap.get(cfg.key);
+            const value = current?.value ?? cfg.default;
+            const isOn = value === "true";
+            const Icon = cfg.icon;
+
+            return (
+              <div key={cfg.key} className={`flex items-center justify-between py-3 ${cfg.disabled ? "opacity-50" : ""}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${isOn && !cfg.disabled ? "bg-success/10" : "bg-gray-100"}`}>
+                    <Icon className={`h-4 w-4 ${isOn && !cfg.disabled ? "text-success" : "text-gray-400"}`} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-navy">
+                      {cfg.label}
+                      {cfg.disabled && <span className="ml-2 text-[10px] bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full font-normal">Coming Soon</span>}
+                    </p>
+                    <p className="text-xs text-gray-400">{cfg.description}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {saving === cfg.key ? (
+                    <span className="text-xs text-gray-400">{tc("saving")}</span>
+                  ) : saved === cfg.key ? (
+                    <Check className="h-4 w-4 text-success" />
+                  ) : null}
+                  <button
+                    onClick={() => { if (!cfg.disabled) saveItem(cfg.key, isOn ? "false" : "true"); }}
+                    disabled={saving === cfg.key || cfg.disabled}
+                    className="cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    <div className={`relative w-11 h-6 rounded-full transition-colors ${isOn && !cfg.disabled ? "bg-success" : "bg-gray-300"}`}>
+                      <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${isOn && !cfg.disabled ? "translate-x-5" : ""}`} />
+                    </div>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
+
+        {/* Last Activity Status */}
+        {automationStatus && (
+          <div className="px-6 py-3 border-t border-gray-100 bg-gray-50/50">
+            <div className="flex items-center gap-1 mb-2">
+              <Clock className="h-3 w-3 text-gray-400" />
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{t("lastActivity")}</span>
+            </div>
+            <div className="flex flex-wrap gap-4 text-xs text-gray-500">
+              <span>Blog: <strong className="text-navy">{formatTimeAgo(automationStatus.lastBlog)}</strong></span>
+              <span>Victory Post: <strong className="text-navy">{formatTimeAgo(automationStatus.lastVictoryPost)}</strong></span>
+              <span>Commentary: <strong className="text-navy">{formatTimeAgo(automationStatus.lastCommentary)}</strong></span>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Hero Section */}
+      {/* SECTION 2: Announcement Bar — Collapsible */}
       <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Type className="h-4 w-4 text-primary" />
+        <button
+          onClick={() => setShowAnnouncement(!showAnnouncement)}
+          className="w-full px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-accent/10 flex items-center justify-center">
+              <Megaphone className="h-4 w-4 text-accent" />
+            </div>
+            <div className="text-left">
+              <h2 className="font-heading font-bold text-lg text-navy">{t("announcementBar")}</h2>
+              <p className="text-xs text-gray-400">{t("announcementBarDesc")}</p>
+            </div>
           </div>
-          <div>
-            <h2 className="font-heading font-bold text-lg text-navy">{t("homepageHero")}</h2>
-            <p className="text-xs text-gray-400">{t("homepageHeroDesc")}</p>
+          {showAnnouncement ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
+        </button>
+        {showAnnouncement && (
+          <div className="px-6 py-2 border-t border-gray-200 divide-y divide-gray-100">
+            {ANNOUNCEMENT_KEYS.map(renderField)}
           </div>
-        </div>
-        <div className="px-6 py-2 divide-y divide-gray-100">
-          {HERO_KEYS.map(renderField)}
-        </div>
+        )}
+      </div>
+
+      {/* SECTION 3: Hero Section — Collapsible */}
+      <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
+        <button
+          onClick={() => setShowHero(!showHero)}
+          className="w-full px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Type className="h-4 w-4 text-primary" />
+            </div>
+            <div className="text-left">
+              <h2 className="font-heading font-bold text-lg text-navy">{t("homepageHero")}</h2>
+              <p className="text-xs text-gray-400">{t("homepageHeroDesc")}</p>
+            </div>
+          </div>
+          {showHero ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
+        </button>
+        {showHero && (
+          <div className="px-6 py-2 border-t border-gray-200 divide-y divide-gray-100">
+            {HERO_KEYS.map(renderField)}
+          </div>
+        )}
       </div>
 
       {/* Generic Content Blocks */}
