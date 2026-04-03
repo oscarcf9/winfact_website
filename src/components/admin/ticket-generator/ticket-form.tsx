@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import type { BetFormData, ParlayLeg, TeamData } from "./ticket-types";
 import { DEFAULT_TEAM } from "./ticket-types";
 import type { SportId } from "./sport-config";
@@ -11,6 +11,7 @@ import {
   hasTeamPrefix,
   getSubTypesForSport,
 } from "./sport-config";
+import { searchTeams, urlToDataUrl, type TeamLogo } from "./team-logos";
 
 interface TicketFormProps {
   data: BetFormData;
@@ -24,16 +25,13 @@ export default function TicketForm({ data, onChange }: TicketFormProps) {
   const availableSubTypes = getSubTypesForSport(data.sport);
 
   const update = useCallback(
-    (partial: Partial<BetFormData>) => {
-      onChange({ ...data, ...partial });
-    },
+    (partial: Partial<BetFormData>) => onChange({ ...data, ...partial }),
     [data, onChange]
   );
 
   const updateTeam = useCallback(
-    (which: "team1" | "team2", partial: Partial<TeamData>) => {
-      update({ [which]: { ...data[which], ...partial } });
-    },
+    (which: "team1" | "team2", partial: Partial<TeamData>) =>
+      update({ [which]: { ...data[which], ...partial } }),
     [data, update]
   );
 
@@ -49,10 +47,7 @@ export default function TicketForm({ data, onChange }: TicketFormProps) {
   const updateParlayLegTeam = useCallback(
     (legIndex: number, which: "team1" | "team2", partial: Partial<TeamData>) => {
       const legs = [...data.parlayLegs];
-      legs[legIndex] = {
-        ...legs[legIndex],
-        [which]: { ...legs[legIndex][which], ...partial },
-      };
+      legs[legIndex] = { ...legs[legIndex], [which]: { ...legs[legIndex][which], ...partial } };
       update({ parlayLegs: legs });
     },
     [data, update]
@@ -62,9 +57,7 @@ export default function TicketForm({ data, onChange }: TicketFormProps) {
     (betType: "Single" | "Parlay") => {
       if (betType === "Parlay") {
         update({
-          betType,
-          subBetType: "2-bet",
-          parlayLegCount: 2,
+          betType, subBetType: "2-bet", parlayLegCount: 2,
           parlayLegs: [
             { team1: { ...DEFAULT_TEAM }, team2: { ...DEFAULT_TEAM }, odds: "" },
             { team1: { ...DEFAULT_TEAM }, team2: { ...DEFAULT_TEAM }, odds: "" },
@@ -110,116 +103,66 @@ export default function TicketForm({ data, onChange }: TicketFormProps) {
     [data, update]
   );
 
-  const handleLogoUpload = useCallback(
-    (
-      file: File,
-      target:
-        | { type: "single"; which: "team1" | "team2" }
-        | { type: "parlay"; legIndex: number; which: "team1" | "team2" }
-    ) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result as string;
-        if (target.type === "single") {
-          updateTeam(target.which, { logoDataUrl: dataUrl });
-        } else {
-          updateParlayLegTeam(target.legIndex, target.which, { logoDataUrl: dataUrl });
-        }
-      };
-      reader.readAsDataURL(file);
-    },
-    [updateTeam, updateParlayLegTeam]
-  );
-
   return (
     <div className="space-y-4">
-      {/* ── Bet Configuration ── */}
-      <Section title="Bet Configuration" icon="settings">
-        <label className="text-sm font-semibold text-gray-900">Bet Type</label>
-        <div className="grid grid-cols-2 gap-3 mt-2">
+      {/* ── Bet Type + Sport + Sub-Type ── */}
+      <Section title="Bet Configuration">
+        {/* Bet Type Toggle */}
+        <div className="grid grid-cols-2 gap-3">
           {(["Single", "Parlay"] as const).map((type) => (
             <button
-              key={type}
-              type="button"
+              key={type} type="button"
               onClick={() => handleBetTypeChange(type)}
-              className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                data.betType === type
-                  ? "border-blue-500 bg-blue-50 text-blue-600"
-                  : "border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300"
+              className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 transition-all text-sm font-medium ${
+                data.betType === type ? "border-blue-500 bg-blue-50 text-blue-600" : "border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300"
               }`}
             >
-              <span
-                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  data.betType === type ? "border-blue-500 bg-blue-500" : "border-gray-400"
-                }`}
-              >
-                {data.betType === type && (
-                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </span>
-              <span className="text-sm font-medium">{type} Bet</span>
+              {type} Bet
             </button>
           ))}
         </div>
 
-        {/* Sport Selector — Single bets only */}
+        {/* Sport Selector — always visible for single bets */}
         {isSingle && (
-          <>
-            <label className="text-sm font-semibold text-gray-900 mt-4 block">Sport</label>
-            <div className="grid grid-cols-4 gap-2 mt-2">
+          <div className="mt-4">
+            <label className="text-sm font-semibold text-gray-900 mb-2 block">Sport</label>
+            <div className="flex flex-wrap gap-2">
               {SPORTS.map((sport) => (
                 <button
-                  key={sport.id}
-                  type="button"
+                  key={sport.id} type="button"
                   onClick={() => handleSportChange(sport.id)}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-center ${
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border transition-all text-sm ${
                     data.sport === sport.id
-                      ? "border-blue-500 bg-blue-50 text-blue-600"
-                      : "border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300"
+                      ? "border-blue-500 bg-blue-50 text-blue-700 font-semibold"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
                   }`}
                 >
-                  <svg
-                    className={`w-5 h-5 ${data.sport === sport.id ? "text-blue-500" : "text-gray-400"}`}
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                  >
-                    <path d={sport.iconPath} />
-                  </svg>
-                  <span className="text-[11px] font-semibold leading-tight">{sport.label}</span>
+                  <span className="text-base">{sport.emoji}</span>
+                  <span>{sport.label}</span>
                 </button>
               ))}
             </div>
-          </>
+          </div>
         )}
 
-        {/* Sub Type */}
-        <label className="text-sm font-semibold text-gray-900 mt-4 block">Bet Sub-Type</label>
-        <select
-          value={data.subBetType}
-          onChange={(e) =>
-            isSingle ? update({ subBetType: e.target.value }) : handleParlaySubTypeChange(e.target.value)
-          }
-          className="w-full mt-2 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
-        >
-          {isSingle
-            ? availableSubTypes.map((st) => (
-                <option key={st.id} value={st.id}>{st.label}</option>
-              ))
-            : PARLAY_OPTIONS.map((po) => (
-                <option key={po.id} value={po.id}>{po.label}</option>
-              ))}
-        </select>
+        {/* Sub-Type Dropdown */}
+        <div className="mt-4">
+          <label className="text-sm font-semibold text-gray-900 mb-2 block">Bet Sub-Type</label>
+          <select
+            value={data.subBetType}
+            onChange={(e) => isSingle ? update({ subBetType: e.target.value }) : handleParlaySubTypeChange(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+          >
+            {isSingle
+              ? availableSubTypes.map((st) => <option key={st.id} value={st.id}>{st.label}</option>)
+              : PARLAY_OPTIONS.map((po) => <option key={po.id} value={po.id}>{po.label}</option>)}
+          </select>
+        </div>
 
         {!isSingle && data.subBetType === "custom" && (
           <div className="flex items-center gap-3 mt-3">
-            <span className="text-sm font-semibold text-gray-900">Number of Legs:</span>
-            <input
-              type="number"
-              min={2}
-              max={10}
-              value={data.parlayLegCount}
+            <span className="text-sm font-semibold text-gray-900">Legs:</span>
+            <input type="number" min={2} max={10} value={data.parlayLegCount}
               onChange={(e) => handleCustomLegCount(parseInt(e.target.value) || 2)}
               className="w-20 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-sm text-center focus:border-blue-500 outline-none"
             />
@@ -227,126 +170,139 @@ export default function TicketForm({ data, onChange }: TicketFormProps) {
         )}
       </Section>
 
-      {/* ── Game Details ── */}
-      <Section title="Game Details" icon="info">
-        <label className="text-sm font-semibold text-gray-900">Bet Description</label>
-        <input
-          type="text"
-          value={data.betDescription}
-          onChange={(e) => update({ betDescription: e.target.value })}
-          placeholder="e.g., Over 3.5, Knicks -6.5, Red Sox +1.5"
-          className="w-full mt-2 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none placeholder:text-gray-400"
-        />
-
-        {isSingle && (
-          <>
-            {/* Team Name — for team-specific bet types (e.g., "BREWERS TOTAL RUNS") */}
-            {needsTeamName && (
-              <div className="mt-3">
-                <label className="text-sm font-semibold text-gray-900">Team Name (for label)</label>
-                <input
-                  type="text"
-                  value={data.teamName}
-                  onChange={(e) => update({ teamName: e.target.value })}
-                  placeholder="e.g., Brewers, Benfica, Cardinals"
-                  className="w-full mt-2 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none placeholder:text-gray-400"
-                />
-                <p className="text-xs text-gray-400 mt-1">
-                  Appears on ticket as: {data.teamName ? `${data.teamName.toUpperCase()} ${availableSubTypes.find(s => s.id === data.subBetType)?.display ?? ""}` : "TEAM TOTAL RUNS"}
-                </p>
-              </div>
-            )}
-
-            {/* Matchup — for prop bets without score bar */}
-            {!showScore && (
-              <div className="mt-3">
-                <label className="text-sm font-semibold text-gray-900">Matchup</label>
-                <input
-                  type="text"
-                  value={data.matchup}
-                  onChange={(e) => update({ matchup: e.target.value })}
-                  placeholder="e.g., Magic @ Cavaliers, Twins @ Orioles"
-                  className="w-full mt-2 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none placeholder:text-gray-400"
-                />
-              </div>
-            )}
-
-            {/* Team inputs — for bets with score bar */}
-            {showScore && (
-              <div className="mt-4 space-y-3">
-                <TeamInput label="Team 1" team={data.team1} onChange={(t) => updateTeam("team1", t)} onLogoUpload={(f) => handleLogoUpload(f, { type: "single", which: "team1" })} />
-                <TeamInput label="Team 2" team={data.team2} onChange={(t) => updateTeam("team2", t)} onLogoUpload={(f) => handleLogoUpload(f, { type: "single", which: "team2" })} />
-              </div>
-            )}
-
-            <label className="text-sm font-semibold text-gray-900 mt-4 block">Odds</label>
-            <input
-              type="text"
-              value={data.odds}
+      {/* ── Pick Details (Description + Odds grouped together) ── */}
+      <Section title="Pick Details">
+        <div className="grid grid-cols-[1fr_120px] gap-3">
+          <div>
+            <label className="text-xs font-semibold text-gray-700">Bet Description</label>
+            <input type="text" value={data.betDescription}
+              onChange={(e) => update({ betDescription: e.target.value })}
+              placeholder="e.g., Over 3.5, Knicks -6.5"
+              className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-sm focus:border-blue-500 outline-none placeholder:text-gray-400"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-700">Odds</label>
+            <input type="text" value={isSingle ? data.odds : ""}
               onChange={(e) => {
                 const v = e.target.value;
                 if (v === "" || v === "-" || v === "+" || /^[+-]?\d*$/.test(v)) update({ odds: v });
               }}
-              placeholder="e.g., -145, +120"
-              className="w-full mt-2 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none placeholder:text-gray-400"
+              placeholder="-145"
+              className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-sm text-center font-mono focus:border-blue-500 outline-none placeholder:text-gray-400"
             />
-          </>
+          </div>
+        </div>
+
+        {/* Team Name — for team-specific bet types */}
+        {isSingle && needsTeamName && (
+          <div className="mt-3">
+            <label className="text-xs font-semibold text-gray-700">Team Name (for ticket label)</label>
+            <input type="text" value={data.teamName}
+              onChange={(e) => update({ teamName: e.target.value })}
+              placeholder="e.g., Brewers, Benfica"
+              className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-sm focus:border-blue-500 outline-none placeholder:text-gray-400"
+            />
+            {data.teamName && (
+              <p className="text-xs text-blue-500 mt-1 font-medium">
+                Ticket label: {data.teamName.toUpperCase()} {availableSubTypes.find(s => s.id === data.subBetType)?.display ?? ""}
+              </p>
+            )}
+          </div>
         )}
 
-        {!isSingle && (
-          <div className="mt-4 space-y-4">
+        {/* Matchup — for prop bets without score bar */}
+        {isSingle && !showScore && (
+          <div className="mt-3">
+            <label className="text-xs font-semibold text-gray-700">Matchup</label>
+            <input type="text" value={data.matchup}
+              onChange={(e) => update({ matchup: e.target.value })}
+              placeholder="e.g., Magic @ Cavaliers"
+              className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-sm focus:border-blue-500 outline-none placeholder:text-gray-400"
+            />
+          </div>
+        )}
+      </Section>
+
+      {/* ── Teams (side by side, prominent) — only for score bar bets ── */}
+      {isSingle && showScore && (
+        <Section title="Teams & Score">
+          <div className="grid grid-cols-2 gap-4">
+            <TeamCard
+              label="Team 1"
+              team={data.team1}
+              sport={data.sport}
+              onChange={(t) => updateTeam("team1", t)}
+            />
+            <TeamCard
+              label="Team 2"
+              team={data.team2}
+              sport={data.sport}
+              onChange={(t) => updateTeam("team2", t)}
+            />
+          </div>
+        </Section>
+      )}
+
+      {/* ── Parlay Legs ── */}
+      {!isSingle && (
+        <Section title="Parlay Legs">
+          <div className="space-y-3">
             {data.parlayLegs.map((leg, i) => (
-              <div key={i} className="p-4 rounded-xl border border-gray-200 bg-white space-y-3">
-                <span className="text-sm font-semibold text-gray-900">Leg {i + 1}</span>
-                <TeamInput label="Team 1" team={leg.team1} onChange={(t) => updateParlayLegTeam(i, "team1", t)} onLogoUpload={(f) => handleLogoUpload(f, { type: "parlay", legIndex: i, which: "team1" })} />
-                <TeamInput label="Team 2" team={leg.team2} onChange={(t) => updateParlayLegTeam(i, "team2", t)} onLogoUpload={(f) => handleLogoUpload(f, { type: "parlay", legIndex: i, which: "team2" })} />
-                <div>
-                  <label className="text-xs font-medium text-gray-500">Odds</label>
-                  <input
-                    type="text"
-                    value={leg.odds}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (v === "" || v === "-" || v === "+" || /^[+-]?\d*$/.test(v)) updateParlayLeg(i, { odds: v });
-                    }}
-                    placeholder="e.g., -110"
-                    className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-sm focus:border-blue-500 outline-none placeholder:text-gray-400"
-                  />
+              <div key={i} className="p-3 rounded-xl border border-gray-200 bg-gray-50 space-y-2">
+                <span className="text-xs font-bold text-gray-500">LEG {i + 1}</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <input type="text" value={leg.team1.acronym} placeholder="Team 1"
+                      onChange={(e) => updateParlayLegTeam(i, "team1", { acronym: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:border-blue-500 outline-none placeholder:text-gray-400"
+                    />
+                  </div>
+                  <div>
+                    <input type="text" value={leg.team2.acronym} placeholder="Team 2"
+                      onChange={(e) => updateParlayLegTeam(i, "team2", { acronym: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:border-blue-500 outline-none placeholder:text-gray-400"
+                    />
+                  </div>
                 </div>
+                <input type="text" value={leg.odds} placeholder="Odds (e.g., -110)"
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "" || v === "-" || v === "+" || /^[+-]?\d*$/.test(v)) updateParlayLeg(i, { odds: v });
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm font-mono focus:border-blue-500 outline-none placeholder:text-gray-400"
+                />
               </div>
             ))}
           </div>
-        )}
-      </Section>
+        </Section>
+      )}
 
-      {/* ── Monetary Details ── */}
-      <Section title="Monetary Details" icon="dollar">
-        <label className="text-sm font-semibold text-gray-900">Wager Amount</label>
-        <div className="relative mt-2">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-          <input
-            type="text"
-            value={data.wager}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v === "" || /^\d*\.?\d{0,2}$/.test(v)) update({ wager: v });
-            }}
-            placeholder="0.00"
-            className="w-full pl-8 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none placeholder:text-gray-400"
-          />
-        </div>
-        <div className="mt-4">
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-semibold text-gray-900">Paid Amount</label>
-            <span className="text-[10px] font-medium text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-lg">Auto-calculated</span>
+      {/* ── Wager & Payout ── */}
+      <Section title="Wager & Payout">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-semibold text-gray-700">Wager</label>
+            <div className="relative mt-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">$</span>
+              <input type="text" value={data.wager}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "" || /^\d*\.?\d{0,2}$/.test(v)) update({ wager: v });
+                }}
+                placeholder="0.00"
+                className="w-full pl-7 pr-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-sm font-medium focus:border-blue-500 outline-none placeholder:text-gray-400"
+              />
+            </div>
           </div>
-          <div className="relative mt-2">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-green-500">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            </span>
-            <input type="text" value={data.paid} readOnly className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-100 text-sm text-gray-900 font-semibold cursor-not-allowed" />
+          <div>
+            <div className="flex items-center gap-1.5">
+              <label className="text-xs font-semibold text-gray-700">Paid</label>
+              <span className="text-[9px] font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded">AUTO</span>
+            </div>
+            <input type="text" value={data.paid} readOnly
+              className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-100 text-sm font-semibold text-gray-900 cursor-not-allowed"
+            />
           </div>
         </div>
       </Section>
@@ -354,49 +310,164 @@ export default function TicketForm({ data, onChange }: TicketFormProps) {
   );
 }
 
-// ── Sub-Components ──
+// ── Section wrapper ──
 
-function Section({ title, icon, children }: { title: string; icon: "settings" | "info" | "dollar"; children: React.ReactNode }) {
-  const iconMap = {
-    settings: <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
-    info: <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
-    dollar: <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
-  };
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-      <div className="flex items-center gap-2.5 px-5 py-3 bg-gray-50 border-b border-gray-200">
-        <div className="p-1.5 bg-blue-50 rounded-lg">{iconMap[icon]}</div>
+      <div className="px-5 py-3 bg-gray-50 border-b border-gray-200">
         <span className="text-sm font-semibold text-gray-900">{title}</span>
       </div>
-      <div className="p-5">{children}</div>
+      <div className="p-4">{children}</div>
     </div>
   );
 }
 
-function TeamInput({ label, team, onChange, onLogoUpload }: { label: string; team: TeamData; onChange: (partial: Partial<TeamData>) => void; onLogoUpload: (file: File) => void }) {
+// ── Team Card with logo library ──
+
+function TeamCard({
+  label,
+  team,
+  sport,
+  onChange,
+}: {
+  label: string;
+  team: TeamData;
+  sport: string;
+  onChange: (partial: Partial<TeamData>) => void;
+}) {
+  const [showPicker, setShowPicker] = useState(false);
+  const [logoSearch, setLogoSearch] = useState("");
+  const [isLoadingLogo, setIsLoadingLogo] = useState(false);
+
+  const results = searchTeams(logoSearch, sport);
+
+  const handlePickLogo = async (logo: TeamLogo) => {
+    setIsLoadingLogo(true);
+    try {
+      const dataUrl = await urlToDataUrl(logo.url);
+      onChange({ logoDataUrl: dataUrl, acronym: team.acronym || logo.abbr });
+      setShowPicker(false);
+      setLogoSearch("");
+    } catch {
+      // If ESPN fetch fails, use URL directly (will work in preview but may not export)
+      onChange({ logoDataUrl: logo.url, acronym: team.acronym || logo.abbr });
+      setShowPicker(false);
+    } finally {
+      setIsLoadingLogo(false);
+    }
+  };
+
+  const handleFileUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => onChange({ logoDataUrl: reader.result as string });
+    reader.readAsDataURL(file);
+  };
+
   return (
-    <div className="p-4 rounded-xl border border-gray-200 bg-gray-50 space-y-3">
-      <span className="text-xs font-semibold text-gray-900">{label}</span>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs font-medium text-gray-500">Acronym</label>
-          <input type="text" value={team.acronym} onChange={(e) => onChange({ acronym: e.target.value })} placeholder="e.g., STL" className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:border-blue-500 outline-none placeholder:text-gray-400" />
-        </div>
-        <div>
-          <label className="text-xs font-medium text-gray-500">Score</label>
-          <input type="text" value={team.score} onChange={(e) => { if (/^\d*$/.test(e.target.value)) onChange({ score: e.target.value }); }} placeholder="0" className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:border-blue-500 outline-none placeholder:text-gray-400" />
+    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold text-gray-500 uppercase">{label}</span>
+        {team.logoDataUrl && (
+          <button type="button" onClick={() => onChange({ logoDataUrl: undefined })}
+            className="text-[10px] text-red-400 hover:text-red-600">
+            Remove logo
+          </button>
+        )}
+      </div>
+
+      {/* Logo preview + picker trigger */}
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={() => setShowPicker(!showPicker)}
+          className="w-12 h-12 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center bg-white hover:border-blue-400 transition-colors overflow-hidden flex-shrink-0"
+        >
+          {team.logoDataUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={team.logoDataUrl} alt="" className="w-10 h-10 object-contain" />
+          ) : (
+            <svg className="w-5 h-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
+            </svg>
+          )}
+        </button>
+        <div className="flex-1 space-y-1.5">
+          <input type="text" value={team.acronym}
+            onChange={(e) => onChange({ acronym: e.target.value })}
+            placeholder="Acronym (STL)"
+            className="w-full px-2.5 py-1.5 rounded-md border border-gray-200 bg-white text-sm font-semibold focus:border-blue-500 outline-none placeholder:text-gray-400 placeholder:font-normal"
+          />
+          <input type="text" value={team.score}
+            onChange={(e) => { if (/^\d*$/.test(e.target.value)) onChange({ score: e.target.value }); }}
+            placeholder="Score"
+            className="w-full px-2.5 py-1.5 rounded-md border border-gray-200 bg-white text-sm focus:border-blue-500 outline-none placeholder:text-gray-400"
+          />
         </div>
       </div>
-      <div>
-        <label className="text-xs font-medium text-gray-500">Logo (Optional)</label>
-        <div className="flex items-center gap-2 mt-1">
-          <input type="text" readOnly value={team.logoDataUrl ? "Logo selected" : ""} placeholder="No logo selected" className="flex-1 px-3 py-2 rounded-lg border border-gray-200 bg-gray-100 text-xs text-gray-500 cursor-not-allowed" />
-          <label className="px-3 py-2 rounded-lg bg-blue-500 text-white text-xs font-medium cursor-pointer hover:bg-blue-600 transition-colors">
-            Browse
-            <input type="file" accept="image/png,image/jpeg,image/gif" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) onLogoUpload(file); }} />
-          </label>
+
+      {/* Logo Picker Dropdown */}
+      {showPicker && (
+        <div className="border border-gray-200 rounded-lg bg-white shadow-lg p-3 space-y-2">
+          <input type="text" value={logoSearch}
+            onChange={(e) => setLogoSearch(e.target.value)}
+            placeholder="Search teams..."
+            autoFocus
+            className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-xs focus:border-blue-500 outline-none placeholder:text-gray-400"
+          />
+
+          {/* Team grid */}
+          <div className="max-h-40 overflow-y-auto">
+            {isLoadingLogo ? (
+              <div className="text-center py-4 text-xs text-gray-400">Loading...</div>
+            ) : results.length > 0 ? (
+              <div className="grid grid-cols-4 gap-1.5">
+                {results.map((t) => (
+                  <button key={`${t.sport}-${t.abbr}`} type="button"
+                    onClick={() => handlePickLogo(t)}
+                    className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-blue-50 transition-colors"
+                    title={t.name}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={t.url} alt={t.name} className="w-8 h-8 object-contain" />
+                    <span className="text-[9px] font-medium text-gray-600 leading-tight text-center truncate w-full">{t.abbr}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-3 text-xs text-gray-400">No teams found</div>
+            )}
+          </div>
+
+          {/* Upload or URL */}
+          <div className="flex gap-2 pt-1 border-t border-gray-100">
+            <label className="flex-1 text-center py-1.5 rounded-md bg-gray-100 text-[10px] font-medium text-gray-600 cursor-pointer hover:bg-gray-200 transition-colors">
+              Upload file
+              <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) { handleFileUpload(file); setShowPicker(false); }
+                }}
+              />
+            </label>
+            <button type="button"
+              onClick={() => {
+                const url = prompt("Enter logo image URL:");
+                if (url) {
+                  urlToDataUrl(url).then((dataUrl) => {
+                    onChange({ logoDataUrl: dataUrl });
+                    setShowPicker(false);
+                  }).catch(() => {
+                    onChange({ logoDataUrl: url });
+                    setShowPicker(false);
+                  });
+                }
+              }}
+              className="flex-1 text-center py-1.5 rounded-md bg-gray-100 text-[10px] font-medium text-gray-600 hover:bg-gray-200 transition-colors"
+            >
+              Paste URL
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
