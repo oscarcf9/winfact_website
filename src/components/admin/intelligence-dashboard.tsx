@@ -532,7 +532,10 @@ export function IntelligenceDashboard({ games, sports }: Props) {
               return (
                 <div
                   key={game.id}
+                  onClick={() => { if (!isPosted) handleAnalyze(game); }}
                   className={`group transition-colors duration-150 ${
+                    isPosted ? "cursor-default" : "cursor-pointer"
+                  } ${
                     isActive
                       ? "bg-primary/5 border-l-2 border-l-primary"
                       : isPosted
