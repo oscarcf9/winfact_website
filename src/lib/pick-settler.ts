@@ -151,7 +151,7 @@ export function evaluatePick(input: SettleInput): SettlementResult {
 
 /** Extract base bet type without period prefix */
 function getBaseType(betType: string): string {
-  return betType.replace(/^(f5_|1h_|1q_)/, "");
+  return betType.replace(/^(f5_|1h_|1q_|1i_)/, "");
 }
 
 /** Get the relevant scores for the bet period */
@@ -160,7 +160,7 @@ function getScoresForPeriod(
   game: ESPNGame
 ): { homeScore: number; awayScore: number } | null {
   // Full game
-  if (!betType.startsWith("f5_") && !betType.startsWith("1h_") && !betType.startsWith("1q_")) {
+  if (!betType.startsWith("f5_") && !betType.startsWith("1h_") && !betType.startsWith("1q_") && !betType.startsWith("1i_")) {
     return { homeScore: game.homeScore, awayScore: game.awayScore };
   }
 
@@ -182,6 +182,12 @@ function getScoresForPeriod(
 
   // First quarter (NBA, NFL)
   if (betType.startsWith("1q_")) {
+    if (game.homeLinescores.length < 1 || game.awayLinescores.length < 1) return null;
+    return { homeScore: game.homeLinescores[0], awayScore: game.awayLinescores[0] };
+  }
+
+  // First inning (MLB)
+  if (betType.startsWith("1i_")) {
     if (game.homeLinescores.length < 1 || game.awayLinescores.length < 1) return null;
     return { homeScore: game.homeLinescores[0], awayScore: game.awayLinescores[0] };
   }

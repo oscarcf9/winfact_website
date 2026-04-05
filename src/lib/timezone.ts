@@ -5,10 +5,37 @@
 
 /**
  * Get current date/time in Eastern Time.
+ * Uses Intl.DateTimeFormat to correctly extract ET components
+ * regardless of the server's local timezone (Vercel runs in UTC).
  */
 export function nowET(): Date {
-  const etString = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
-  return new Date(etString);
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(now);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value || "0";
+
+  // Build a date from the ET components directly, using UTC constructor
+  // so the resulting Date object represents the correct ET wall-clock time
+  return new Date(
+    Date.UTC(
+      parseInt(get("year")),
+      parseInt(get("month")) - 1,
+      parseInt(get("day")),
+      parseInt(get("hour")),
+      parseInt(get("minute")),
+      parseInt(get("second"))
+    )
+  );
 }
 
 /**

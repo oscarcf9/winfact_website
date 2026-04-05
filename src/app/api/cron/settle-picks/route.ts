@@ -232,6 +232,10 @@ export async function GET(req: Request) {
 /**
  * Find the ESPN game that matches a pick's matchup string.
  * Matchup format is typically "Team A vs Team B" or "Team A @ Team B".
+ *
+ * Doubleheader handling: If multiple games match the same teams on the
+ * same day (common in MLB), return undefined to force manual review
+ * rather than risk matching the wrong game.
  */
 function findMatchingGame(
   matchup: string,
@@ -243,19 +247,23 @@ function findMatchingGame(
 
   if (parts.length < 2) {
     // Try to match any team name in the matchup against games
+    const matches: ESPNGame[] = [];
     for (const game of games) {
       if (
         teamsMatch(matchup, game.homeTeam, sport) ||
         teamsMatch(matchup, game.awayTeam, sport)
       ) {
-        return game;
+        matches.push(game);
       }
     }
-    return undefined;
+    // If multiple games match (doubleheader), skip to avoid wrong match
+    return matches.length === 1 ? matches[0] : undefined;
   }
 
   const [team1, team2] = parts.map((p) => p.trim());
 
+  // Exact two-team match (both teams found)
+  const exactMatches: ESPNGame[] = [];
   for (const game of games) {
     const match1Home = teamsMatch(team1, game.homeTeam, sport);
     const match1Away = teamsMatch(team1, game.awayTeam, sport);
@@ -263,11 +271,16 @@ function findMatchingGame(
     const match2Away = teamsMatch(team2, game.awayTeam, sport);
 
     if ((match1Home && match2Away) || (match1Away && match2Home)) {
-      return game;
+      exactMatches.push(game);
     }
   }
 
-  // Fallback: try matching just one team
+  // If exactly one game matches, use it. If multiple (doubleheader), bail out.
+  if (exactMatches.length === 1) return exactMatches[0];
+  if (exactMatches.length > 1) return undefined; // Doubleheader — needs manual review
+
+  // Fallback: try matching just one team (only if single match)
+  const fallbackMatches: ESPNGame[] = [];
   for (const game of games) {
     if (
       teamsMatch(team1, game.homeTeam, sport) ||
@@ -275,9 +288,9 @@ function findMatchingGame(
       teamsMatch(team2, game.homeTeam, sport) ||
       teamsMatch(team2, game.awayTeam, sport)
     ) {
-      return game;
+      fallbackMatches.push(game);
     }
   }
 
-  return undefined;
+  return fallbackMatches.length === 1 ? fallbackMatches[0] : undefined;
 }

@@ -465,7 +465,7 @@ export function PicksManager() {
   async function handleAutoSettle() {
     setAutoSettling(true);
     try {
-      const res = await fetch("/api/cron/settle-picks");
+      const res = await fetch("/api/admin/picks/settle", { method: "POST" });
       if (res.ok) {
         const data = await res.json();
         setSettlementLogs(data.logs || []);

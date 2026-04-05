@@ -15,6 +15,9 @@ import {
   Loader2,
   AlertCircle,
   MessageCircle,
+  Eye,
+  EyeOff,
+  ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +28,10 @@ type QueueItem = {
   title: string;
   preview: string | null;
   imageUrl: string | null;
+  captionEn: string | null;
+  captionEs: string | null;
+  hashtags: string | null;
+  platform: string | null;
   status: "draft" | "scheduled" | "posted" | "failed";
   scheduledAt: string | null;
   postedAt: string | null;
@@ -77,6 +84,7 @@ export function ContentQueueDashboard() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [schedulingId, setSchedulingId] = useState<string | null>(null);
   const [scheduleDate, setScheduleDate] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -243,22 +251,93 @@ export function ContentQueueDashboard() {
               ) : (
                 items.map((item) => {
                   const isActioning = actionLoading === item.id;
+                  const isExpanded = expandedId === item.id;
+                  const hasPreview = item.imageUrl || item.preview || item.captionEn || item.captionEs;
                   return (
                     <tr
                       key={item.id}
-                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors group"
                     >
                       <td className="py-3 px-6">
                         <TypeBadge type={item.type} t={t} />
                       </td>
-                      <td className="py-3 px-6 font-medium text-gray-800 max-w-[250px]">
-                        <div className="truncate">{item.title}</div>
-                        {item.error && (
-                          <div className="flex items-center gap-1 mt-1 text-xs text-red-500">
-                            <AlertCircle className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{item.error}</span>
+                      <td className="py-3 px-6 font-medium text-gray-800" colSpan={isExpanded ? 1 : 1}>
+                        <div className="flex items-start gap-3">
+                          {/* Thumbnail preview */}
+                          {item.imageUrl && !isExpanded && (
+                            <img
+                              src={item.imageUrl}
+                              alt=""
+                              className="h-10 w-10 rounded-lg object-cover shrink-0 border border-gray-200"
+                            />
+                          )}
+                          {!item.imageUrl && !isExpanded && (
+                            <div className="h-10 w-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0">
+                              <ImageIcon className="h-4 w-4 text-gray-300" />
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate max-w-[250px]">{item.title}</div>
+                            {item.preview && !isExpanded && (
+                              <div className="text-xs text-gray-400 truncate max-w-[250px] mt-0.5">
+                                {item.preview}
+                              </div>
+                            )}
+                            {item.error && (
+                              <div className="flex items-center gap-1 mt-1 text-xs text-red-500">
+                                <AlertCircle className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{item.error}</span>
+                              </div>
+                            )}
+                            {/* Expanded preview panel */}
+                            {isExpanded && hasPreview && (
+                              <div className="mt-3 p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
+                                {item.imageUrl && (
+                                  <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Image</p>
+                                    <img
+                                      src={item.imageUrl}
+                                      alt={item.title}
+                                      className="max-w-full max-h-64 rounded-lg object-contain border border-gray-200"
+                                    />
+                                  </div>
+                                )}
+                                {item.captionEn && (
+                                  <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Caption (EN)</p>
+                                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{item.captionEn}</p>
+                                  </div>
+                                )}
+                                {item.captionEs && (
+                                  <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Caption (ES)</p>
+                                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{item.captionEs}</p>
+                                  </div>
+                                )}
+                                {!item.captionEn && !item.captionEs && item.preview && (
+                                  <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Preview</p>
+                                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{item.preview}</p>
+                                  </div>
+                                )}
+                                {item.hashtags && (
+                                  <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Hashtags</p>
+                                    <p className="text-sm text-blue-600">{item.hashtags}</p>
+                                  </div>
+                                )}
+                                {item.platform && item.platform !== "all" && (
+                                  <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Platform</p>
+                                    <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-600 border border-indigo-200">
+                                      {item.platform}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </td>
                       <td className="py-3 px-6 text-center">
                         <StatusBadge status={item.status} />
@@ -279,6 +358,19 @@ export function ContentQueueDashboard() {
                             <Loader2 className="h-4 w-4 text-gray-300 animate-spin" />
                           ) : (
                             <>
+                              {/* Preview toggle */}
+                              <button
+                                onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                                title={isExpanded ? "Hide preview" : "Show preview"}
+                                className={cn(
+                                  "p-1.5 rounded-lg transition-colors cursor-pointer",
+                                  isExpanded
+                                    ? "bg-primary/10 text-primary"
+                                    : "hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                                )}
+                              >
+                                {isExpanded ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </button>
                               {(item.status === "draft" || item.status === "failed") && (
                                 <>
                                   {schedulingId === item.id ? (

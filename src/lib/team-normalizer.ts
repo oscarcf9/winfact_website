@@ -224,6 +224,10 @@ export type ParsedPick = {
     | "1q_spread"
     | "1q_over"
     | "1q_under"
+    | "1i_moneyline"
+    | "1i_spread"
+    | "1i_over"
+    | "1i_under"
     | "parlay"
     | "player_prop"
     | "unknown";
@@ -240,13 +244,19 @@ export function parsePick(pickText: string): ParsedPick {
   }
 
   // Player props (look for common prop keywords)
-  const propKeywords = ["pts", "reb", "ast", "strikeouts", "hits", "hr", "rbi", "yards", "tds", "touchdowns", "goals", "assists", "saves", "sog", "shots"];
+  const propKeywords = [
+    "pts", "points", "reb", "rebounds", "ast", "assists",
+    "strikeouts", "hits", "hr", "rbi", "yards", "tds", "touchdowns",
+    "goals", "saves", "sog", "shots", "blocks", "steals",
+    "3-pointers", "threes", "passing", "rushing", "receiving",
+    "bases", "ks", "era", "whip",
+  ];
   if (propKeywords.some((kw) => lower.includes(kw))) {
     return { team: null, betType: "player_prop", line: null };
   }
 
   // Detect period modifiers
-  let period: "" | "f5_" | "1h_" | "1q_" = "";
+  let period: "" | "f5_" | "1h_" | "1q_" | "1i_" = "";
   let workText = text;
 
   if (/\bF5\b/i.test(workText)) {
@@ -258,7 +268,13 @@ export function parsePick(pickText: string): ParsedPick {
   } else if (/\b1Q\b/i.test(workText)) {
     period = "1q_";
     workText = workText.replace(/\b1Q\b/i, "").trim();
+  } else if (/\b(?:1st\s+inning|first\s+inning)\b/i.test(workText)) {
+    period = "1i_";
+    workText = workText.replace(/\b(?:1st\s+inning|first\s+inning)\b/i, "").trim();
   }
+
+  // Strip noise phrases that appear in over/under pick text (e.g., "total runs", "total points")
+  workText = workText.replace(/\btotal\s+(?:runs|points|goals)\b/gi, "").trim();
 
   // Over/Under
   const overMatch = workText.match(/^over\s+([\d.]+)/i);
