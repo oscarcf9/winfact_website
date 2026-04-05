@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
+
+// sharp requires Node.js runtime (not edge)
+export const runtime = "nodejs";
+export const maxDuration = 300; // 5 min timeout for processing many images
 import { db } from "@/db";
 import { contentQueue, media, victoryPosts } from "@/db/schema";
 import { isNotNull } from "drizzle-orm";

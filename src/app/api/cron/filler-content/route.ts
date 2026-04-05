@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { contentQueue } from "@/db/schema";
+import { contentQueue, media } from "@/db/schema";
 import { eq, and, gte } from "drizzle-orm";
 import { getSiteContent } from "@/db/queries/site-content";
 import { fetchScoreboard, toESPNDate } from "@/lib/espn";
@@ -142,6 +142,19 @@ export async function GET(req: Request) {
         if (imageResult.error || !imageResult.url) {
           console.error(`[filler] Image failed for ${title}:`, imageResult.error);
           continue;
+        }
+
+        // Save image to media library
+        if (imageResult.url && imageResult.filename) {
+          await db.insert(media).values({
+            id: crypto.randomUUID(),
+            filename: imageResult.filename,
+            url: imageResult.url,
+            mimeType: "image/png",
+            width: 1080,
+            height: 1440,
+            altText: `${game.sport} matchup: ${title}`,
+          }).catch((err) => console.error(`[filler] Media insert failed:`, err));
         }
 
         // Generate bilingual captions
