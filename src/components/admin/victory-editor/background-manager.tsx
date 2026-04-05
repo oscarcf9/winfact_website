@@ -10,11 +10,11 @@ interface BackgroundManagerProps {
 }
 
 const AI_STYLES = [
-  { id: "arena-lights", label: "Arena Lights" },
-  { id: "city-skyline", label: "City Skyline" },
-  { id: "dramatic-sky", label: "Dramatic Sky" },
-  { id: "smoke-flames", label: "Smoke & Flames" },
-  { id: "neon-night", label: "Neon Night" },
+  { id: "arena_lights", label: "Arena Lights" },
+  { id: "city_skyline", label: "City Skyline" },
+  { id: "dramatic_sky", label: "Dramatic Sky" },
+  { id: "smoke_flames", label: "Smoke & Flames" },
+  { id: "neon_night", label: "Neon Night" },
 ] as const;
 
 type AiStyleId = (typeof AI_STYLES)[number]["id"];
@@ -94,6 +94,10 @@ export function BackgroundManager({ sport, team, onSelect }: BackgroundManagerPr
   // ── AI generate handlers ─────────────────────────────────────────────
 
   const handleGenerate = useCallback(async () => {
+    if (!team) {
+      setError("Please select a winner team first (at the top of the page)");
+      return;
+    }
     setGenerating(true);
     setError(null);
     setGeneratedUrl(null);
