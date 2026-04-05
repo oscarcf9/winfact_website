@@ -43,7 +43,8 @@ export async function GET(req: Request) {
             .set({ status: "published", publishedAt: now })
             .where(eq(posts.id, item.referenceId));
 
-          // Post blog link to Buffer (all connected socials)
+          // Blogs are published on winfactpicks.com only.
+          // Share the link on Facebook via Buffer (link share, no image upload).
           const [post] = await db
             .select({ slug: posts.slug, titleEn: posts.titleEn, titleEs: posts.titleEs })
             .from(posts)
@@ -53,11 +54,11 @@ export async function GET(req: Request) {
           if (post?.slug) {
             const blogUrl = `${SITE_URL}/en/blog/${post.slug}`;
             const title = post.titleEs || post.titleEn || item.title;
+            // Share blog link on Facebook only (Buffer will use the OG meta tags)
             postBlogToSocial({
               title,
               url: blogUrl,
-              imageUrl: item.imageUrl || undefined,
-            }).catch((err) => console.error(`[content-queue] Blog social post failed:`, err));
+            }).catch((err) => console.error(`[content-queue] Blog Facebook share failed:`, err));
           }
         }
 
