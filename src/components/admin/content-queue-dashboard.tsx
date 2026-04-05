@@ -18,6 +18,7 @@ import {
   Eye,
   EyeOff,
   ImageIcon,
+  Share2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -178,6 +179,24 @@ export function ContentQueueDashboard() {
     } catch (err) {
       console.error("Telegram send error:", err);
       alert("Failed to send to Telegram");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const sendToBuffer = async (id: string) => {
+    setActionLoading(id);
+    try {
+      const res = await fetch(`/api/admin/content-queue/${id}/buffer`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Failed to send to Buffer");
+      }
+    } catch (err) {
+      console.error("Buffer send error:", err);
+      alert("Failed to send to Buffer");
     } finally {
       setActionLoading(null);
     }
@@ -422,6 +441,13 @@ export function ContentQueueDashboard() {
                                 className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-400 hover:text-blue-600 transition-colors cursor-pointer"
                               >
                                 <MessageCircle className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => sendToBuffer(item.id)}
+                                title="Send to Buffer (Twitter, Threads, IG, FB)"
+                                className="p-1.5 rounded-lg hover:bg-purple-50 text-purple-400 hover:text-purple-600 transition-colors cursor-pointer"
+                              >
+                                <Share2 className="h-4 w-4" />
                               </button>
                               <button
                                 onClick={() => deleteItem(item.id)}

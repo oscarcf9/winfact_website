@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { contentQueue, posts } from "@/db/schema";
 import { eq, and, lte } from "drizzle-orm";
+import { postVictoryToSocial, postFillerToSocial, postBlogToSocial } from "@/lib/social-posting";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com";
 
 export async function GET(req: Request) {
   const cronSecret = process.env.CRON_SECRET;
@@ -33,15 +36,62 @@ export async function GET(req: Request) {
 
     for (const item of due) {
       try {
+        // 1. Handle blog publishing (update post status in DB)
         if (item.type === "blog") {
           await db
             .update(posts)
             .set({ status: "published", publishedAt: now })
             .where(eq(posts.id, item.referenceId));
-        }
-        // victory_post and filler types: the queue item status change
-        // is the action — extend here when social posting is wired up.
 
+          // Post blog link to Buffer (all connected socials)
+          const [post] = await db
+            .select({ slug: posts.slug, titleEn: posts.titleEn, titleEs: posts.titleEs })
+            .from(posts)
+            .where(eq(posts.id, item.referenceId))
+            .limit(1);
+
+          if (post?.slug) {
+            const blogUrl = `${SITE_URL}/en/blog/${post.slug}`;
+            const title = post.titleEs || post.titleEn || item.title;
+            postBlogToSocial({
+              title,
+              url: blogUrl,
+              imageUrl: item.imageUrl || undefined,
+            }).catch((err) => console.error(`[content-queue] Blog social post failed:`, err));
+          }
+        }
+
+        // 2. Post victory posts to Buffer (all connected socials)
+        if (item.type === "victory_post" && item.imageUrl) {
+          const result = await postVictoryToSocial({
+            captionEn: item.captionEn || item.title,
+            captionEs: item.captionEs || item.captionEn || item.title,
+            imageUrl: item.imageUrl,
+            hashtags: item.hashtags || "#WinFactPicks #Winner",
+          });
+          if (!result.ok) {
+            console.error(`[content-queue] Victory social post failed: ${result.error}`);
+          } else {
+            console.log(`[content-queue] Victory post sent to Buffer: ${item.title}`);
+          }
+        }
+
+        // 3. Post filler graphics to Buffer (all connected socials)
+        if (item.type === "filler" && item.imageUrl) {
+          const result = await postFillerToSocial({
+            captionEn: item.captionEn || item.title,
+            captionEs: item.captionEs || item.captionEn || item.title,
+            imageUrl: item.imageUrl,
+            hashtags: item.hashtags || "#WinFactPicks #GameDay",
+          });
+          if (!result.ok) {
+            console.error(`[content-queue] Filler social post failed: ${result.error}`);
+          } else {
+            console.log(`[content-queue] Filler post sent to Buffer: ${item.title}`);
+          }
+        }
+
+        // 4. Mark as posted
         await db
           .update(contentQueue)
           .set({ status: "posted", postedAt: now })
