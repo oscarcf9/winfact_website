@@ -35,6 +35,13 @@ yarn-error.log*
 
 # local database
 local.db
+*.db
+*.sqlite
+
+# test artifacts
+/test-screenshots/
+/test-picks.csv
+/.playwright-mcp/
 
 # drizzle
 /drizzle/

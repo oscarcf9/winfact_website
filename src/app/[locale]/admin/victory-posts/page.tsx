@@ -56,9 +56,10 @@ export default async function VictoryPostsPage() {
             const StatusIcon = config.icon;
 
             return (
-              <div
+              <Link
                 key={post.id}
-                className="group rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-all"
+                href={post.pickId ? `/admin/picks/${post.pickId}/victory-post` : "#"}
+                className="group rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-all block"
               >
                 {/* Image */}
                 {post.imageUrl ? (
@@ -124,7 +125,7 @@ export default async function VictoryPostsPage() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>
