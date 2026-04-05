@@ -20,6 +20,8 @@ function getOpenAI(): OpenAI {
 type ImageResult = {
   url: string;
   filename: string;
+  storyUrl?: string;
+  storyFilename?: string;
   error?: string;
 };
 
@@ -72,7 +74,28 @@ export async function generateMatchupImage(
       url = `/uploads/${filename}`;
     }
 
-    return { url, filename };
+    // Also generate a story version (1080x1920, 9:16)
+    const storyBuffer = await sharp(rawBuffer)
+      .resize(1080, 1920, { fit: "cover", position: "center" })
+      .png({ quality: 90 })
+      .toBuffer();
+
+    const storyFilename = filename.replace(".png", "-story.png");
+    let storyUrl = "";
+
+    if (isR2Configured()) {
+      const storyKey = `uploads/${storyFilename}`;
+      storyUrl = await uploadToR2(storyKey, storyBuffer, "image/png");
+    } else {
+      const { writeFile, mkdir } = await import("fs/promises");
+      const { join } = await import("path");
+      const uploadDir = join(process.cwd(), "public", "uploads");
+      await mkdir(uploadDir, { recursive: true });
+      await writeFile(join(uploadDir, storyFilename), storyBuffer);
+      storyUrl = `/uploads/${storyFilename}`;
+    }
+
+    return { url, filename, storyUrl, storyFilename };
   } catch (error) {
     console.error("Image generation error:", error);
     return { url: "", filename: "", error: String(error) };
