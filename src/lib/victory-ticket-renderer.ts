@@ -56,11 +56,11 @@ export async function renderTicketServer(
   const scoreSection = hasScore
     ? `
     <rect x="100" y="285" width="500" height="60" rx="12" ry="12" fill="rgba(0,0,0,0.35)"/>
-    <text x="160" y="322" font-family="Arial,Helvetica,sans-serif" font-size="20" font-weight="bold" fill="#ffffff" text-anchor="end">${escapeXml(team1Name)}</text>
-    <text x="200" y="322" font-family="Arial,Helvetica,sans-serif" font-size="24" font-weight="bold" fill="#FFD700" text-anchor="middle">${team1Score}</text>
-    <text x="350" y="322" font-family="Arial,Helvetica,sans-serif" font-size="14" fill="rgba(255,255,255,0.7)" text-anchor="middle">FINAL</text>
-    <text x="500" y="322" font-family="Arial,Helvetica,sans-serif" font-size="24" font-weight="bold" fill="#FFD700" text-anchor="middle">${team2Score}</text>
-    <text x="540" y="322" font-family="Arial,Helvetica,sans-serif" font-size="20" font-weight="bold" fill="#ffffff" text-anchor="start">${escapeXml(team2Name)}</text>
+    <text x="160" y="322" font-family="DejaVu Sans,Liberation Sans,sans-serif" font-size="20" font-weight="bold" fill="#ffffff" text-anchor="end">${escapeXml(team1Name)}</text>
+    <text x="200" y="322" font-family="DejaVu Sans,Liberation Sans,sans-serif" font-size="24" font-weight="bold" fill="#FFD700" text-anchor="middle">${team1Score}</text>
+    <text x="350" y="322" font-family="DejaVu Sans,Liberation Sans,sans-serif" font-size="14" fill="rgba(255,255,255,0.7)" text-anchor="middle">FINAL</text>
+    <text x="500" y="322" font-family="DejaVu Sans,Liberation Sans,sans-serif" font-size="24" font-weight="bold" fill="#FFD700" text-anchor="middle">${team2Score}</text>
+    <text x="540" y="322" font-family="DejaVu Sans,Liberation Sans,sans-serif" font-size="20" font-weight="bold" fill="#ffffff" text-anchor="start">${escapeXml(team2Name)}</text>
     `
     : "";
 
@@ -83,20 +83,20 @@ export async function renderTicketServer(
 
     <!-- Header bar -->
     <rect width="700" height="80" fill="rgba(0,0,0,0.25)"/>
-    <text x="30" y="50" font-family="Arial,Helvetica,sans-serif" font-size="26" font-weight="bold" fill="#ffffff">${escapeXml(sport.toUpperCase())}</text>
+    <text x="30" y="50" font-family="DejaVu Sans,Liberation Sans,sans-serif" font-size="26" font-weight="bold" fill="#ffffff">${escapeXml(sport.toUpperCase())}</text>
 
     <!-- WIN badge -->
     <rect x="560" y="18" width="110" height="44" rx="10" ry="10" fill="rgba(255,255,255,0.2)"/>
-    <text x="615" y="48" font-family="Arial,Helvetica,sans-serif" font-size="22" font-weight="bold" fill="#ffffff" text-anchor="middle">WIN &#x2713;</text>
+    <text x="615" y="48" font-family="DejaVu Sans,Liberation Sans,sans-serif" font-size="22" font-weight="bold" fill="#ffffff" text-anchor="middle">WIN &#x2713;</text>
 
     <!-- Pick text -->
-    <text x="350" y="145" font-family="Arial,Helvetica,sans-serif" font-size="38" font-weight="bold" fill="#ffffff" text-anchor="middle">${escapeXml(pickText)}</text>
+    <text x="350" y="145" font-family="DejaVu Sans,Liberation Sans,sans-serif" font-size="38" font-weight="bold" fill="#ffffff" text-anchor="middle">${escapeXml(pickText)}</text>
 
     <!-- Odds -->
-    <text x="350" y="190" font-family="Arial,Helvetica,sans-serif" font-size="24" fill="rgba(255,255,255,0.85)" text-anchor="middle">${escapeXml(oddsText)}</text>
+    <text x="350" y="190" font-family="DejaVu Sans,Liberation Sans,sans-serif" font-size="24" fill="rgba(255,255,255,0.85)" text-anchor="middle">${escapeXml(oddsText)}</text>
 
     <!-- Matchup -->
-    <text x="350" y="240" font-family="Arial,Helvetica,sans-serif" font-size="20" fill="rgba(255,255,255,0.65)" text-anchor="middle">${escapeXml(matchup)}</text>
+    <text x="350" y="240" font-family="DejaVu Sans,Liberation Sans,sans-serif" font-size="20" fill="rgba(255,255,255,0.65)" text-anchor="middle">${escapeXml(matchup)}</text>
 
     <!-- Divider -->
     <line x1="60" y1="270" x2="640" y2="270" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
@@ -105,14 +105,14 @@ export async function renderTicketServer(
     ${scoreSection}
 
     <!-- Wager / Payout -->
-    <text x="60" y="${bottomY}" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="rgba(255,255,255,0.7)">WAGER</text>
-    <text x="60" y="${bottomY + 30}" font-family="Arial,Helvetica,sans-serif" font-size="26" font-weight="bold" fill="#ffffff">$${wager.toFixed(0)}</text>
+    <text x="60" y="${bottomY}" font-family="DejaVu Sans,Liberation Sans,sans-serif" font-size="18" fill="rgba(255,255,255,0.7)">WAGER</text>
+    <text x="60" y="${bottomY + 30}" font-family="DejaVu Sans,Liberation Sans,sans-serif" font-size="26" font-weight="bold" fill="#ffffff">$${wager.toFixed(0)}</text>
 
-    <text x="640" y="${bottomY}" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="rgba(255,255,255,0.7)" text-anchor="end">PAYOUT</text>
-    <text x="640" y="${bottomY + 30}" font-family="Arial,Helvetica,sans-serif" font-size="26" font-weight="bold" fill="#FFD700" text-anchor="end">$${payout.toFixed(2)}</text>
+    <text x="640" y="${bottomY}" font-family="DejaVu Sans,Liberation Sans,sans-serif" font-size="18" fill="rgba(255,255,255,0.7)" text-anchor="end">PAYOUT</text>
+    <text x="640" y="${bottomY + 30}" font-family="DejaVu Sans,Liberation Sans,sans-serif" font-size="26" font-weight="bold" fill="#FFD700" text-anchor="end">$${payout.toFixed(2)}</text>
 
     <!-- WinFact watermark -->
-    <text x="350" y="485" font-family="Arial,Helvetica,sans-serif" font-size="12" fill="rgba(255,255,255,0.35)" text-anchor="middle">WINFACT PICKS</text>
+    <text x="350" y="485" font-family="DejaVu Sans,Liberation Sans,sans-serif" font-size="12" fill="rgba(255,255,255,0.35)" text-anchor="middle">WINFACT PICKS</text>
   </g>
 </svg>`;
 

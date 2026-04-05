@@ -1,7 +1,12 @@
 import OpenAI from "openai";
+import sharp from "sharp";
 import { randomUUID } from "crypto";
 import { buildImagePrompt } from "./ai-blog-engine";
 import { uploadToR2, isR2Configured } from "./r2";
+
+// Instagram 3:4 feed post dimensions (2026 standard)
+const IG_WIDTH = 1080;
+const IG_HEIGHT = 1440;
 
 let _openai: OpenAI | null = null;
 
@@ -30,9 +35,9 @@ export async function generateMatchupImage(
 
     const response = await openai.images.generate({
       model: "gpt-image-1",
-      prompt,
+      prompt: prompt + "\n\nIMPORTANT: This image MUST be in portrait/vertical orientation (taller than wide). Compose the scene vertically with subjects centered. Leave breathing room at top and bottom — content must not be cut off at edges.",
       n: 1,
-      size: "1536x1024",
+      size: "1024x1536", // Portrait orientation for Instagram 3:4 feed posts
       quality: "high",
     });
 
@@ -42,7 +47,14 @@ export async function generateMatchupImage(
     }
 
     const filename = `matchup-${randomUUID()}.png`;
-    const buffer = Buffer.from(imageData.b64_json, "base64");
+    const rawBuffer = Buffer.from(imageData.b64_json, "base64");
+
+    // Resize to exact Instagram 3:4 dimensions (1080x1440)
+    // Use "cover" to fill the frame, centering the content
+    const buffer = await sharp(rawBuffer)
+      .resize(IG_WIDTH, IG_HEIGHT, { fit: "cover", position: "center" })
+      .png({ quality: 90 })
+      .toBuffer();
 
     let url: string;
 

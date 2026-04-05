@@ -176,7 +176,7 @@ export async function processNextVictoryPost(): Promise<boolean> {
       url: imageUrl,
       mimeType: "image/png",
       width: 1080,
-      height: 1350,
+      height: 1440,
       altText: `Victory post: ${pick.matchup} — ${pick.pickText}`,
     });
 

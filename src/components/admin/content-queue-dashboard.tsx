@@ -491,7 +491,7 @@ export function ContentQueueDashboard() {
               >
                 {/* Image / Placeholder */}
                 {item.imageUrl ? (
-                  <div className="relative aspect-[4/5] bg-gray-950 overflow-hidden">
+                  <div className="relative aspect-[3/4] bg-gray-950 overflow-hidden">
                     <img
                       src={item.imageUrl}
                       alt={item.title}

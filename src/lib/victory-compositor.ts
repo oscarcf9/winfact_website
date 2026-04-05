@@ -45,8 +45,9 @@ function randomChoice<T>(arr: T[]): T {
 // Canvas constants
 // ---------------------------------------------------------------------------
 
+// Instagram 3:4 feed post dimensions (2026 standard: 1080×1440)
 const CANVAS_W = 1080;
-const CANVAS_H = 1350;
+const CANVAS_H = 1440;
 const TICKET_WIDTH = 702; // ~65% of canvas width
 
 // ---------------------------------------------------------------------------
@@ -144,11 +145,17 @@ function buildOverlaySvg(
   const labelY = CANVAS_H - 130;
   const brandY = CANVAS_H - 60;
 
+  // Use sans-serif (guaranteed on all platforms including Vercel serverless).
+  // Arial/Helvetica are NOT available on Vercel's minimal Linux images,
+  // which causes text to render as boxes/rectangles.
+  // DejaVu Sans is available on most Linux distros including Vercel's.
+  const fontStack = "DejaVu Sans, Liberation Sans, sans-serif";
+
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS_W}" height="${CANVAS_H}">
   <defs>
     <linearGradient id="bottomFade" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0.40" stop-color="rgba(0,0,0,0)" stop-opacity="0"/>
-      <stop offset="0.75" stop-color="rgb(0,0,0)" stop-opacity="0.6"/>
+      <stop offset="0.35" stop-color="rgba(0,0,0,0)" stop-opacity="0"/>
+      <stop offset="0.70" stop-color="rgb(0,0,0)" stop-opacity="0.55"/>
       <stop offset="1.00" stop-color="rgb(0,0,0)" stop-opacity="0.85"/>
     </linearGradient>
     <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
@@ -164,9 +171,9 @@ function buildOverlaySvg(
     x="${CANVAS_W / 2}"
     y="${labelY}"
     text-anchor="middle"
-    font-family="Arial, Helvetica, sans-serif"
+    font-family="${fontStack}"
     font-size="48"
-    font-weight="bold"
+    font-weight="700"
     fill="white"
     filter="url(#shadow)"
   >${escapedLabel}</text>
@@ -176,8 +183,9 @@ function buildOverlaySvg(
     x="${CANVAS_W / 2}"
     y="${brandY}"
     text-anchor="middle"
-    font-family="Arial, Helvetica, sans-serif"
+    font-family="${fontStack}"
     font-size="24"
+    font-weight="400"
     fill="rgba(255,255,255,0.85)"
     letter-spacing="2"
   >WINFACTPICKS.COM</text>
