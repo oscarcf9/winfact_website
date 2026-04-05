@@ -21,6 +21,8 @@ import {
   Globe,
   Hash,
   Languages,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -330,6 +332,7 @@ export function ContentQueueDashboard() {
   const [schedulingId, setSchedulingId] = useState<string | null>(null);
   const [scheduleDate, setScheduleDate] = useState("");
   const [previewItem, setPreviewItem] = useState<QueueItem | null>(null);
+  const [viewMode, setViewMode] = useState<"gallery" | "table">("gallery");
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -451,25 +454,51 @@ export function ContentQueueDashboard() {
         />
       )}
 
-      {/* Filter tabs */}
-      <div className="flex flex-wrap gap-2">
-        {STATUS_TABS.map((s) => (
+      {/* Filter tabs + view toggle */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap gap-2">
+          {STATUS_TABS.map((s) => (
+            <button
+              key={s}
+              onClick={() => handleTabChange(s)}
+              className={cn(
+                "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 cursor-pointer",
+                tab === s
+                  ? "bg-primary/10 text-primary border border-primary/20 font-semibold"
+                  : "bg-white text-gray-500 border border-gray-200 hover:bg-gray-50 hover:text-gray-700"
+              )}
+            >
+              {t(s)}
+            </button>
+          ))}
+        </div>
+        <div className="flex rounded-lg border border-gray-200 overflow-hidden shrink-0">
           <button
-            key={s}
-            onClick={() => handleTabChange(s)}
+            type="button"
+            onClick={() => setViewMode("gallery")}
             className={cn(
-              "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 cursor-pointer",
-              tab === s
-                ? "bg-primary/10 text-primary border border-primary/20 font-semibold"
-                : "bg-white text-gray-500 border border-gray-200 hover:bg-gray-50 hover:text-gray-700"
+              "p-2 transition-colors cursor-pointer",
+              viewMode === "gallery" ? "bg-primary/10 text-primary" : "text-gray-400 hover:bg-gray-50"
             )}
+            title="Gallery view"
           >
-            {t(s)}
+            <LayoutGrid className="h-4 w-4" />
           </button>
-        ))}
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            className={cn(
+              "p-2 transition-colors cursor-pointer border-l border-gray-200",
+              viewMode === "table" ? "bg-primary/10 text-primary" : "text-gray-400 hover:bg-gray-50"
+            )}
+            title="Table view"
+          >
+            <List className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
-      {/* Cards Grid */}
+      {/* Content */}
       {loading ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="h-6 w-6 text-gray-300 animate-spin" />
@@ -479,7 +508,79 @@ export function ContentQueueDashboard() {
           <Clock className="h-10 w-10 text-gray-200 mx-auto mb-3" />
           <p className="text-gray-400 text-sm">{t("noItems")}</p>
         </div>
-      ) : (
+      ) : viewMode === "table" ? (
+        /* ─── Table View ─────────────────────────────── */
+        <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider w-12" />
+                  <th className="text-left py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{t("type")}</th>
+                  <th className="text-left py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{t("title")}</th>
+                  <th className="text-center py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{t("statusLabel")}</th>
+                  <th className="text-center py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{t("scheduledFor")}</th>
+                  <th className="text-right py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{t("actions")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => {
+                  const isActioning = actionLoading === item.id;
+                  return (
+                    <tr
+                      key={item.id}
+                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => setPreviewItem(item)}
+                    >
+                      <td className="py-2 px-4">
+                        {item.imageUrl ? (
+                          <img src={item.imageUrl} alt="" className="h-10 w-10 rounded-lg object-cover border border-gray-200" />
+                        ) : (
+                          <div className="h-10 w-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
+                            <ImageIcon className="h-4 w-4 text-gray-300" />
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-2 px-4"><TypeBadge type={item.type} t={t} /></td>
+                      <td className="py-2 px-4">
+                        <div className="font-medium text-gray-800 truncate max-w-[250px]">{item.title}</div>
+                        {item.preview && <div className="text-xs text-gray-400 truncate max-w-[250px]">{item.preview}</div>}
+                        {item.error && (
+                          <div className="flex items-center gap-1 mt-0.5 text-xs text-red-500">
+                            <AlertCircle className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{item.error}</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-2 px-4 text-center"><StatusBadge status={item.status} /></td>
+                      <td className="py-2 px-4 text-center text-xs text-gray-400">
+                        {item.scheduledAt ? new Date(item.scheduledAt).toLocaleString() : "\u2014"}
+                      </td>
+                      <td className="py-2 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1">
+                          {isActioning ? (
+                            <Loader2 className="h-4 w-4 text-gray-300 animate-spin" />
+                          ) : (
+                            <>
+                              {(item.status === "draft" || item.status === "failed") && (
+                                <button type="button" onClick={() => handlePostNow(item.id)} title={t("postNow")} className="p-1 rounded-md hover:bg-success/10 text-success/60 hover:text-success transition-colors cursor-pointer"><Send className="h-3.5 w-3.5" /></button>
+                              )}
+                              <button type="button" onClick={() => sendToTelegram(item.id)} title={t("sendTelegram")} className="p-1 rounded-md hover:bg-blue-50 text-blue-400 hover:text-blue-600 transition-colors cursor-pointer"><MessageCircle className="h-3.5 w-3.5" /></button>
+                              <button type="button" onClick={() => sendToBuffer(item.id)} title="Buffer" className="p-1 rounded-md hover:bg-purple-50 text-purple-400 hover:text-purple-600 transition-colors cursor-pointer"><Share2 className="h-3.5 w-3.5" /></button>
+                              <button type="button" onClick={() => deleteItem(item.id)} title={t("delete")} className="p-1 rounded-md hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors cursor-pointer"><Trash2 className="h-3.5 w-3.5" /></button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        ) : (
+        /* ─── Gallery View ─────────────────────────────── */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {items.map((item) => {
             const isActioning = actionLoading === item.id;
