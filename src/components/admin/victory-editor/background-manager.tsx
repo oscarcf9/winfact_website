@@ -30,7 +30,7 @@ export function BackgroundManager({ sport, team, onSelect }: BackgroundManagerPr
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // AI generate state
-  const [selectedStyle, setSelectedStyle] = useState<AiStyleId>("arena-lights");
+  const [selectedStyle, setSelectedStyle] = useState<AiStyleId>("arena_lights");
   const [generating, setGenerating] = useState(false);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
