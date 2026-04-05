@@ -6,7 +6,7 @@ import { fetchAllLiveGames } from "@/lib/espn-live";
 import { generateCommentary } from "@/lib/commentary-generator";
 import { sendTelegramMessage } from "@/lib/telegram";
 import { getSiteContent } from "@/db/queries/site-content";
-import { postToBuffer } from "@/lib/buffer";
+import { postLiveToBuffer } from "@/lib/buffer";
 
 // Defaults — overridden by siteContent settings if configured
 const DEFAULT_COOLDOWN_MINUTES = 90;
@@ -196,7 +196,7 @@ export async function GET(req: Request) {
 
     // 7. Cross-post to Twitter/Threads via Buffer (~1 per 30 min)
     if (!skipBuffer) {
-      const bufferResult = await postToBuffer(comment).catch((err) => {
+      const bufferResult = await postLiveToBuffer(comment).catch((err) => {
         console.error("[commentary] Buffer error:", err);
         return { ok: false, error: String(err) } as const;
       });
