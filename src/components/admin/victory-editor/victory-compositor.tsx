@@ -1,19 +1,27 @@
 "use client";
 
-import {
-  useState,
-  useRef,
-  useEffect,
-  useCallback,
-  useMemo,
-  type ChangeEvent,
-} from "react";
-import { Stage, Layer, Image as KonvaImage, Text, Rect, Transformer } from "react-konva";
-import type Konva from "konva";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { Download, Send, Loader2 } from "lucide-react";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+// Polotno imports
+import { PolotnoContainer, SidePanelWrap, WorkspaceWrap } from "polotno";
+import { Toolbar } from "polotno/toolbar/toolbar";
+import { ZoomButtons } from "polotno/toolbar/zoom-buttons";
+import { SidePanel, DEFAULT_SECTIONS } from "polotno/side-panel";
+import { Workspace } from "polotno/canvas/workspace";
+import { createStore } from "polotno/model/store";
+import "@blueprintjs/core/lib/css/blueprint.css";
+
+// Instagram 3:4 feed post dimensions (2026 standard)
+const CANVAS_W = 1080;
+const CANVAS_H = 1440;
+
+const VIP_LABELS = ["VIP PICK HIT", "LA EXCLUSIVA", "VIP WINNER", "EXCLUSIVE VIP PLAY"];
+const FREE_LABELS = ["FREE {SPORT} PICKS", "PICKS DE {SPORT}", "FREE PICK WINNER"];
+
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
 
 interface VictoryCompositorProps {
   backgroundUrl: string | null;
@@ -23,80 +31,6 @@ interface VictoryCompositorProps {
   onExport: (dataUrl: string) => void;
 }
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const CANVAS_W = 1080;
-const CANVAS_H = 1440;
-const DISPLAY_SCALE = 0.5;
-const DISPLAY_W = CANVAS_W * DISPLAY_SCALE;
-const DISPLAY_H = CANVAS_H * DISPLAY_SCALE;
-const EXPORT_PIXEL_RATIO = 2;
-
-const DEFAULT_TICKET_SCALE = 50;
-const DEFAULT_BG_OPACITY = 100;
-const DEFAULT_GRADIENT_STRENGTH = 70;
-
-const VIP_LABELS = [
-  "VIP PICK HIT",
-  "LA EXCLUSIVA",
-  "VIP WINNER",
-  "EXCLUSIVE VIP PLAY",
-] as const;
-
-const FREE_LABELS = [
-  "FREE {SPORT} PICKS",
-  "PICKS DE {SPORT}",
-  "FREE PICK WINNER",
-] as const;
-
-// ---------------------------------------------------------------------------
-// Hook: useKonvaImage
-// ---------------------------------------------------------------------------
-
-function useKonvaImage(url: string | null): HTMLImageElement | undefined {
-  const [image, setImage] = useState<HTMLImageElement>();
-
-  useEffect(() => {
-    if (!url) {
-      setImage(undefined);
-      return;
-    }
-
-    const img = new window.Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => setImage(img);
-    img.onerror = () => setImage(undefined);
-    img.src = url;
-
-    return () => {
-      img.onload = null;
-      img.onerror = null;
-    };
-  }, [url]);
-
-  return image;
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function pickRandom<T>(arr: readonly T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function generateDefaultLabel(tier: "free" | "vip", sport: string): string {
-  const template =
-    tier === "vip" ? pickRandom(VIP_LABELS) : pickRandom(FREE_LABELS);
-  return template.replace("{SPORT}", sport.toUpperCase());
-}
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export default function VictoryCompositor({
   backgroundUrl,
   ticketDataUrl,
@@ -104,365 +38,224 @@ export default function VictoryCompositor({
   tier,
   onExport,
 }: VictoryCompositorProps) {
-  // --- Images ----------------------------------------------------------------
-  const backgroundImage = useKonvaImage(backgroundUrl);
-  const ticketImage = useKonvaImage(ticketDataUrl);
+  const storeRef = useRef<ReturnType<typeof createStore> | null>(null);
+  const [ready, setReady] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
-  // --- Refs ------------------------------------------------------------------
-  const stageRef = useRef<Konva.Stage>(null);
-  const ticketRef = useRef<Konva.Image>(null);
-  const transformerRef = useRef<Konva.Transformer>(null);
-
-  // --- Controls state --------------------------------------------------------
-  const [bgOpacity, setBgOpacity] = useState(DEFAULT_BG_OPACITY);
-  const [gradientStrength, setGradientStrength] = useState(
-    DEFAULT_GRADIENT_STRENGTH
-  );
-  const [ticketScale, setTicketScale] = useState(DEFAULT_TICKET_SCALE);
-  const [labelText, setLabelText] = useState(() =>
-    generateDefaultLabel(tier, sport)
-  );
-  const [showBranding, setShowBranding] = useState(true);
-  const [ticketSelected, setTicketSelected] = useState(false);
-
-  // Re-generate label when tier/sport change (only if user hasn't manually edited)
-  const labelIsDefault = useRef(true);
+  // Create store once
   useEffect(() => {
-    if (labelIsDefault.current) {
-      setLabelText(generateDefaultLabel(tier, sport));
-    }
-  }, [tier, sport]);
+    const store = createStore({
+      key: process.env.NEXT_PUBLIC_POLOTNO_KEY || "nFA5H9elEytDyPyvKL7T",
+      showCredit: true,
+    });
 
-  // --- Derived values --------------------------------------------------------
-  const gradientOpacity = gradientStrength / 100;
+    // Set canvas to Instagram 3:4
+    store.setSize(CANVAS_W, CANVAS_H);
 
-  const ticketDimensions = useMemo(() => {
-    if (!ticketImage) return { width: 0, height: 0, x: 0, y: 0 };
-    const scale = ticketScale / 100;
-    const w = ticketImage.width * scale;
-    const h = ticketImage.height * scale;
-    const x = (CANVAS_W - w) / 2;
-    const y = CANVAS_H * 0.08;
-    return { width: w, height: h, x, y };
-  }, [ticketImage, ticketScale]);
+    // Create the initial page
+    const page = store.addPage();
 
-  // --- Transformer attachment ------------------------------------------------
-  useEffect(() => {
-    const transformer = transformerRef.current;
-    const ticket = ticketRef.current;
-    if (!transformer) return;
-
-    if (ticketSelected && ticket) {
-      transformer.nodes([ticket]);
+    // Add background image if provided
+    if (backgroundUrl) {
+      page.set({ background: "#0B1F3B" });
+      page.addElement({
+        type: "image",
+        src: backgroundUrl,
+        x: 0,
+        y: 0,
+        width: CANVAS_W,
+        height: CANVAS_H,
+        selectable: true,
+        draggable: true,
+      });
     } else {
-      transformer.nodes([]);
+      page.set({ background: "#0B1F3B" });
     }
-    transformer.getLayer()?.batchDraw();
-  }, [ticketSelected]);
 
-  // --- Handlers --------------------------------------------------------------
-  const handleStageClick = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-      if (e.target === e.target.getStage()) {
-        setTicketSelected(false);
-      }
-    },
-    []
-  );
+    // Add gradient overlay (dark from bottom)
+    page.addElement({
+      type: "svg",
+      width: CANVAS_W,
+      height: CANVAS_H,
+      x: 0,
+      y: 0,
+      src: `<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS_W}" height="${CANVAS_H}">
+        <defs>
+          <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0.4" stop-color="rgba(0,0,0,0)" />
+            <stop offset="0.75" stop-color="rgba(0,0,0,0.5)" />
+            <stop offset="1" stop-color="rgba(0,0,0,0.85)" />
+          </linearGradient>
+        </defs>
+        <rect width="${CANVAS_W}" height="${CANVAS_H}" fill="url(#g)" />
+      </svg>`,
+      selectable: false,
+    });
 
-  const handleTicketClick = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-      e.cancelBubble = true;
-      setTicketSelected(true);
-    },
-    []
-  );
-
-  const handleLabelChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    labelIsDefault.current = false;
-    setLabelText(e.target.value);
-  }, []);
-
-  const handleExport = useCallback(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    // Temporarily deselect transformer for clean export
-    transformerRef.current?.nodes([]);
-    transformerRef.current?.getLayer()?.batchDraw();
-
-    const dataUrl = stage.toDataURL({ pixelRatio: EXPORT_PIXEL_RATIO });
-    onExport(dataUrl);
-
-    // Re-attach transformer if ticket was selected
-    if (ticketSelected && ticketRef.current) {
-      transformerRef.current?.nodes([ticketRef.current]);
-      transformerRef.current?.getLayer()?.batchDraw();
+    // Add ticket image if provided
+    if (ticketDataUrl) {
+      page.addElement({
+        type: "image",
+        src: ticketDataUrl,
+        x: CANVAS_W * 0.1,
+        y: CANVAS_H * 0.05,
+        width: CANVAS_W * 0.8,
+        height: CANVAS_W * 0.55,
+        draggable: true,
+      });
     }
-  }, [onExport, ticketSelected]);
 
-  const handleDownload = useCallback(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
+    // Add label text
+    const labelTemplate = tier === "vip" ? pickRandom(VIP_LABELS) : pickRandom(FREE_LABELS);
+    const labelText = labelTemplate.replace("{SPORT}", sport.toUpperCase());
 
-    transformerRef.current?.nodes([]);
-    transformerRef.current?.getLayer()?.batchDraw();
+    page.addElement({
+      type: "text",
+      text: labelText,
+      x: 0,
+      y: CANVAS_H - 280,
+      width: CANVAS_W,
+      fontSize: 72,
+      fontFamily: "Oswald",
+      fontWeight: "bold",
+      fill: "#FFFFFF",
+      align: "center",
+      letterSpacing: 0.05,
+      shadowEnabled: true,
+      shadowColor: "rgba(0,0,0,0.6)",
+      shadowBlur: 12,
+      shadowOffsetY: 4,
+    });
 
-    const dataUrl = stage.toDataURL({ pixelRatio: EXPORT_PIXEL_RATIO });
+    // Add branding
+    page.addElement({
+      type: "text",
+      text: "WINFACTPICKS.COM",
+      x: 0,
+      y: CANVAS_H - 100,
+      width: CANVAS_W,
+      fontSize: 28,
+      fontFamily: "Oswald",
+      fontWeight: "bold",
+      fill: "rgba(255,255,255,0.4)",
+      align: "center",
+      letterSpacing: 0.15,
+    });
+
+    storeRef.current = store;
+    setReady(true);
+
+    return () => {
+      // Cleanup not strictly needed but good practice
+      storeRef.current = null;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only create once
+
+  // Update background when URL changes
+  useEffect(() => {
+    if (!storeRef.current || !ready) return;
+    const page = storeRef.current.activePage;
+    if (!page) return;
+
+    // Find existing background image element and update it
+    const elements = page.children || [];
+    const bgElement = elements.find(
+      (el: { type: string; width: number; height: number }) =>
+        el.type === "image" && el.width === CANVAS_W && el.height === CANVAS_H
+    );
+
+    if (bgElement && backgroundUrl) {
+      bgElement.set({ src: backgroundUrl });
+    } else if (!bgElement && backgroundUrl) {
+      // Insert at position 0 (behind everything)
+      page.addElement({
+        type: "image",
+        src: backgroundUrl,
+        x: 0,
+        y: 0,
+        width: CANVAS_W,
+        height: CANVAS_H,
+        selectable: true,
+        draggable: true,
+      });
+    }
+  }, [backgroundUrl, ready]);
+
+  // Handle export
+  const handleDownload = useCallback(async () => {
+    if (!storeRef.current) return;
+    const dataUrl = await storeRef.current.toDataURL({ pixelRatio: 2 });
     const link = document.createElement("a");
     link.download = `victory-post-${Date.now()}.png`;
     link.href = dataUrl;
     link.click();
+  }, []);
 
-    if (ticketSelected && ticketRef.current) {
-      transformerRef.current?.nodes([ticketRef.current]);
-      transformerRef.current?.getLayer()?.batchDraw();
+  const handleConvertToPost = useCallback(async () => {
+    if (!storeRef.current) return;
+    setExporting(true);
+    try {
+      const dataUrl = await storeRef.current.toDataURL({ pixelRatio: 2 });
+      onExport(dataUrl);
+    } catch (err) {
+      console.error("Export error:", err);
+    } finally {
+      setExporting(false);
     }
-  }, [ticketSelected]);
+  }, [onExport]);
 
-  // --- Render ----------------------------------------------------------------
-  return (
-    <div className="flex flex-col items-center gap-6">
-      {/* Canvas */}
-      <div
-        className="overflow-hidden rounded-lg border border-gray-200 shadow-md"
-        style={{ width: DISPLAY_W, height: DISPLAY_H }}
-      >
-        <Stage
-          ref={stageRef}
-          width={DISPLAY_W}
-          height={DISPLAY_H}
-          scaleX={DISPLAY_SCALE}
-          scaleY={DISPLAY_SCALE}
-          onClick={handleStageClick}
-          onTap={handleStageClick}
-        >
-          <Layer>
-            {/* 1. Background Image */}
-            {backgroundImage && (
-              <KonvaImage
-                image={backgroundImage}
-                x={0}
-                y={0}
-                width={CANVAS_W}
-                height={CANVAS_H}
-                opacity={bgOpacity / 100}
-              />
-            )}
-
-            {/* Fallback background when no image */}
-            {!backgroundImage && (
-              <Rect
-                x={0}
-                y={0}
-                width={CANVAS_W}
-                height={CANVAS_H}
-                fill="#1a1a2e"
-              />
-            )}
-
-            {/* 2. Gradient Overlay */}
-            <Rect
-              x={0}
-              y={0}
-              width={CANVAS_W}
-              height={CANVAS_H}
-              fillLinearGradientStartPoint={{ x: 0, y: CANVAS_H * 0.5 }}
-              fillLinearGradientEndPoint={{ x: 0, y: CANVAS_H }}
-              fillLinearGradientColorStops={[
-                0,
-                "rgba(0,0,0,0)",
-                1,
-                `rgba(0,0,0,${gradientOpacity})`,
-              ]}
-              listening={false}
-            />
-
-            {/* 3. Ticket Image */}
-            {ticketImage && (
-              <KonvaImage
-                ref={ticketRef}
-                image={ticketImage}
-                x={ticketDimensions.x}
-                y={ticketDimensions.y}
-                width={ticketDimensions.width}
-                height={ticketDimensions.height}
-                draggable
-                onClick={handleTicketClick}
-                onTap={handleTicketClick}
-                onDragEnd={() => {
-                  // Position updates are handled by Konva internally
-                }}
-              />
-            )}
-
-            {/* 4. Label Text */}
-            <Text
-              x={0}
-              y={CANVAS_H - 260}
-              width={CANVAS_W}
-              align="center"
-              text={labelText}
-              fontSize={72}
-              fontFamily="'Inter', 'Helvetica Neue', Arial, sans-serif"
-              fontStyle="bold"
-              fill="#FFFFFF"
-              shadowColor="rgba(0,0,0,0.6)"
-              shadowBlur={12}
-              shadowOffsetY={4}
-              letterSpacing={3}
-              listening={false}
-            />
-
-            {/* 5. Branding */}
-            {showBranding && (
-              <Text
-                x={0}
-                y={CANVAS_H - 80}
-                width={CANVAS_W}
-                align="center"
-                text="WINFACTPICKS.COM"
-                fontSize={28}
-                fontFamily="'Inter', 'Helvetica Neue', Arial, sans-serif"
-                fontStyle="bold"
-                fill="rgba(255,255,255,0.45)"
-                letterSpacing={6}
-                listening={false}
-              />
-            )}
-
-            {/* Transformer (resize handles for ticket) */}
-            <Transformer
-              ref={transformerRef}
-              rotateEnabled={false}
-              keepRatio
-              enabledAnchors={[
-                "top-left",
-                "top-right",
-                "bottom-left",
-                "bottom-right",
-              ]}
-              boundBoxFunc={(oldBox, newBox) => {
-                // Enforce minimum size
-                if (newBox.width < 100 || newBox.height < 100) {
-                  return oldBox;
-                }
-                return newBox;
-              }}
-            />
-          </Layer>
-        </Stage>
+  if (!ready) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-gray-300" />
       </div>
+    );
+  }
 
-      {/* Controls Panel */}
-      <div className="w-full max-w-[540px] space-y-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-        {/* Background Opacity */}
-        <ControlSlider
-          label="Background Opacity"
-          value={bgOpacity}
-          min={0}
-          max={100}
-          onChange={setBgOpacity}
-        />
+  const store = storeRef.current!;
 
-        {/* Gradient Strength */}
-        <ControlSlider
-          label="Gradient Strength"
-          value={gradientStrength}
-          min={0}
-          max={100}
-          onChange={setGradientStrength}
-        />
-
-        {/* Ticket Scale */}
-        <ControlSlider
-          label="Ticket Scale"
-          value={ticketScale}
-          min={30}
-          max={100}
-          onChange={setTicketScale}
-        />
-
-        {/* Label Text */}
-        <div>
-          <label
-            htmlFor="label-text"
-            className="mb-1.5 block text-sm font-medium text-gray-700"
-          >
-            Label Text
-          </label>
-          <input
-            id="label-text"
-            type="text"
-            value={labelText}
-            onChange={handleLabelChange}
-            className="flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm transition-colors placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
-        </div>
-
-        {/* Show Branding */}
-        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-          <input
-            type="checkbox"
-            checked={showBranding}
-            onChange={(e) => setShowBranding(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/20"
-          />
-          Show Branding
-        </label>
-
-        {/* Actions */}
-        <div className="flex gap-3 pt-2">
-          <button
-            type="button"
-            onClick={handleDownload}
-            className="flex-1 rounded-lg border-2 border-primary px-4 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
-          >
-            Download PNG
-          </button>
-          <button
-            type="button"
-            onClick={handleExport}
-            className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-secondary hover:shadow-lg"
-          >
-            Convert to Post &rarr;
-          </button>
-        </div>
-      </div>
-    </div>
+  // Filter side panel sections — keep only useful ones for victory posts
+  const sections = DEFAULT_SECTIONS.filter(
+    (section) => !["size", "templates"].includes(section.name)
   );
-}
 
-// ---------------------------------------------------------------------------
-// Sub-component: ControlSlider
-// ---------------------------------------------------------------------------
-
-interface ControlSliderProps {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  onChange: (value: number) => void;
-}
-
-function ControlSlider({ label, value, min, max, onChange }: ControlSliderProps) {
-  const id = label.toLowerCase().replace(/\s+/g, "-");
   return (
-    <div>
-      <div className="mb-1.5 flex items-center justify-between">
-        <label htmlFor={id} className="text-sm font-medium text-gray-700">
-          {label}
-        </label>
-        <span className="text-xs tabular-nums text-gray-500">{value}%</span>
+    <div className="space-y-4">
+      {/* Polotno Editor */}
+      <div className="rounded-xl border border-gray-200 overflow-hidden" style={{ height: "700px" }}>
+        <PolotnoContainer style={{ width: "100%", height: "100%" }}>
+          <SidePanelWrap>
+            <SidePanel store={store} sections={sections} />
+          </SidePanelWrap>
+          <WorkspaceWrap>
+            <Toolbar store={store} downloadButtonEnabled />
+            <Workspace store={store} />
+            <ZoomButtons store={store} />
+          </WorkspaceWrap>
+        </PolotnoContainer>
       </div>
-      <input
-        id={id}
-        type="range"
-        min={min}
-        max={max}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="h-2 w-full cursor-pointer appearance-none rounded-full bg-gray-200 accent-primary"
-      />
+
+      {/* Action Buttons */}
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={handleDownload}
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-primary text-primary text-sm font-semibold hover:bg-primary hover:text-white transition-all cursor-pointer"
+        >
+          <Download className="h-4 w-4" />
+          Download PNG
+        </button>
+        <button
+          type="button"
+          onClick={handleConvertToPost}
+          disabled={exporting}
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-primary to-accent text-white text-sm font-semibold hover:shadow-lg transition-all disabled:opacity-50 cursor-pointer"
+        >
+          {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          {exporting ? "Exporting..." : "Convert to Post →"}
+        </button>
+      </div>
     </div>
   );
 }
