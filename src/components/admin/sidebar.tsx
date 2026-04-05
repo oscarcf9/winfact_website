@@ -31,6 +31,7 @@ import {
   Receipt,
   MessageSquare,
   Clock,
+  Camera,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useCallback } from "react";
@@ -53,6 +54,7 @@ const NAV_SECTIONS = [
       { href: "/admin/blog", labelKey: "blog", icon: FileText, exact: false },
       { href: "/admin/content-queue", labelKey: "contentQueue", icon: Clock, exact: false },
       { href: "/admin/media", labelKey: "media", icon: Image, exact: false },
+      { href: "/admin/victory-posts", labelKey: "victoryPosts", icon: Camera, exact: false },
       { href: "/admin/content", labelKey: "siteContent", icon: Settings, exact: false },
     ],
   },
