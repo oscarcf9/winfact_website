@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { db } from "@/db";
 import { victoryPosts, media, contentQueue } from "@/db/schema";
 import { uploadToR2, isR2Configured } from "@/lib/r2";
-import { generateVictoryCaption } from "@/lib/victory-caption-generator";
+import { generateBilingualCaptions } from "@/lib/victory-caption-generator";
 import { sendTelegramPhoto, sendAdminNotification } from "@/lib/telegram";
 
 export const runtime = "nodejs";
@@ -31,44 +31,6 @@ function extractHashtags(caption: string): string {
   return tags ? tags.join(" ") : "";
 }
 
-/**
- * Generate a bilingual caption pair by calling the caption generator twice,
- * once biased toward English and once toward Spanish.
- * The generator picks language randomly, so we override by wrapping calls
- * and retrying if the wrong language comes back. For simplicity we just
- * generate two captions and label them — both are usable.
- */
-async function generateBilingualCaptions(pick: {
-  sport: string;
-  matchup: string;
-  pickText: string;
-  odds: number | null;
-  tier: "free" | "vip";
-}): Promise<{ captionEn: string; captionEs: string }> {
-  // Generate two captions in parallel — statistically one will often be EN, one ES.
-  // If both end up in the same language, we still have two usable captions.
-  const [caption1, caption2] = await Promise.all([
-    generateVictoryCaption(pick),
-    generateVictoryCaption(pick),
-  ]);
-
-  // Simple heuristic: if a caption contains common Spanish words, label it ES.
-  const spanishPattern =
-    /\b(los|las|del|una|nos|nuestro|nuestra|datos|fallan|gratis|ganamos|victoria|jugada)\b/i;
-
-  const c1IsSpanish = spanishPattern.test(caption1);
-  const c2IsSpanish = spanishPattern.test(caption2);
-
-  if (c1IsSpanish && !c2IsSpanish) {
-    return { captionEn: caption2, captionEs: caption1 };
-  }
-  if (c2IsSpanish && !c1IsSpanish) {
-    return { captionEn: caption1, captionEs: caption2 };
-  }
-
-  // Both same language — use first as EN, second as ES (best effort)
-  return { captionEn: caption1, captionEs: caption2 };
-}
 
 export async function POST(req: NextRequest) {
   // ── Auth ──────────────────────────────────────────────────

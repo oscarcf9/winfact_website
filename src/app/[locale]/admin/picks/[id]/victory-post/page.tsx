@@ -317,7 +317,7 @@ export default function VictoryPostEditorPage() {
       </div>
 
       {/* ─── COMPOSITOR ─────────────────────────────── */}
-      {ticketDataUrl && backgroundUrl && (
+      {(ticketDataUrl || backgroundUrl) && (
         <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
             <Layers className="h-5 w-5 text-primary" />

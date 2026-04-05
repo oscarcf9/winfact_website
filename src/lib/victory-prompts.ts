@@ -323,10 +323,13 @@ export function buildBackgroundPrompt(
       ? matches[Math.floor(Math.random() * matches.length)].template
       : GENERIC_FALLBACK_TEMPLATE;
 
-  return template
+  const result = template
     .replace(/\{team_name\}/g, team.teamName)
     .replace(/\{city\}/g, team.city)
     .replace(/\{primary_color\}/g, team.primaryColor)
     .replace(/\{secondary_color\}/g, team.secondaryColor)
     .replace(/\{accent_color\}/g, team.accentColor);
+
+  // Append color balance instruction to prevent AI from over-saturating team colors
+  return result + `\n\nIMPORTANT COLOR GUIDANCE: Use the team colors as ACCENTS and HIGHLIGHTS, not as a dominant fill. The overall image should feel balanced and cinematic — not monochromatic or oversaturated. Neutral darks (deep navy, charcoal, black) should dominate the shadows and bottom third. Team colors appear in light beams, highlights, bokeh, and atmospheric glows — never as a flat color wash over the entire image.`;
 }

@@ -9,14 +9,16 @@ function getAnthropic(): Anthropic {
   return _anthropic;
 }
 
+/**
+ * Generate a single victory caption in the specified language.
+ */
 export async function generateVictoryCaption(pick: {
   sport: string;
   matchup: string;
   pickText: string;
   odds: number | null;
   tier: "free" | "vip";
-}): Promise<string> {
-  const language = Math.random() < 0.5 ? "english" : "spanish";
+}, language: "english" | "spanish" = "english"): Promise<string> {
   const oddsStr = pick.odds
     ? pick.odds > 0 ? `+${pick.odds}` : `${pick.odds}`
     : "N/A";
@@ -58,4 +60,21 @@ RULES:
     : "";
 
   return text.replace(/^["']|["']$/g, "").trim();
+}
+
+/**
+ * Generate guaranteed bilingual captions (one EN, one ES).
+ */
+export async function generateBilingualCaptions(pick: {
+  sport: string;
+  matchup: string;
+  pickText: string;
+  odds: number | null;
+  tier: "free" | "vip";
+}): Promise<{ captionEn: string; captionEs: string }> {
+  const [captionEn, captionEs] = await Promise.all([
+    generateVictoryCaption(pick, "english"),
+    generateVictoryCaption(pick, "spanish"),
+  ]);
+  return { captionEn, captionEs };
 }
