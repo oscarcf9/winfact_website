@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   Target,
@@ -23,6 +24,7 @@ import {
   ArrowUp,
   ArrowDown,
   Search,
+  Camera,
 } from "lucide-react";
 import { QuickPickModal } from "@/components/admin/quick-pick-modal";
 import { StarRating, confidenceToStars } from "@/components/ui/star-rating";
@@ -295,6 +297,7 @@ export function PicksManager() {
   const t = useTranslations("admin.picks");
   const tc = useTranslations("admin.common");
   const tm = useTranslations("admin.picksManager");
+  const router = useRouter();
 
   const [tab, setTab] = useState<Tab>("active");
   const [sportFilter, setSportFilter] = useState("All");
@@ -951,11 +954,12 @@ export function PicksManager() {
                   return (
                     <tr
                       key={pick.id}
-                      className={`transition-colors group ${
+                      className={`transition-colors group cursor-pointer ${
                         isEdited
                           ? "bg-primary/[0.03]"
                           : "hover:bg-gray-50/50"
                       }`}
+                      onClick={() => router.push(`/en/admin/picks/${pick.id}`)}
                     >
                       {bulkMode && (
                         <td className="py-2 px-3">
@@ -991,7 +995,7 @@ export function PicksManager() {
                       <td className="py-2 px-3 text-left text-xs text-gray-500 truncate max-w-[100px]">
                         {pick.capperName || <span className="text-gray-300">&mdash;</span>}
                       </td>
-                      <td className="py-2 px-4 text-center">
+                      <td className="py-2 px-4 text-center" onClick={(e) => e.stopPropagation()}>
                         {bulkMode ? (
                           /* ─── Bulk edit: always show inline W/L/P picker ─── */
                           <InlineResultPicker
@@ -1029,8 +1033,18 @@ export function PicksManager() {
                         )}
                       </td>
                       {!bulkMode && (
-                        <td className="py-2 px-3 text-center">
+                        <td className="py-2 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-0.5">
+                            {pick.result === "win" && (
+                              <button
+                                type="button"
+                                onClick={() => router.push(`/en/admin/picks/${pick.id}/victory-post`)}
+                                className="p-1 rounded text-amber-400 hover:text-amber-600 hover:bg-amber-50 transition-all cursor-pointer opacity-0 group-hover:opacity-100"
+                                title="Victory Post"
+                              >
+                                <Camera className="h-3.5 w-3.5" />
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => setEditingPick(pick)}
