@@ -28,7 +28,7 @@ import "@/components/admin/ticket-generator/ticket-fonts.css";
 
 // Konva must be loaded client-side only (uses window)
 const VictoryCompositor = dynamic(
-  () => import("@/components/admin/victory-editor/victory-compositor").then((m) => m.VictoryCompositor),
+  () => import("@/components/admin/victory-editor/victory-compositor"),
   { ssr: false, loading: () => <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-gray-300" /></div> }
 );
 
