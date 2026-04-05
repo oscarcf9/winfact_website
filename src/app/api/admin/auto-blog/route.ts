@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Create the blog post as draft
+    // Create the blog post as draft (admin reviews before publishing)
     await db.insert(posts).values({
       id: postId,
       slug,
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
       await db.insert(postTags).values([{ postId, sport: sportTag }]);
     }
 
-    // Insert into content queue for scheduling
+    // Insert into content queue for admin review + scheduling
     await db.insert(contentQueue).values({
       id: crypto.randomUUID(),
       type: "blog",
@@ -155,14 +155,14 @@ export async function POST(req: NextRequest) {
       status: "draft",
     }).catch((err) => console.error("[auto-blog] Content queue insert failed:", err));
 
-    // Notify admin via Telegram + email (fire-and-forget)
+    // Notify admin that blog is ready for review
     notifyBlogDraftReady({
       title: blogResult.titleEn || data.matchup,
       sport: data.sport,
       matchup: data.matchup,
       slug,
       postId,
-    }).catch((err) => console.error("Blog draft notification failed:", err));
+    }).catch((err) => console.error("Blog notification failed:", err));
 
     return NextResponse.json({
       postId,
