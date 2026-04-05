@@ -105,27 +105,8 @@ export function PickForm({ pick, defaults }: Props) {
         return;
       }
 
-      // Auto-generate blog for new picks (not edits)
-      if (!isEdit && (data.status === "published" || data.status === "draft")) {
-        fetch("/api/admin/auto-blog", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sport: data.sport,
-            league: data.league || data.sport,
-            matchup: data.matchup,
-            pickText: data.pickText,
-            gameDate: data.gameDate || new Date().toISOString().split("T")[0],
-            odds: data.odds || null,
-            units: data.units || null,
-            stars: data.stars || null,
-            tier: data.tier || "vip",
-            analysisEn: data.analysisEn || null,
-          }),
-        }).catch(() => {
-          // Blog generation is best-effort
-        });
-      }
+      // Blog generation is now handled ONLY server-side in picks/route.ts POST
+      // to avoid duplicate blog creation. Removed client-side trigger.
 
       router.push("/admin/picks");
       router.refresh();

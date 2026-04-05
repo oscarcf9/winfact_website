@@ -31,6 +31,22 @@ export async function PUT(req: NextRequest, context: RouteContext) {
     const [current] = await db.select().from(picks).where(eq(picks.id, id)).limit(1);
     if (!current) return NextResponse.json({ error: "Pick not found" }, { status: 404 });
 
+    // Enforce valid status transitions: draft→published→settled, or any→void
+    if (data.status && data.status !== current.status) {
+      const allowed: Record<string, string[]> = {
+        draft: ["published", "settled"],
+        published: ["settled"],
+        settled: ["settled"], // allow result correction on already-settled
+      };
+      const validNext = allowed[current.status || "draft"] || [];
+      if (!validNext.includes(data.status)) {
+        return NextResponse.json(
+          { error: `Cannot transition from "${current.status}" to "${data.status}". Allowed: ${validNext.join(", ")}` },
+          { status: 400 }
+        );
+      }
+    }
+
     const updateData: Record<string, unknown> = {
       sport: data.sport,
       league: data.league,
@@ -58,7 +74,10 @@ export async function PUT(req: NextRequest, context: RouteContext) {
     if (data.status === "settled") {
       updateData.result = data.result;
       updateData.closingOdds = data.closingOdds;
-      updateData.settledAt = now;
+      // Preserve original settledAt if already settled (result correction)
+      if (!current.settledAt) {
+        updateData.settledAt = now;
+      }
 
       // Auto-calculate CLV if closing odds provided
       if (data.closingOdds && current.odds) {

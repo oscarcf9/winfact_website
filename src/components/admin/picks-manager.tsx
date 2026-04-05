@@ -307,6 +307,13 @@ export function PicksManager() {
   const [showLogs, setShowLogs] = useState(false);
   const [editingPick, setEditingPick] = useState<Pick | null>(null);
 
+  // Toast/error feedback for admin actions
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  function showToast(type: "success" | "error", message: string) {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 5000);
+  }
+
   // Delete confirmation state
   const [deletingPick, setDeletingPick] = useState<Pick | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -349,9 +356,11 @@ export function PicksManager() {
       if (res.ok) {
         const data = await res.json();
         setPicks(Array.isArray(data) ? data : data.picks || []);
+      } else {
+        showToast("error", `Failed to load picks (${res.status})`);
       }
-    } catch {
-      // silent
+    } catch (err) {
+      showToast("error", "Network error loading picks");
     } finally {
       setLoading(false);
     }
@@ -457,23 +466,38 @@ export function PicksManager() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "settled", result }),
       });
-      if (res.ok) await fetchPicks();
-    } catch { /* silent */ }
-    finally { setSettlingId(null); }
+      if (res.ok) {
+        showToast("success", `Pick settled as ${result}`);
+        await fetchPicks();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showToast("error", data.error || `Failed to settle pick (${res.status})`);
+      }
+    } catch {
+      showToast("error", "Network error settling pick");
+    } finally {
+      setSettlingId(null);
+    }
   }
 
   async function handleAutoSettle() {
     setAutoSettling(true);
     try {
       const res = await fetch("/api/admin/picks/settle", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        const data = await res.json();
         setSettlementLogs(data.logs || []);
         setShowLogs(true);
+        showToast("success", data.message || `Auto-settled ${data.settled || 0} picks`);
         await fetchPicks();
+      } else {
+        showToast("error", data.error || `Auto-settle failed (${res.status})`);
       }
-    } catch { /* silent */ }
-    finally { setAutoSettling(false); }
+    } catch {
+      showToast("error", "Network error running auto-settle");
+    } finally {
+      setAutoSettling(false);
+    }
   }
 
   // ─── Bulk Edit Handlers ─────────────────────────────────────
@@ -495,20 +519,26 @@ export function PicksManager() {
     if (bulkChangeCount === 0) return;
     setBulkSaving(true);
     try {
-      // Fire all updates in parallel
-      const promises = Object.entries(bulkEdits).map(([pickId, result]) =>
-        fetch(`/api/admin/picks/${pickId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "settled", result }),
-        })
+      const results = await Promise.allSettled(
+        Object.entries(bulkEdits).map(([pickId, result]) =>
+          fetch(`/api/admin/picks/${pickId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "settled", result }),
+          })
+        )
       );
-      await Promise.all(promises);
+      const failCount = results.filter((r) => r.status === "rejected").length;
+      if (failCount > 0) {
+        showToast("error", `${failCount} of ${bulkChangeCount} picks failed to settle`);
+      } else {
+        showToast("success", `Settled ${bulkChangeCount} picks`);
+      }
       setBulkEdits({});
       setBulkMode(false);
       await fetchPicks();
     } catch {
-      // silent
+      showToast("error", "Network error during bulk settle");
     } finally {
       setBulkSaving(false);
     }
@@ -525,12 +555,15 @@ export function PicksManager() {
     try {
       const res = await fetch(`/api/admin/picks/${deletingPick.id}`, { method: "DELETE" });
       if (res.ok) {
+        showToast("success", "Pick deleted");
         setDeletingPick(null);
         setEditingPick(null);
         await fetchPicks();
+      } else {
+        showToast("error", `Failed to delete pick (${res.status})`);
       }
     } catch {
-      // silent
+      showToast("error", "Network error deleting pick");
     } finally {
       setDeleting(false);
     }
@@ -569,15 +602,22 @@ export function PicksManager() {
     if (bulkSelected.size === 0) return;
     setBulkDeleting(true);
     try {
-      const promises = [...bulkSelected].map((id) =>
-        fetch(`/api/admin/picks/${id}`, { method: "DELETE" })
+      const results = await Promise.allSettled(
+        [...bulkSelected].map((id) =>
+          fetch(`/api/admin/picks/${id}`, { method: "DELETE" })
+        )
       );
-      await Promise.all(promises);
+      const failCount = results.filter((r) => r.status === "rejected").length;
+      if (failCount > 0) {
+        showToast("error", `${failCount} of ${bulkSelected.size} picks failed to delete`);
+      } else {
+        showToast("success", `Deleted ${bulkSelected.size} picks`);
+      }
       setBulkSelected(new Set());
       setBulkMode(false);
       await fetchPicks();
     } catch {
-      // silent
+      showToast("error", "Network error during bulk delete");
     } finally {
       setBulkDeleting(false);
     }
@@ -585,6 +625,23 @@ export function PicksManager() {
 
   return (
     <div className="space-y-5 animate-fade-up">
+      {/* Toast notification */}
+      {toast && (
+        <div
+          className={`fixed top-4 right-4 z-[100] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium transition-all animate-fade-up ${
+            toast.type === "success"
+              ? "bg-success/10 text-success border border-success/20"
+              : "bg-danger/10 text-danger border border-danger/20"
+          }`}
+        >
+          {toast.type === "success" ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+          {toast.message}
+          <button type="button" onClick={() => setToast(null)} className="ml-2 p-0.5 rounded hover:bg-black/5 cursor-pointer">
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+
       {/* Unsettled Picks Alert */}
       {unsettledCount > 0 && tab !== "active" && (
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200">

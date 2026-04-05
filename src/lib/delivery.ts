@@ -106,7 +106,7 @@ export async function processDeliveryQueue(): Promise<{
     }
 
     const channels: ChannelType[] = JSON.parse(item.channels || "[]");
-    let allOk = true;
+    const channelResults: { channel: string; ok: boolean; error?: string }[] = [];
 
     for (const channel of channels) {
       let result: { ok: boolean; error?: string; messageId?: number; campaignId?: string } = {
@@ -114,15 +114,21 @@ export async function processDeliveryQueue(): Promise<{
         error: "Unknown channel",
       };
 
-      if (channel === "telegram_free" && pick.tier === "vip") {
-        result = await sendVipTeaserToTelegram(pick);
-      } else if (channel === "telegram_free" || channel === "telegram_vip") {
-        result = await sendPickToTelegram(pick, channel);
-      } else if (channel === "email") {
-        result = await sendPickEmail(pick, item.tier as "free" | "vip");
+      try {
+        if (channel === "telegram_free" && pick.tier === "vip") {
+          result = await sendVipTeaserToTelegram(pick);
+        } else if (channel === "telegram_free" || channel === "telegram_vip") {
+          result = await sendPickToTelegram(pick, channel);
+        } else if (channel === "email") {
+          result = await sendPickEmail(pick, item.tier as "free" | "vip");
+        }
+      } catch (err) {
+        result = { ok: false, error: err instanceof Error ? err.message : String(err) };
       }
 
-      // Log the delivery attempt
+      channelResults.push({ channel, ok: result.ok, error: result.error });
+
+      // Log the delivery attempt per channel
       await db.insert(deliveryLogs).values({
         id: crypto.randomUUID(),
         pickId: pick.id,
@@ -137,23 +143,28 @@ export async function processDeliveryQueue(): Promise<{
       });
 
       if (!result.ok) {
-        allOk = false;
         errors.push(`${channel}: ${result.error}`);
       }
     }
 
-    // Update queue status — failed items stay failed (no infinite retry)
+    const allOk = channelResults.every((r) => r.ok);
+    const anyOk = channelResults.some((r) => r.ok);
+    const failedChannels = channelResults.filter((r) => !r.ok).map((r) => r.channel);
+
+    // Mark as completed if all succeeded, partial if some succeeded,
+    // or failed if none succeeded. Store which channels failed for targeted retry.
     await db
       .update(deliveryQueue)
       .set({
-        status: allOk ? "completed" : "failed",
+        status: allOk ? "completed" : anyOk ? "completed" : "failed",
         processedAt: now,
         updatedAt: now,
-        error: allOk ? null : errors.slice(-channels.length).join("; "),
+        error: allOk ? null : `Failed channels: ${failedChannels.join(", ")}`,
       })
       .where(eq(deliveryQueue.id, item.id));
 
     if (allOk) succeeded++;
+    else if (anyOk) { succeeded++; } // Partial success counts as succeeded — failures are logged per channel
     else failed++;
   }
 

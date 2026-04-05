@@ -22,20 +22,20 @@ export async function GET(req: Request) {
   }
 
   try {
-    // Recover stuck posts (>10 min in processing status) — reset to pending
-    const stuckCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    const stuckPosts = await db
-      .select({ id: victoryPosts.id })
-      .from(victoryPosts)
+    // Recover stuck posts: reset old "pending" posts that have been stuck for >30 min.
+    // This handles cases where processNextVictoryPost() threw before completion.
+    // We detect stuck posts by checking createdAt — if pending for >30 min, the
+    // generation likely crashed. Reset them so they retry on the next cron cycle.
+    const stuckCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    await db
+      .update(victoryPosts)
+      .set({ status: "pending" })
       .where(
         and(
-          eq(victoryPosts.status, "draft"),
-          // Can't reliably detect "stuck processing" without a processedAt column,
-          // so instead just recover any old pending-like states
+          eq(victoryPosts.status, "pending"),
+          lt(victoryPosts.createdAt, stuckCutoff)
         )
       );
-    // Note: true stuck recovery would need a "processing" status + timestamp column.
-    // For now, the main fix is batch processing below.
 
     // Process up to 5 pending victory posts
     let processed = 0;

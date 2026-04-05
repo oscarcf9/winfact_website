@@ -4,6 +4,8 @@ import { sendTransactionalEmail } from "./mailerlite";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com";
 
+if (!ADMIN_EMAIL) console.warn("[notify] ADMIN_EMAIL not set — email notifications to admin disabled");
+
 type NotifyOptions = {
   subject: string;
   telegramMessage: string;

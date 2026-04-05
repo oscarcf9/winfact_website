@@ -8,6 +8,10 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_FREE_CHAT_ID = process.env.TELEGRAM_FREE_CHAT_ID || "";
 const TELEGRAM_ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || "";
 
+if (!TELEGRAM_BOT_TOKEN) console.warn("[telegram] TELEGRAM_BOT_TOKEN not set — all Telegram features disabled");
+if (!TELEGRAM_FREE_CHAT_ID) console.warn("[telegram] TELEGRAM_FREE_CHAT_ID not set — free channel delivery disabled");
+if (!TELEGRAM_ADMIN_CHAT_ID) console.warn("[telegram] TELEGRAM_ADMIN_CHAT_ID not set — admin notifications disabled");
+
 const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 
 type Pick = {

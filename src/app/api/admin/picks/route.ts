@@ -12,49 +12,55 @@ import { createPickSchema } from "@/lib/validations";
  * If before 4 AM ET → window started at 4 AM ET yesterday.
  * If at or after 4 AM ET → window started at 4 AM ET today.
  * Returns a UTC ISO string.
+ *
+ * Uses Intl.DateTimeFormat.formatToParts for correct ET extraction
+ * regardless of server timezone (Vercel runs in UTC).
  */
 function getWindowStartUTC(): string {
-  const nowET = new Date(
-    new Date().toLocaleString("en-US", { timeZone: "America/New_York" })
-  );
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(now);
+  const get = (type: string) => parseInt(parts.find((p) => p.type === type)?.value || "0");
 
-  // Build a Date whose component values represent 4 AM ET today
-  const fourAM = new Date(nowET);
-  fourAM.setHours(4, 0, 0, 0);
+  const etYear = get("year");
+  const etMonth = get("month") - 1;
+  const etDay = get("day");
+  const etHour = get("hour");
 
-  // If we haven't reached 4 AM ET yet, roll back to yesterday
-  if (nowET < fourAM) {
-    fourAM.setDate(fourAM.getDate() - 1);
+  // Determine which day's 4 AM to use
+  let fourAMDay = etDay;
+  if (etHour < 4) {
+    fourAMDay -= 1; // Before 4 AM → use yesterday's 4 AM
   }
 
-  // Determine the ET → UTC offset so we can convert
-  const tempUTC = new Date(
-    Date.UTC(
-      fourAM.getFullYear(),
-      fourAM.getMonth(),
-      fourAM.getDate(),
-      fourAM.getHours(),
-      fourAM.getMinutes()
-    )
-  );
-  const tempET = new Date(
-    tempUTC.toLocaleString("en-US", { timeZone: "America/New_York" })
-  );
-  const offsetMs = tempET.getTime() - tempUTC.getTime();
+  // Build 4 AM ET as a Date in ET "wall clock" space
+  // Then calculate the ET→UTC offset to convert
+  const fourAMET = new Date(Date.UTC(etYear, etMonth, fourAMDay, 4, 0, 0, 0));
 
-  // Place the ET clock values into UTC positions, then shift by offset
-  const realUTC = new Date(
-    Date.UTC(
-      fourAM.getFullYear(),
-      fourAM.getMonth(),
-      fourAM.getDate(),
-      fourAM.getHours(),
-      fourAM.getMinutes()
-    )
-  );
-  realUTC.setTime(realUTC.getTime() + offsetMs);
+  // Get the offset: what UTC time corresponds to this ET wall-clock time?
+  // ET is UTC-5 (EST) or UTC-4 (EDT). We find the offset by checking what
+  // ET reads at a known UTC time near our target.
+  const probe = new Date(Date.UTC(etYear, etMonth, fourAMDay, 12, 0, 0)); // noon UTC
+  const probeFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "2-digit",
+    hour12: false,
+  });
+  const probeHour = parseInt(probeFormatter.format(probe));
+  const offsetHours = probeHour - 12; // e.g., EDT: 8-12 = -4, EST: 7-12 = -5
 
-  return realUTC.toISOString();
+  // 4 AM ET in UTC = 4 AM - offset (offset is negative, so we add |offset|)
+  const fourAMUTC = new Date(Date.UTC(etYear, etMonth, fourAMDay, 4 - offsetHours, 0, 0, 0));
+
+  return fourAMUTC.toISOString();
 }
 
 export async function GET(req: NextRequest) {
@@ -233,12 +239,18 @@ export async function POST(req: NextRequest) {
     const blogToggleRow = await db.select().from(siteContent).where(eq(siteContent.key, "blog_auto_generator")).limit(1);
     const blogEnabled = blogToggleRow[0]?.value === "true" || process.env.ENABLE_AUTO_BLOG === "true";
     if (data.status === "published" && blogEnabled) {
+      // Call auto-blog via internal server route with forwarded cookies
+      // (direct function import would bypass the route's own error handling)
       try {
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+        const cookieHeader = req.headers.get("cookie") || "";
         console.log(`[auto-blog] Triggering for pick ${id}: ${data.matchup}`);
         fetch(`${siteUrl}/api/admin/auto-blog`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Cookie": cookieHeader,
+          },
           body: JSON.stringify({
             sport: data.sport,
             league: data.league || data.sport,
