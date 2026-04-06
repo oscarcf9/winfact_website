@@ -93,11 +93,27 @@ export default function VictoryPostEditorPage() {
   // Additional images
   const [additionalImages, setAdditionalImages] = useState<AdditionalImage[]>([]);
 
-  // Winner
+  // Winner — detect bet type from pickText
   const [winner, setWinner] = useState("");
   const teams = (pick?.matchup || "").split(/\s+(?:vs\.?|@|at|v)\s+/i).map((t) => t.trim());
   const team1 = teams[0] || "";
   const team2 = teams[1] || "";
+
+  const pickText = pick?.pickText || "";
+  const isTotalBet = /\b(over|under|o\/u|total)\b/i.test(pickText);
+  const isPropBet = /\b(1st\s*inning|1H|corners|props?)\b/i.test(pickText);
+
+  // Auto-select winner for totals/props based on pickText
+  useEffect(() => {
+    if (!pick || winner) return;
+    if (isTotalBet || isPropBet) {
+      // Extract the bet outcome from pickText (e.g., "Under 0.5 (1inning)" → "Under")
+      const overMatch = pickText.match(/\b(over)\b/i);
+      const underMatch = pickText.match(/\b(under)\b/i);
+      if (overMatch) setWinner("Over");
+      else if (underMatch) setWinner("Under");
+    }
+  }, [pick, winner, isTotalBet, isPropBet, pickText]);
 
   // Export state
   const [converting, setConverting] = useState(false);
@@ -108,8 +124,11 @@ export default function VictoryPostEditorPage() {
     captionEs: string;
   } | null>(null);
 
-  // Compositor export ref
+  // Compositor export ref — connected via onRegisterExport callback
   const compositorExportRef = useRef<(() => string | null) | null>(null);
+  const handleRegisterExport = useCallback((fn: () => string | null) => {
+    compositorExportRef.current = fn;
+  }, []);
 
   // Fetch pick
   useEffect(() => {
@@ -313,16 +332,29 @@ export default function VictoryPostEditorPage() {
       {/* Tab Content */}
       <div className="flex-1 overflow-auto">
         {/* ═══ TAB 1: SETUP ═══ */}
-        {activeTab === "setup" && (
-          <div className="mx-auto max-w-4xl space-y-6 p-6">
+        <div className={activeTab === "setup" ? "mx-auto max-w-4xl space-y-6 p-6" : "hidden"}>
             {/* Winner */}
             <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-              <span className="text-sm font-medium text-amber-800">Winner:</span>
+              <span className="text-sm font-medium text-amber-800">
+                {isTotalBet || isPropBet ? "Outcome:" : "Winner:"}
+              </span>
               <select value={winner} onChange={(e) => setWinner(e.target.value)} className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-sm text-amber-800">
-                <option value="">Select winner...</option>
-                {team1 && <option value={team1}>{team1}</option>}
-                {team2 && <option value={team2}>{team2}</option>}
+                <option value="">Select{isTotalBet || isPropBet ? " outcome" : " winner"}...</option>
+                {isTotalBet || isPropBet ? (
+                  <>
+                    <option value="Over">Over ✅</option>
+                    <option value="Under">Under ✅</option>
+                  </>
+                ) : (
+                  <>
+                    {team1 && <option value={team1}>{team1}</option>}
+                    {team2 && <option value={team2}>{team2}</option>}
+                  </>
+                )}
               </select>
+              {(isTotalBet || isPropBet) && (
+                <span className="text-xs text-amber-600">({pickText})</span>
+              )}
             </div>
 
             {/* Ticket Section */}
@@ -450,17 +482,16 @@ export default function VictoryPostEditorPage() {
                 </button>
               </div>
             )}
-          </div>
-        )}
+        </div>
 
-        {/* ═══ TAB 2: EDITOR ═══ */}
-        {activeTab === "editor" && (
-          <div className="h-full">
-            {!hasWinner && (
-              <div className="mx-auto mb-0 flex max-w-xl items-center gap-2 rounded-b-xl border border-t-0 border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700">
-                <AlertCircle className="h-4 w-4 shrink-0" /> Select the winner team in Setup before converting to post.
-              </div>
-            )}
+        {/* ═══ TAB 2: EDITOR (always mounted, CSS hidden to preserve state) ═══ */}
+        <div className={activeTab === "editor" ? "h-full" : "hidden"}>
+          {!hasWinner && activeTab === "editor" && (
+            <div className="mx-auto mb-0 flex max-w-xl items-center gap-2 rounded-b-xl border border-t-0 border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700">
+              <AlertCircle className="h-4 w-4 shrink-0" /> Select the winner team in Setup before converting to post.
+            </div>
+          )}
+          {setupReady && (
             <VictoryCompositor
               backgroundUrl={backgroundUrl}
               ticketDataUrl={ticketDataUrl}
@@ -468,12 +499,13 @@ export default function VictoryPostEditorPage() {
               sport={pick.sport}
               tier={(pick.tier as "free" | "vip") || "free"}
               onExport={handleConvertToPost}
+              onRegisterExport={handleRegisterExport}
             />
-          </div>
-        )}
+          )}
+        </div>
 
         {/* ═══ TAB 3: CAPTION & EXPORT ═══ */}
-        {activeTab === "caption" && (
+        <div className={activeTab === "caption" ? "" : "hidden"}>
           <CaptionExport
             pick={pick}
             winner={winner}
@@ -482,7 +514,7 @@ export default function VictoryPostEditorPage() {
             postResult={postResult}
             converting={converting}
           />
-        )}
+        </div>
       </div>
     </div>
   );

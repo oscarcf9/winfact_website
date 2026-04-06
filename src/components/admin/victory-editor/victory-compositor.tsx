@@ -136,6 +136,8 @@ interface VictoryCompositorProps {
   tier: "free" | "vip";
   onExport: (dataUrl: string) => void;
   onDownload?: () => void;
+  /** Callback to expose the export function to parent components */
+  onRegisterExport?: (exportFn: () => string | null) => void;
 }
 
 // ── Image loader hook ──────────────────────────────────────────────────────────
@@ -268,6 +270,7 @@ export default function VictoryCompositor({
   tier,
   onExport,
   onDownload,
+  onRegisterExport,
 }: VictoryCompositorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1554,6 +1557,21 @@ export default function VictoryCompositor({
     onExport(dataUrl);
     setExporting(false);
   }, [renderToCtx, onExport]);
+
+  // ── Register export function for parent access ─────────────────────────────
+  const getExportDataUrl = useCallback((): string | null => {
+    const offscreen = document.createElement("canvas");
+    offscreen.width = CANVAS_W;
+    offscreen.height = CANVAS_H;
+    const ctx = offscreen.getContext("2d");
+    if (!ctx) return null;
+    renderToCtx(ctx, CANVAS_W, CANVAS_H, false);
+    return offscreen.toDataURL("image/png");
+  }, [renderToCtx]);
+
+  useEffect(() => {
+    onRegisterExport?.(getExportDataUrl);
+  }, [onRegisterExport, getExportDataUrl]);
 
   // ── Layer type icon ────────────────────────────────────────────────────────
   const getLayerIcon = (type: LayerType) => {
