@@ -192,7 +192,7 @@ export default async function BlogPage({
       excerpt: (() => {
         const body = locale === "es" && p.bodyEs ? p.bodyEs : p.bodyEn;
         if (!body) return "";
-        const plain = body.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+        const plain = body.replace(/<[^>]*>/g, "").replace(/\*\*(.+?)\*\*/g, "$1").replace(/\*(.+?)\*/g, "$1").replace(/^#+\s+/gm, "").replace(/\s+/g, " ").trim();
         return plain.length > 160 ? plain.slice(0, 160).replace(/\s+\S*$/, "...") : plain;
       })(),
       readingTime: (() => {

@@ -119,13 +119,13 @@ Structure the article using these sections. Use the emoji headers exactly as sho
 🏷️ **Title**
 Craft a sharp, action-driven headline that captures the matchup's theme, tension, or central narrative. No generic "Preview" titles — find the angle. Examples of good titles: "Can the Celtics' Defense Silence the Lakers' Resurgence?" or "Braves Look to Extend Dominance in Rivalry Renewal."
 
-✂️ **Excerpt**
-A brief teaser (1-2 sentences) highlighting the key narrative hook. This appears as the blog card preview.
+✂️ **Excerpt** (output in EXCERPT field ONLY — do NOT include in BODY_EN)
+A brief teaser (1-2 sentences) highlighting the key narrative hook. This appears as the blog card preview, NOT inside the article body.
 
-📝 **Meta Description**
-1-2 sentences, 150-160 characters max. SEO-optimized summary of what makes this game intriguing.
+📝 **Meta Description** (output in SEO_DESC field ONLY — do NOT include in BODY_EN)
+1-2 sentences, 150-160 characters max. SEO-optimized summary.
 
-🎬 **Introduction**
+🎬 **Introduction** (this is where BODY_EN starts)
 Open with the storyline: What's at stake? Why does this game matter right now? Set the editorial tone early with smart context. Reference the moment in the season — playoff implications, streak context, rivalry history, or turning-point narratives.
 
 📅 **Game Info**
@@ -170,7 +170,7 @@ Close with a well-reasoned conclusion. Who's better positioned and why? Note x-f
 8. NEVER use em dashes (--) anywhere in the text. Use commas, periods, parentheses, or colons instead.
 9. NEVER use more than one exclamation mark in the entire post.
 10. NEVER start the conclusion with "In conclusion," "In summary," or "Overall"
-11. Use ## for section headers in Markdown. Do not use # h1.
+11. OUTPUT FORMAT: Write the body as clean HTML. Use <h2> for section headers (with emoji prefix). Use <p> for paragraphs. Use <strong> for bold text, <em> for italic. Use <ul><li> for lists. Do NOT use any Markdown syntax (no ## headers, no **bold**, no * bullets). The output must be valid HTML ready to render in a browser.
 
 FORMAT YOUR RESPONSE EXACTLY AS:
 TITLE_EN: [The sharp, action-driven headline]
@@ -180,7 +180,7 @@ SEO_DESC: [150-160 chars. Lead with main storyline, mention key factors, include
 EXCERPT: [1-2 punchy sentences that hook the reader.]
 ALT_TEXT: [Descriptive alt text for featured image]
 BODY_EN:
-[Full blog post in Markdown with emoji section headers as specified above.]`;
+[Full blog post in clean HTML (h2, p, strong, em, ul/li — NO markdown syntax). Include emoji section headers in h2 tags.]`;
 }
 
 function buildFallbackDataBlock(pick: PickData): string {
