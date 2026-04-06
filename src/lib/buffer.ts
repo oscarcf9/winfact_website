@@ -15,12 +15,13 @@ const BUFFER_ORG_ID = process.env.BUFFER_ORG_ID || "68dde1d4ae0ea4e53700e8cf";
 const BUFFER_ACCESS_TOKEN = process.env.BUFFER_ACCESS_TOKEN || "";
 const BUFFER_LIVE_TOKEN = process.env.BUFFER_LIVE_TOKEN || "";
 
-// Channel IDs — configure via env vars or use defaults
+// Channel IDs — from publish.buffer.com/channels/{id}/settings
+// Override via env vars if needed
 const CHANNELS = {
-  instagram: process.env.BUFFER_INSTAGRAM_CHANNEL_ID || "692a85d829ea336fd63c6413",
-  facebook: process.env.BUFFER_FACEBOOK_CHANNEL_ID || "692a863b29ea336fd63c647f",
-  twitter: process.env.BUFFER_TWITTER_CHANNEL_ID || "",
-  threads: process.env.BUFFER_THREADS_CHANNEL_ID || "",
+  instagram: process.env.BUFFER_INSTAGRAM_CHANNEL_ID || "",   // check publish.buffer.com/channels for Instagram ID
+  facebook: process.env.BUFFER_FACEBOOK_CHANNEL_ID || "",     // check publish.buffer.com/channels for Facebook ID
+  threads: process.env.BUFFER_THREADS_CHANNEL_ID || "69d01392af47dacb6986f297",
+  twitter: process.env.BUFFER_TWITTER_CHANNEL_ID || "69d014acaf47dacb6986f73f",
 };
 
 if (!BUFFER_ACCESS_TOKEN) console.warn("[buffer] BUFFER_ACCESS_TOKEN not set — social posting disabled");
