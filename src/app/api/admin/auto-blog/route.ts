@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { posts, postTags, media, contentQueue } from "@/db/schema";
 import { generateGameBlog } from "@/lib/ai-blog-engine";
 import { generateMatchupImage } from "@/lib/ai-image";
-import { notifyBlogDraftReady } from "@/lib/notifications";
+import { notifyBlogDraftReady } from "@/lib/telegram";
 import { enrichPickData } from "@/lib/blog-enrichment";
 import { todayISOET } from "@/lib/timezone";
 
@@ -89,6 +89,13 @@ export async function POST(req: NextRequest) {
       `[auto-blog] Generation complete in ${totalMs}ms (enrichment: ${enrichmentMs}ms, generation: ${totalMs - enrichmentMs}ms)`
     );
 
+    if (imageResult.error) {
+      console.error(`[auto-blog] Image generation failed:`, imageResult.error);
+    }
+    if (!imageResult.url) {
+      console.warn(`[auto-blog] No image URL returned — blog will be created without featured image`);
+    }
+
     if (blogResult.error && !blogResult.bodyEn) {
       return NextResponse.json(
         { error: `Blog generation failed: ${blogResult.error}` },
@@ -96,12 +103,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Ensure slug is unique by appending random suffix if needed
+    // Clean slug — no random suffix, just date-based uniqueness
     const baseSlug = blogResult.slug || data.matchup
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
-    const slug = `${baseSlug}-${Date.now().toString(36)}`;
+    const slug = baseSlug;
 
     const postId = crypto.randomUUID();
     const now = new Date().toISOString();
@@ -127,13 +134,15 @@ export async function POST(req: NextRequest) {
       titleEs: blogResult.titleEs || null,
       bodyEn: blogResult.bodyEn,
       bodyEs: blogResult.bodyEs || null,
-      category: data.tier === "free" ? "free_pick" : "game_preview",
+      category: data.blogConfig?.postType === "betting_guide" ? "strategy"
+        : data.blogConfig?.postType === "rivalry_breakdown" ? "game_preview"
+        : "game_preview",
       featuredImage,
       ogImage: featuredImage,
       seoTitle: blogResult.seoTitle || null,
       seoDescription: blogResult.seoDescription || null,
       status: "draft",
-      author: "WinFact AI",
+      author: "WinFact",
       createdAt: now,
       updatedAt: now,
     });
@@ -155,14 +164,14 @@ export async function POST(req: NextRequest) {
       status: "draft",
     }).catch((err) => console.error("[auto-blog] Content queue insert failed:", err));
 
-    // Notify admin that blog is ready for review
+    // Notify via content bot that blog is ready for review
     notifyBlogDraftReady({
       title: blogResult.titleEn || data.matchup,
       sport: data.sport,
       matchup: data.matchup,
       slug,
       postId,
-    }).catch((err) => console.error("Blog notification failed:", err));
+    }).catch((err) => console.error("[auto-blog] Content bot notification failed:", err));
 
     return NextResponse.json({
       postId,

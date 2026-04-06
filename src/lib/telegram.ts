@@ -7,6 +7,8 @@ import {
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_FREE_CHAT_ID = process.env.TELEGRAM_FREE_CHAT_ID || "";
 const TELEGRAM_ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || "";
+const TELEGRAM_CONTENT_BOT_TOKEN = process.env.TELEGRAM_CONTENT_BOT_TOKEN || "";
+const TELEGRAM_CONTENT_CHAT_ID = process.env.TELEGRAM_CONTENT_CHAT_ID || "";
 
 if (!TELEGRAM_BOT_TOKEN) console.warn("[telegram] TELEGRAM_BOT_TOKEN not set — all Telegram features disabled");
 if (!TELEGRAM_FREE_CHAT_ID) console.warn("[telegram] TELEGRAM_FREE_CHAT_ID not set — free channel delivery disabled");
@@ -181,25 +183,54 @@ export async function sendAdminNotification(
 }
 
 /**
- * Notify admin that a new auto-generated blog draft is ready for review.
+ * Send a notification via the content bot (winfact_content_bot).
+ * Used for blog drafts, content queue updates, and filler notifications.
+ */
+export async function sendContentBotNotification(
+  text: string
+): Promise<{ ok: boolean; error?: string }> {
+  const token = TELEGRAM_CONTENT_BOT_TOKEN;
+  const chatId = TELEGRAM_CONTENT_CHAT_ID || TELEGRAM_ADMIN_CHAT_ID;
+  if (!token || !chatId) {
+    // Fall back to admin notification
+    return sendAdminNotification(text);
+  }
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
+    });
+    const data = await res.json();
+    if (data.ok) return { ok: true };
+    return { ok: false, error: data.description || "Content bot send failed" };
+  } catch (error) {
+    return { ok: false, error: String(error) };
+  }
+}
+
+/**
+ * Notify via content bot that a new auto-generated blog draft is ready.
  */
 export async function notifyBlogDraftReady(params: {
   title: string;
   sport: string;
   matchup: string;
   slug: string;
+  postId?: string;
 }): Promise<{ ok: boolean; error?: string }> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com";
-  const editUrl = `${siteUrl}/admin/blog/${params.slug}`;
+  const editUrl = `${siteUrl}/admin/blog/${params.postId || params.slug}`;
 
   const message =
-    `📝 *NEW BLOG DRAFT READY FOR REVIEW*\n\n` +
-    `📰 *Title:* ${params.title}\n` +
-    `🏟 *Sport:* ${params.sport}\n` +
-    `📋 *Matchup:* ${params.matchup}\n\n` +
-    `👉 [Review & publish](${editUrl})`;
+    `📝 <b>Blog Draft Ready</b>\n\n` +
+    `Title: ${params.title}\n` +
+    `Sport: ${params.sport}\n` +
+    `Matchup: ${params.matchup}\n\n` +
+    `Review: ${editUrl}`;
 
-  return sendAdminNotification(message);
+  return sendContentBotNotification(message);
 }
 
 /**
