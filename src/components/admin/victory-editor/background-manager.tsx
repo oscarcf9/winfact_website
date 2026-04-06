@@ -31,6 +31,7 @@ export function BackgroundManager({ sport, team, onSelect }: BackgroundManagerPr
 
   // AI generate state
   const [selectedStyle, setSelectedStyle] = useState<AiStyleId>("arena_lights");
+  const [customPrompt, setCustomPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +107,7 @@ export function BackgroundManager({ sport, team, onSelect }: BackgroundManagerPr
       const res = await fetch("/api/admin/victory-post/generate-bg", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sport, team, style: selectedStyle }),
+        body: JSON.stringify({ sport, team, style: selectedStyle, customPrompt: customPrompt.trim() || undefined }),
       });
 
       if (!res.ok) {
@@ -121,7 +122,7 @@ export function BackgroundManager({ sport, team, onSelect }: BackgroundManagerPr
     } finally {
       setGenerating(false);
     }
-  }, [sport, team, selectedStyle]);
+  }, [sport, team, selectedStyle, customPrompt]);
 
   const handleUseGenerated = useCallback(() => {
     if (generatedUrl) {
@@ -243,6 +244,20 @@ export function BackgroundManager({ sport, team, onSelect }: BackgroundManagerPr
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Optional custom description */}
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
+              Custom direction (optional)
+            </label>
+            <input
+              type="text"
+              value={customPrompt}
+              onChange={e => setCustomPrompt(e.target.value)}
+              placeholder="e.g. rainy night, futuristic, sunrise over ocean..."
+              className="flex h-9 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+            />
           </div>
 
           {/* Generate button */}

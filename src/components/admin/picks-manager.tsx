@@ -439,7 +439,7 @@ export function PicksManager() {
         case "date": {
           const da = a.gameDate || a.publishedAt || a.createdAt || "";
           const db_ = b.gameDate || b.publishedAt || b.createdAt || "";
-          return da < db_ ? dir : da > db_ ? -dir : 0;
+          return da < db_ ? -dir : da > db_ ? dir : 0;
         }
         case "sport":
           return (a.sport || "").localeCompare(b.sport || "") * dir;

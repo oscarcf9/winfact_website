@@ -12,6 +12,12 @@ const BUFFER_ORG_ID = process.env.BUFFER_ORG_ID || "";
 const BUFFER_ACCESS_TOKEN = process.env.BUFFER_ACCESS_TOKEN || "";
 const BUFFER_LIVE_TOKEN = process.env.BUFFER_LIVE_TOKEN || "";
 
+// Known channel IDs — used as fallback when env/API lookup fails
+const KNOWN_CHANNEL_IDS = [
+  "692a85d829ea336fd63c6413", // Instagram
+  "692a863b29ea336fd63c647f", // Facebook
+];
+
 if (!BUFFER_ACCESS_TOKEN) console.warn("[buffer] BUFFER_ACCESS_TOKEN not set — social posting disabled");
 if (!BUFFER_ORG_ID) console.warn("[buffer] BUFFER_ORG_ID not set — cannot fetch channels");
 
@@ -64,8 +70,9 @@ async function getChannelIds(): Promise<string[]> {
 
   // Otherwise fetch from Buffer API
   if (!BUFFER_ORG_ID) {
-    console.error("[buffer] No BUFFER_ORG_ID or BUFFER_CHANNEL_IDS set");
-    return [];
+    console.warn("[buffer] No BUFFER_ORG_ID or BUFFER_CHANNEL_IDS set — using known channel IDs");
+    channelIdsCache = [...KNOWN_CHANNEL_IDS];
+    return channelIdsCache;
   }
 
   const result = await bufferGraphQL(`
@@ -79,11 +86,18 @@ async function getChannelIds(): Promise<string[]> {
   `, { orgId: BUFFER_ORG_ID });
 
   if (result.errors) {
-    console.error("[buffer] Failed to fetch channels:", result.errors[0].message);
-    return [];
+    console.error("[buffer] Failed to fetch channels:", result.errors[0].message, "— using known channel IDs");
+    channelIdsCache = [...KNOWN_CHANNEL_IDS];
+    return channelIdsCache;
   }
 
   const channels = (result.data?.channels || []) as { id: string; name: string; service: string }[];
+  if (channels.length === 0) {
+    console.warn("[buffer] API returned 0 channels — using known channel IDs");
+    channelIdsCache = [...KNOWN_CHANNEL_IDS];
+    return channelIdsCache;
+  }
+
   channelIdsCache = channels.map((ch) => ch.id);
   console.log(`[buffer] Found ${channels.length} channels:`, channels.map((c) => `${c.service}:${c.name}`).join(", "));
   return channelIdsCache;
@@ -127,30 +141,35 @@ export async function postToBufferWithMedia(
   // Post to each channel individually (Buffer GraphQL requires one channel per mutation)
   for (const channelId of channelIds) {
     try {
-      const assetsInput = imageUrl
-        ? `, assets: { images: [{ url: "${imageUrl}" }] }`
-        : "";
-
-      const result = await bufferGraphQL(`
-        mutation CreatePost($text: String!, $channelId: ID!) {
+      const mutation = imageUrl
+        ? `mutation CreatePost($text: String!, $channelId: ID!, $imageUrl: String!) {
+          createPost(input: {
+            text: $text,
+            channelId: $channelId,
+            schedulingType: automatic,
+            mode: shareNow,
+            assets: { images: [{ url: $imageUrl }] }
+          }) {
+            ... on PostActionSuccess { post { id } }
+            ... on MutationError { message }
+          }
+        }`
+        : `mutation CreatePost($text: String!, $channelId: ID!) {
           createPost(input: {
             text: $text,
             channelId: $channelId,
             schedulingType: automatic,
             mode: shareNow
-            ${assetsInput}
           }) {
-            ... on PostActionSuccess {
-              post {
-                id
-              }
-            }
-            ... on MutationError {
-              message
-            }
+            ... on PostActionSuccess { post { id } }
+            ... on MutationError { message }
           }
-        }
-      `, { text, channelId }, accessToken);
+        }`;
+
+      const variables: Record<string, unknown> = { text, channelId };
+      if (imageUrl) variables.imageUrl = imageUrl;
+
+      const result = await bufferGraphQL(mutation, variables, accessToken);
 
       if (result.errors) {
         lastError = result.errors[0].message;

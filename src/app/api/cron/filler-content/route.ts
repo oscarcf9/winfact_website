@@ -164,7 +164,13 @@ export async function GET(req: Request) {
           generateFillerCaption(game, time, "Spanish (Latin American, Miami vibe)"),
         ]);
 
-        // Insert into content queue
+        // Auto-schedule 2.5 hours before game time for hands-free posting
+        const gameStart = new Date(game.startTime);
+        const postAt = new Date(gameStart.getTime() - 2.5 * 60 * 60 * 1000);
+        const now = new Date();
+        // If post time is already past, schedule immediately
+        const scheduledAt = postAt > now ? postAt.toISOString() : now.toISOString();
+
         await db.insert(contentQueue).values({
           id: crypto.randomUUID(),
           type: "filler",
@@ -176,7 +182,8 @@ export async function GET(req: Request) {
           captionEs: captionEs || "",
           hashtags: generateHashtags(game),
           platform: "all",
-          status: "draft",
+          status: "scheduled",
+          scheduledAt,
         });
 
         generated++;
@@ -188,12 +195,17 @@ export async function GET(req: Request) {
 
     // 6. Notify Oscar
     if (generated > 0) {
-      const gameList = selected.slice(0, generated).map((g) => `• ${g.sport}: ${g.team1} vs ${g.team2}`).join("\n");
+      const gameList = selected.slice(0, generated).map((g) => {
+        const gt = new Date(g.startTime);
+        const postTime = new Date(gt.getTime() - 2.5 * 60 * 60 * 1000);
+        const ptStr = postTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/New_York" });
+        return `• ${g.sport}: ${g.team1} vs ${g.team2} (posts ~${ptStr} ET)`;
+      }).join("\n");
       await notifyAdmin({
-        subject: `🎨 ${generated} Filler Graphics Ready`,
+        subject: `🎨 ${generated} Filler Graphics Auto-Scheduled`,
         telegramMessage:
-          `🎨 <b>Filler Content Ready</b>\n\n` +
-          `${generated} matchup graphics generated:\n${gameList}\n\n` +
+          `🎨 <b>Filler Content Auto-Scheduled</b>\n\n` +
+          `${generated} matchup graphics generated & scheduled:\n${gameList}\n\n` +
           `💡 Review: /admin/content-queue`,
         emailHtml: `<p>${generated} filler matchup graphics have been generated and are ready for review.</p><p>${gameList.replace(/\n/g, "<br/>")}</p>`,
       });

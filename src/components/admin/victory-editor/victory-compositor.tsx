@@ -11,6 +11,9 @@ import {
   Unlock,
   Plus,
   Trash2,
+  ZoomIn,
+  ZoomOut,
+  Maximize,
 } from "lucide-react";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -161,7 +164,8 @@ export default function VictoryCompositor({
   const bgImage = useLoadImage(backgroundUrl);
   const ticketImage = useLoadImage(ticketDataUrl);
 
-  const [scale, setScale] = useState(0.5);
+  const [scale, setScale] = useState(0.35);
+  const [userZoom, setUserZoom] = useState<number | null>(null); // null = auto-fit
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [snapX, setSnapX] = useState(false);
@@ -216,19 +220,25 @@ export default function VictoryCompositor({
     ));
   }, [ticketImage]);
 
-  // ResizeObserver for responsive scaling
+  // Auto-fit scale based on container size (both width AND height)
+  const [fitScale, setFitScale] = useState(0.35);
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     const observer = new ResizeObserver(entries => {
       for (const entry of entries) {
-        const cw = entry.contentRect.width;
-        setScale(Math.min(cw / CANVAS_W, 1));
+        const cw = entry.contentRect.width - 24; // padding
+        const ch = entry.contentRect.height - 24;
+        const scaleW = cw / CANVAS_W;
+        const scaleH = ch / CANVAS_H;
+        const fit = Math.min(scaleW, scaleH, 0.65); // cap at 65% to always look manageable
+        setFitScale(fit);
+        if (userZoom === null) setScale(fit);
       }
     });
     observer.observe(container);
     return () => observer.disconnect();
-  }, []);
+  }, [userZoom]);
 
   // Layer helpers
   const updateLayer = useCallback((id: string, patch: Partial<EditorLayer>) => {
@@ -537,6 +547,24 @@ export default function VictoryCompositor({
     return () => window.removeEventListener("keydown", handler);
   }, [selectedId, layers, updateLayer]);
 
+  // ── Zoom controls ──────────────────────────────────────────────────────────
+  const zoomIn = useCallback(() => {
+    const next = Math.min((userZoom ?? scale) + 0.05, 1);
+    setUserZoom(next);
+    setScale(next);
+  }, [userZoom, scale]);
+
+  const zoomOut = useCallback(() => {
+    const next = Math.max((userZoom ?? scale) - 0.05, 0.15);
+    setUserZoom(next);
+    setScale(next);
+  }, [userZoom, scale]);
+
+  const zoomFit = useCallback(() => {
+    setUserZoom(null);
+    setScale(fitScale);
+  }, [fitScale]);
+
   // ── Add text layer ─────────────────────────────────────────────────────────
   const addTextLayer = useCallback(() => {
     const id = `text-${Date.now()}`;
@@ -593,26 +621,9 @@ export default function VictoryCompositor({
   const gradientLayer = layers.find(l => l.id === "gradient")!;
 
   return (
-    <div className="space-y-4" tabIndex={-1}>
-      {/* Canvas Container */}
-      <div ref={containerRef} className="flex justify-center rounded-xl border border-gray-700 bg-gray-900 p-3">
-        <canvas
-          ref={canvasRef}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          className="rounded-lg shadow-lg"
-        />
-      </div>
-
-      <p className="text-center text-xs text-gray-400">
-        Click to select layers. Drag to move. Drag handles to resize. Arrow keys to nudge.
-      </p>
-
-      {/* Controls Panel */}
-      <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-        {/* Layers List */}
+    <div className="flex flex-col gap-4 lg:flex-row" tabIndex={-1}>
+      {/* LEFT SIDEBAR — Layers */}
+      <div className="w-full space-y-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm lg:w-64 lg:shrink-0">
         <div>
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-800">Layers</h3>
@@ -670,14 +681,73 @@ export default function VictoryCompositor({
             ))}
           </div>
         </div>
+      </div>
 
+      {/* CENTER — Canvas Viewport (height-constrained) */}
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
+        {/* Zoom toolbar */}
+        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm">
+          <div className="flex items-center gap-1.5">
+            <button type="button" onClick={zoomOut} className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700" title="Zoom out">
+              <ZoomOut className="h-4 w-4" />
+            </button>
+            <span className="min-w-[3.5rem] text-center text-xs font-medium tabular-nums text-gray-600">
+              {Math.round(scale * 100)}%
+            </span>
+            <button type="button" onClick={zoomIn} className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700" title="Zoom in">
+              <ZoomIn className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={zoomFit} className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700" title="Fit to screen">
+              <Maximize className="h-4 w-4" />
+            </button>
+          </div>
+          <p className="text-xs text-gray-400">
+            Click layers to select. Drag to move. Handles to resize. Arrow keys to nudge.
+          </p>
+        </div>
+
+        {/* Canvas container — fixed max height so it never overflows viewport */}
+        <div ref={containerRef} className="flex items-center justify-center overflow-auto rounded-xl border border-gray-700 bg-gray-900 p-3" style={{ maxHeight: "calc(100vh - 200px)", minHeight: 400 }}>
+          <canvas
+            ref={canvasRef}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            className="rounded-lg shadow-lg"
+          />
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={handleDownload}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-blue-600 px-4 py-3 text-sm font-semibold text-blue-600 transition-all hover:bg-blue-600 hover:text-white"
+          >
+            <Download className="h-4 w-4" /> Download PNG
+          </button>
+          <button
+            type="button"
+            onClick={handleConvertToPost}
+            disabled={exporting}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white shadow-md transition-all hover:shadow-lg disabled:opacity-50"
+          >
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {exporting ? "Exporting..." : "Convert to Post \u2192"}
+          </button>
+        </div>
+      </div>
+
+      {/* RIGHT SIDEBAR — Properties & Controls */}
+      <div className="w-full space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm lg:w-64 lg:shrink-0">
         {/* Selected Layer Properties */}
-        {selectedLayer && !selectedLayer.locked && (
-          <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50/50 p-4">
+        {selectedLayer && !selectedLayer.locked ? (
+          <div className="space-y-3">
             <h4 className="text-xs font-semibold uppercase tracking-wide text-blue-600">
-              {selectedLayer.name} Properties
+              {selectedLayer.name}
             </h4>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2">
               <NumberField label="X" value={Math.round(selectedLayer.x)}
                 onChange={v => updateLayer(selectedLayer.id, { x: v })} />
               <NumberField label="Y" value={Math.round(selectedLayer.y)}
@@ -703,41 +773,42 @@ export default function VictoryCompositor({
                     onChange={e => updateLayer(selectedLayer.id, { text: e.target.value })}
                     className="flex h-9 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <label className="mb-1 block text-xs font-medium text-gray-600">Font Size</label>
-                    <input type="number" min={12} max={200} value={selectedLayer.fontSize ?? 48}
-                      onChange={e => updateLayer(selectedLayer.id, { fontSize: Number(e.target.value) })}
-                      className="flex h-9 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                  </div>
-                  <div className="flex-1">
-                    <label className="mb-1 block text-xs font-medium text-gray-600">Color</label>
-                    <div className="flex gap-1.5">
-                      {COLOR_SWATCHES.map(color => (
-                        <button
-                          key={color}
-                          type="button"
-                          onClick={() => updateLayer(selectedLayer.id, { fillColor: color })}
-                          className={`h-7 w-7 rounded-full border-2 transition ${
-                            selectedLayer.fillColor === color ? "border-blue-500 ring-2 ring-blue-500/30" : "border-gray-300"
-                          }`}
-                          style={{ backgroundColor: color }}
-                          title={color}
-                        />
-                      ))}
-                    </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Font Size</label>
+                  <input type="number" min={12} max={200} value={selectedLayer.fontSize ?? 48}
+                    onChange={e => updateLayer(selectedLayer.id, { fontSize: Number(e.target.value) })}
+                    className="flex h-9 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Color</label>
+                  <div className="flex gap-1.5">
+                    {COLOR_SWATCHES.map(color => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => updateLayer(selectedLayer.id, { fillColor: color })}
+                        className={`h-7 w-7 rounded-full border-2 transition ${
+                          selectedLayer.fillColor === color ? "border-blue-500 ring-2 ring-blue-500/30" : "border-gray-300"
+                        }`}
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
                   </div>
                 </div>
               </>
             )}
           </div>
+        ) : (
+          <p className="text-xs text-gray-400">Select a layer to edit its properties</p>
         )}
 
         {/* Background Controls */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="space-y-3 border-t border-gray-200 pt-4">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Background</h4>
           <div>
             <label className="mb-1 flex items-center justify-between text-xs font-medium text-gray-600">
-              <span>Background Opacity</span>
+              <span>Opacity</span>
               <span className="tabular-nums text-gray-400">{Math.round(bgLayer.opacity * 100)}%</span>
             </label>
             <input type="range" min={0} max={100} value={Math.round(bgLayer.opacity * 100)}
@@ -746,7 +817,7 @@ export default function VictoryCompositor({
           </div>
           <div>
             <label className="mb-1 flex items-center justify-between text-xs font-medium text-gray-600">
-              <span>Background Blur</span>
+              <span>Blur</span>
               <span className="tabular-nums text-gray-400">{bgLayer.blur ?? 0}px</span>
             </label>
             <input type="range" min={0} max={20} value={bgLayer.blur ?? 0}
@@ -755,33 +826,13 @@ export default function VictoryCompositor({
           </div>
           <div>
             <label className="mb-1 flex items-center justify-between text-xs font-medium text-gray-600">
-              <span>Gradient Opacity</span>
+              <span>Gradient</span>
               <span className="tabular-nums text-gray-400">{Math.round((gradientLayer.gradientOpacity ?? 0.6) * 100)}%</span>
             </label>
             <input type="range" min={0} max={100} value={Math.round((gradientLayer.gradientOpacity ?? 0.6) * 100)}
               onChange={e => updateLayer("gradient", { gradientOpacity: Number(e.target.value) / 100 })}
               className="h-2 w-full cursor-pointer appearance-none rounded-full bg-gray-200 accent-blue-600" />
           </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex gap-3 pt-2">
-          <button
-            type="button"
-            onClick={handleDownload}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-blue-600 px-4 py-3 text-sm font-semibold text-blue-600 transition-all hover:bg-blue-600 hover:text-white"
-          >
-            <Download className="h-4 w-4" /> Download PNG
-          </button>
-          <button
-            type="button"
-            onClick={handleConvertToPost}
-            disabled={exporting}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white shadow-md transition-all hover:shadow-lg disabled:opacity-50"
-          >
-            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            {exporting ? "Exporting..." : "Convert to Post \u2192"}
-          </button>
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { db } from "@/db";
-import { picks } from "@/db/schema";
+import { picks, siteContent } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { refreshPerformanceCache } from "@/lib/refresh-performance";
 import { distributePickOnPublish } from "@/lib/delivery";
@@ -144,6 +144,43 @@ export async function PUT(req: NextRequest, context: RouteContext) {
         tier: data.tier || current.tier || "vip",
         modelEdge: data.modelEdge ?? current.modelEdge ?? null,
       }).catch((err) => console.error("Distribution failed (non-blocking):", err));
+    }
+
+    // Auto-blog generation on publish — fire-and-forget
+    if (data.status === "published" && current.status !== "published") {
+      const blogToggleRow = await db.select().from(siteContent).where(eq(siteContent.key, "blog_auto_generator")).limit(1);
+      const blogEnabled = blogToggleRow[0]?.value === "true" || process.env.ENABLE_AUTO_BLOG === "true";
+      if (blogEnabled) {
+        try {
+          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+          const cookieHeader = req.headers.get("cookie") || "";
+          const pickData = {
+            sport: data.sport || current.sport,
+            league: data.league || current.league || data.sport || current.sport,
+            matchup: data.matchup || current.matchup,
+            pickText: data.pickText || current.pickText,
+            gameDate: data.gameDate || current.gameDate || null,
+            odds: data.odds ?? current.odds ?? null,
+            units: data.units ?? current.units ?? null,
+            stars: data.stars ?? current.stars ?? null,
+            tier: data.tier || current.tier || "vip",
+            analysisEn: data.analysisEn ?? current.analysisEn ?? null,
+          };
+          console.log(`[auto-blog] Triggering for published pick ${id}: ${pickData.matchup}`);
+          fetch(`${siteUrl}/api/admin/auto-blog`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Cookie": cookieHeader,
+            },
+            body: JSON.stringify(pickData),
+          }).catch((err) => {
+            console.error("[auto-blog] Failed to trigger:", err);
+          });
+        } catch (err) {
+          console.error("[auto-blog] Error:", err);
+        }
+      }
     }
 
     return NextResponse.json({ success: true });

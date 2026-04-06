@@ -330,6 +330,6 @@ export function buildBackgroundPrompt(
     .replace(/\{secondary_color\}/g, team.secondaryColor)
     .replace(/\{accent_color\}/g, team.accentColor);
 
-  // Append color balance instruction to prevent AI from over-saturating team colors
-  return result + `\n\nIMPORTANT COLOR GUIDANCE: Use the team colors as ACCENTS and HIGHLIGHTS, not as a dominant fill. The overall image should feel balanced and cinematic — not monochromatic or oversaturated. Neutral darks (deep navy, charcoal, black) should dominate the shadows and bottom third. Team colors appear in light beams, highlights, bokeh, and atmospheric glows — never as a flat color wash over the entire image.`;
+  // Append color balance instruction — lighter touch to allow more variety
+  return result + `\n\nCOLOR NOTE: Team colors should be prominent but not a flat monochrome wash. Let them appear naturally in light sources, atmospheric glows, bokeh, and highlights. The bottom third should always be dark (near-black) for text overlay.`;
 }

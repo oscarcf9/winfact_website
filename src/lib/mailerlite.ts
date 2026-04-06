@@ -31,6 +31,18 @@ async function mailerliteFetch(endpoint: string, options: RequestInit = {}) {
       ...options.headers,
     },
   });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    const msg = `MailerLite ${options.method || "GET"} ${endpoint} failed: HTTP ${res.status} — ${text.substring(0, 200)}`;
+    console.error(`[mailerlite]`, msg);
+    // Return a structure that callers can detect as an error
+    return { data: null, message: msg, status: res.status };
+  }
+
+  // 204 No Content (e.g. DELETE) — no body to parse
+  if (res.status === 204) return { data: null };
+
   return res.json();
 }
 

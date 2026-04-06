@@ -63,6 +63,7 @@ export async function GET(req: Request) {
         }
 
         // 2. Post victory posts to Buffer (all connected socials)
+        let socialOk = true;
         if (item.type === "victory_post" && item.imageUrl) {
           const result = await postVictoryToSocial({
             captionEn: item.captionEn || item.title,
@@ -72,6 +73,7 @@ export async function GET(req: Request) {
           });
           if (!result.ok) {
             console.error(`[content-queue] Victory social post failed: ${result.error}`);
+            socialOk = false;
           } else {
             console.log(`[content-queue] Victory post sent to Buffer: ${item.title}`);
           }
@@ -87,18 +89,26 @@ export async function GET(req: Request) {
           });
           if (!result.ok) {
             console.error(`[content-queue] Filler social post failed: ${result.error}`);
+            socialOk = false;
           } else {
             console.log(`[content-queue] Filler post sent to Buffer: ${item.title}`);
           }
         }
 
-        // 4. Mark as posted
-        await db
-          .update(contentQueue)
-          .set({ status: "posted", postedAt: now })
-          .where(eq(contentQueue.id, item.id));
-
-        posted++;
+        // 4. Mark as posted only if social posting succeeded (or was blog-only)
+        if (socialOk) {
+          await db
+            .update(contentQueue)
+            .set({ status: "posted", postedAt: now })
+            .where(eq(contentQueue.id, item.id));
+          posted++;
+        } else {
+          await db
+            .update(contentQueue)
+            .set({ status: "failed", error: "Social posting failed — see server logs" })
+            .where(eq(contentQueue.id, item.id));
+          failed++;
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(`[content-queue] Failed to process item ${item.id}:`, message);
