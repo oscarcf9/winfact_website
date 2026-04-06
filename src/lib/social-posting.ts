@@ -1,31 +1,11 @@
-import { postToBuffer, postToBufferWithMedia } from "./buffer";
+import { postToBufferWithMedia, postBlogLinkToBuffer } from "./buffer";
+import { sendTelegramPhoto, sendTelegramMessage } from "./telegram";
 
-type SocialPost = {
-  caption: string;
-  imageUrl?: string;
-  platform?: "all" | "instagram" | "twitter" | "threads" | "facebook";
-};
+const TELEGRAM_FREE_CHAT_ID = process.env.TELEGRAM_FREE_CHAT_ID || "";
 
 /**
- * Post content to social media via Buffer.
- * Buffer handles cross-posting to connected platforms (Instagram, Twitter, Threads, Facebook).
- * Supports both text-only and image posts.
- *
- * Returns true if at least one platform succeeded.
- */
-export async function postToSocial(post: SocialPost): Promise<{ ok: boolean; error?: string }> {
-  try {
-    if (post.imageUrl) {
-      return await postToBufferWithMedia(post.caption, post.imageUrl);
-    }
-    return await postToBuffer(post.caption);
-  } catch (error) {
-    return { ok: false, error: String(error) };
-  }
-}
-
-/**
- * Post a victory celebration to social media (image + caption).
+ * Post a victory celebration to social media.
+ * Route: Facebook + Instagram + Twitter + Threads (all channels, with image)
  */
 export async function postVictoryToSocial(post: {
   captionEn: string;
@@ -36,11 +16,18 @@ export async function postVictoryToSocial(post: {
   // Use Spanish caption ~60% of the time to match audience
   const caption = Math.random() < 0.6 ? post.captionEs : post.captionEn;
   const fullCaption = `${caption}\n\n${post.hashtags}`;
-  return postToSocial({ caption: fullCaption, imageUrl: post.imageUrl });
+
+  try {
+    return await postToBufferWithMedia(fullCaption, post.imageUrl);
+  } catch (error) {
+    return { ok: false, error: String(error) };
+  }
 }
 
 /**
- * Post a filler matchup graphic to social media (image + caption).
+ * Post a filler matchup graphic to social media.
+ * Route: Facebook + Instagram + Twitter + Threads (all channels, with image)
+ * + occasionally Telegram
  */
 export async function postFillerToSocial(post: {
   captionEn: string;
@@ -50,11 +37,34 @@ export async function postFillerToSocial(post: {
 }): Promise<{ ok: boolean; error?: string }> {
   const caption = Math.random() < 0.5 ? post.captionEs : post.captionEn;
   const fullCaption = `${caption}\n\n${post.hashtags}`;
-  return postToSocial({ caption: fullCaption, imageUrl: post.imageUrl });
+
+  let bufferOk = false;
+  let bufferError = "";
+
+  // Post to Buffer (all channels)
+  try {
+    const result = await postToBufferWithMedia(fullCaption, post.imageUrl);
+    bufferOk = result.ok;
+    if (!result.ok) bufferError = result.error || "Buffer failed";
+  } catch (error) {
+    bufferError = String(error);
+  }
+
+  // Occasionally also post to Telegram (~40% chance)
+  if (TELEGRAM_FREE_CHAT_ID && Math.random() < 0.4) {
+    try {
+      await sendTelegramPhoto(TELEGRAM_FREE_CHAT_ID, post.imageUrl, fullCaption);
+    } catch (err) {
+      console.error("[social] Filler Telegram post failed:", err);
+    }
+  }
+
+  return bufferOk ? { ok: true } : { ok: false, error: bufferError };
 }
 
 /**
  * Post a blog link to social media.
+ * Route: Facebook (via Buffer) + Telegram ONLY
  */
 export async function postBlogToSocial(post: {
   title: string;
@@ -62,5 +72,27 @@ export async function postBlogToSocial(post: {
   imageUrl?: string;
 }): Promise<{ ok: boolean; error?: string }> {
   const caption = `📝 ${post.title}\n\n${post.url}`;
-  return postToSocial({ caption, imageUrl: post.imageUrl });
+  let anyOk = false;
+
+  // Facebook via Buffer
+  try {
+    const result = await postBlogLinkToBuffer(caption);
+    if (result.ok) anyOk = true;
+    else console.error("[social] Blog Buffer failed:", result.error);
+  } catch (error) {
+    console.error("[social] Blog Buffer error:", error);
+  }
+
+  // Telegram
+  if (TELEGRAM_FREE_CHAT_ID) {
+    try {
+      const result = await sendTelegramMessage(TELEGRAM_FREE_CHAT_ID, caption, { parseMode: "none" });
+      if (result.ok) anyOk = true;
+      else console.error("[social] Blog Telegram failed:", result.error);
+    } catch (error) {
+      console.error("[social] Blog Telegram error:", error);
+    }
+  }
+
+  return anyOk ? { ok: true } : { ok: false, error: "Both Facebook and Telegram failed" };
 }

@@ -1,34 +1,29 @@
 /**
- * Buffer GraphQL API client for cross-posting to Twitter/X, Threads, Instagram, Facebook.
- * Uses Buffer GraphQL API: https://api.buffer.com
- * Supports text posts, image posts, and channel management.
- * Fire-and-forget — failures are logged but never throw.
+ * Buffer GraphQL API client.
+ * Uses Buffer's createIdea mutation: https://developers.buffer.com/guides/getting-started.html
+ *
+ * Channel routing:
+ *   - Live commentary → Twitter + Threads ONLY
+ *   - Filler posts → Facebook + Instagram + Twitter + Threads (+ occasionally Telegram)
+ *   - Victory posts → Facebook + Instagram + Twitter + Threads
+ *   - Blog links → Facebook + Telegram ONLY (handled in social-posting.ts)
  */
 
-const BUFFER_API = "https://api.buffer.com";
-const BUFFER_ORG_ID = process.env.BUFFER_ORG_ID || "";
+const BUFFER_API = "https://graph.bufferapp.com/graphql";
+const BUFFER_ORG_ID = process.env.BUFFER_ORG_ID || "68dde1d4ae0ea4e53700e8cf";
 
-// Two keys: one for scheduled content, one for live commentary
 const BUFFER_ACCESS_TOKEN = process.env.BUFFER_ACCESS_TOKEN || "";
 const BUFFER_LIVE_TOKEN = process.env.BUFFER_LIVE_TOKEN || "";
 
-// Known channel IDs — used as fallback when env/API lookup fails
-const KNOWN_CHANNEL_IDS = [
-  "692a85d829ea336fd63c6413", // Instagram
-  "692a863b29ea336fd63c647f", // Facebook
-];
-
-// Text-only channels (Twitter/Threads/Facebook — NOT Instagram which requires images)
-// Set BUFFER_TEXT_CHANNEL_IDS env var to override (comma-separated)
-const TEXT_CHANNEL_IDS = process.env.BUFFER_TEXT_CHANNEL_IDS
-  ? process.env.BUFFER_TEXT_CHANNEL_IDS.split(",").map(id => id.trim()).filter(Boolean)
-  : ["692a863b29ea336fd63c647f"]; // Facebook only as default (Instagram needs images)
+// Channel IDs — configure via env vars or use defaults
+const CHANNELS = {
+  instagram: process.env.BUFFER_INSTAGRAM_CHANNEL_ID || "692a85d829ea336fd63c6413",
+  facebook: process.env.BUFFER_FACEBOOK_CHANNEL_ID || "692a863b29ea336fd63c647f",
+  twitter: process.env.BUFFER_TWITTER_CHANNEL_ID || "",
+  threads: process.env.BUFFER_THREADS_CHANNEL_ID || "",
+};
 
 if (!BUFFER_ACCESS_TOKEN) console.warn("[buffer] BUFFER_ACCESS_TOKEN not set — social posting disabled");
-if (!BUFFER_ORG_ID) console.warn("[buffer] BUFFER_ORG_ID not set — cannot fetch channels");
-
-// Channel IDs cache (fetched once, reused)
-let channelIdsCache: string[] | null = null;
 
 /**
  * Execute a GraphQL query/mutation against Buffer API.
@@ -47,85 +42,51 @@ async function bufferGraphQL(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${accessToken}`,
+      Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify({ query, variables }),
   });
 
   if (!res.ok) {
     const text = await res.text();
-    console.error("[buffer] GraphQL HTTP error:", res.status, text);
-    return { errors: [{ message: `HTTP ${res.status}: ${text}` }] };
+    console.error("[buffer] GraphQL HTTP error:", res.status, text.substring(0, 300));
+    return { errors: [{ message: `HTTP ${res.status}: ${text.substring(0, 200)}` }] };
   }
 
   return res.json();
 }
 
 /**
- * Fetch all channel IDs from Buffer (cached after first call).
+ * Get channel IDs for a specific routing purpose.
  */
-async function getChannelIds(): Promise<string[]> {
-  if (channelIdsCache) return channelIdsCache;
+function getChannelsForRoute(route: "all" | "text_only" | "facebook_only"): string[] {
+  const ids: string[] = [];
 
-  // If explicit channel IDs are set, use those
-  const explicitIds = process.env.BUFFER_CHANNEL_IDS;
-  if (explicitIds) {
-    channelIdsCache = explicitIds.split(",").map((id) => id.trim()).filter(Boolean);
-    return channelIdsCache;
+  if (route === "text_only") {
+    // Twitter + Threads only (for live commentary)
+    if (CHANNELS.twitter) ids.push(CHANNELS.twitter);
+    if (CHANNELS.threads) ids.push(CHANNELS.threads);
+  } else if (route === "facebook_only") {
+    // Facebook only (for blog links)
+    if (CHANNELS.facebook) ids.push(CHANNELS.facebook);
+  } else {
+    // All channels (for filler + victory posts with images)
+    if (CHANNELS.instagram) ids.push(CHANNELS.instagram);
+    if (CHANNELS.facebook) ids.push(CHANNELS.facebook);
+    if (CHANNELS.twitter) ids.push(CHANNELS.twitter);
+    if (CHANNELS.threads) ids.push(CHANNELS.threads);
   }
 
-  // Otherwise fetch from Buffer API
-  if (!BUFFER_ORG_ID) {
-    console.warn("[buffer] No BUFFER_ORG_ID or BUFFER_CHANNEL_IDS set — using known channel IDs");
-    channelIdsCache = [...KNOWN_CHANNEL_IDS];
-    return channelIdsCache;
-  }
-
-  const result = await bufferGraphQL(`
-    query GetChannels($orgId: OrganizationId!) {
-      channels(input: { organizationId: $orgId }) {
-        id
-        name
-        service
-      }
-    }
-  `, { orgId: BUFFER_ORG_ID });
-
-  if (result.errors) {
-    console.error("[buffer] Failed to fetch channels:", result.errors[0].message, "— using known channel IDs");
-    channelIdsCache = [...KNOWN_CHANNEL_IDS];
-    return channelIdsCache;
-  }
-
-  const channels = (result.data?.channels || []) as { id: string; name: string; service: string }[];
-  if (channels.length === 0) {
-    console.warn("[buffer] API returned 0 channels — using known channel IDs");
-    channelIdsCache = [...KNOWN_CHANNEL_IDS];
-    return channelIdsCache;
-  }
-
-  channelIdsCache = channels.map((ch) => ch.id);
-  console.log(`[buffer] Found ${channels.length} channels:`, channels.map((c) => `${c.service}:${c.name}`).join(", "));
-  return channelIdsCache;
+  return ids;
 }
 
 /**
- * Post a text message to all connected Buffer channels.
- * Publishes immediately (mode: shareNow).
- * Returns { ok, error? } — never throws.
+ * Post an idea to specific Buffer channels using createIdea mutation.
+ * This is the core posting function — all public functions delegate here.
  */
-export async function postToBuffer(text: string): Promise<{ ok: boolean; error?: string }> {
-  return postToBufferWithMedia(text);
-}
-
-/**
- * Post a message with an optional image to all connected Buffer channels.
- * Uses Buffer GraphQL API createPost mutation.
- * Image must be a publicly accessible URL.
- * Publishes immediately (mode: shareNow).
- */
-export async function postToBufferWithMedia(
+async function postIdea(
   text: string,
+  channelIds: string[],
   imageUrl?: string,
   token?: string
 ): Promise<{ ok: boolean; error?: string }> {
@@ -134,48 +95,40 @@ export async function postToBufferWithMedia(
     return { ok: false, error: "Buffer access token not configured" };
   }
 
-  const channelIds = await getChannelIds();
   if (channelIds.length === 0) {
-    return { ok: false, error: "No Buffer channels found" };
+    return { ok: false, error: "No Buffer channels configured for this route" };
   }
 
-  console.log(`[buffer] Posting to ${channelIds.length} channels${imageUrl ? " with image" : ""}`);
+  console.log(`[buffer] Posting to ${channelIds.length} channels${imageUrl ? " with image" : ""}: ${channelIds.join(", ")}`);
 
   let successCount = 0;
   let lastError = "";
 
-  // Post to each channel individually (Buffer GraphQL requires one channel per mutation)
   for (const channelId of channelIds) {
     try {
-      const mutation = imageUrl
-        ? `mutation CreatePost($text: String!, $channelId: ChannelId!, $imageUrl: String!) {
-          createPost(input: {
-            text: $text,
-            channelId: $channelId,
-            schedulingType: automatic,
-            mode: shareNow,
-            assets: { images: [{ url: $imageUrl }] }
+      // Build the createIdea mutation per Buffer's GraphQL API
+      const mutation = `
+        mutation CreateIdea {
+          createIdea(input: {
+            organizationId: "${BUFFER_ORG_ID}",
+            content: {
+              text: ${JSON.stringify(text)}
+            }
+            ${imageUrl ? `, media: { images: [{ url: ${JSON.stringify(imageUrl)} }] }` : ""}
+            channels: ["${channelId}"]
           }) {
-            ... on PostActionSuccess { post { id } }
-            ... on MutationError { message }
+            ... on Idea {
+              id
+              content { text }
+            }
+            ... on MutationError {
+              message
+            }
           }
-        }`
-        : `mutation CreatePost($text: String!, $channelId: ChannelId!) {
-          createPost(input: {
-            text: $text,
-            channelId: $channelId,
-            schedulingType: automatic,
-            mode: shareNow
-          }) {
-            ... on PostActionSuccess { post { id } }
-            ... on MutationError { message }
-          }
-        }`;
+        }
+      `;
 
-      const variables: Record<string, unknown> = { text, channelId };
-      if (imageUrl) variables.imageUrl = imageUrl;
-
-      const result = await bufferGraphQL(mutation, variables, accessToken);
+      const result = await bufferGraphQL(mutation, undefined, accessToken);
 
       if (result.errors) {
         lastError = result.errors[0].message;
@@ -183,14 +136,19 @@ export async function postToBufferWithMedia(
         continue;
       }
 
-      const payload = result.data?.createPost as Record<string, unknown> | undefined;
+      const payload = result.data?.createIdea as Record<string, unknown> | undefined;
       if (payload?.message) {
         lastError = String(payload.message);
         console.error(`[buffer] Channel ${channelId} mutation error:`, lastError);
         continue;
       }
 
-      successCount++;
+      if (payload?.id) {
+        successCount++;
+        console.log(`[buffer] Channel ${channelId} → Idea ${payload.id}`);
+      } else {
+        successCount++; // Assume success if no error
+      }
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err);
       console.error(`[buffer] Channel ${channelId} failed:`, lastError);
@@ -205,10 +163,31 @@ export async function postToBufferWithMedia(
   return { ok: false, error: lastError || "All channels failed" };
 }
 
+// ── Public API ────────────────────────────────────────────────────────────────
+
 /**
- * Post live commentary to Buffer using the dedicated live commentary token.
- * Uses text-only channels (Twitter, Threads, Facebook — NOT Instagram which requires images).
- * This keeps live content separate from scheduled content in Buffer analytics.
+ * Post to ALL channels (Instagram, Facebook, Twitter, Threads).
+ * Used for filler posts and victory posts (with images).
+ */
+export async function postToBufferWithMedia(
+  text: string,
+  imageUrl?: string,
+  token?: string
+): Promise<{ ok: boolean; error?: string }> {
+  const channels = getChannelsForRoute("all");
+  return postIdea(text, channels, imageUrl, token);
+}
+
+/**
+ * Post text-only to all channels. Alias for postToBufferWithMedia without image.
+ */
+export async function postToBuffer(text: string): Promise<{ ok: boolean; error?: string }> {
+  return postToBufferWithMedia(text);
+}
+
+/**
+ * Post live commentary to Twitter + Threads ONLY.
+ * Text-only, no images. Uses dedicated live token if available.
  */
 export async function postLiveToBuffer(text: string): Promise<{ ok: boolean; error?: string }> {
   const token = BUFFER_LIVE_TOKEN || BUFFER_ACCESS_TOKEN;
@@ -216,64 +195,26 @@ export async function postLiveToBuffer(text: string): Promise<{ ok: boolean; err
     return { ok: false, error: "Buffer live token not configured" };
   }
 
-  // Use text-only channels to avoid Instagram (which rejects posts without images)
-  const channelIds = TEXT_CHANNEL_IDS.length > 0 ? TEXT_CHANNEL_IDS : await getChannelIds();
-  if (channelIds.length === 0) {
-    return { ok: false, error: "No Buffer text channels configured" };
+  const channels = getChannelsForRoute("text_only");
+  if (channels.length === 0) {
+    return { ok: false, error: "No Twitter/Threads channels configured. Set BUFFER_TWITTER_CHANNEL_ID and/or BUFFER_THREADS_CHANNEL_ID." };
   }
 
-  console.log(`[buffer-live] Posting to ${channelIds.length} text channels`);
-
-  let successCount = 0;
-  let lastError = "";
-
-  for (const channelId of channelIds) {
-    try {
-      const result = await bufferGraphQL(`
-        mutation CreatePost($text: String!, $channelId: ChannelId!) {
-          createPost(input: {
-            text: $text,
-            channelId: $channelId,
-            schedulingType: automatic,
-            mode: shareNow
-          }) {
-            ... on PostActionSuccess { post { id } }
-            ... on MutationError { message }
-          }
-        }
-      `, { text, channelId }, token);
-
-      if (result.errors) {
-        lastError = result.errors[0].message;
-        console.error(`[buffer-live] Channel ${channelId} error:`, lastError);
-        continue;
-      }
-
-      const payload = result.data?.createPost as Record<string, unknown> | undefined;
-      if (payload?.message) {
-        lastError = String(payload.message);
-        console.error(`[buffer-live] Channel ${channelId} mutation error:`, lastError);
-        continue;
-      }
-
-      successCount++;
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err);
-      console.error(`[buffer-live] Channel ${channelId} failed:`, lastError);
-    }
-  }
-
-  if (successCount > 0) {
-    console.log(`[buffer-live] Posted to ${successCount}/${channelIds.length} channels`);
-    return { ok: true };
-  }
-
-  return { ok: false, error: lastError || "All text channels failed" };
+  return postIdea(text, channels, undefined, token);
 }
 
 /**
- * Clear the channel IDs cache (useful if channels are added/removed).
+ * Post blog link to Facebook ONLY.
+ * Blog URLs with OG tags — Facebook renders the preview automatically.
+ */
+export async function postBlogLinkToBuffer(text: string): Promise<{ ok: boolean; error?: string }> {
+  const channels = getChannelsForRoute("facebook_only");
+  return postIdea(text, channels);
+}
+
+/**
+ * Clear the channel IDs cache (unused now that channels are config-based).
  */
 export function clearChannelCache(): void {
-  channelIdsCache = null;
+  // No-op — channels are now config-based, no cache to clear
 }
