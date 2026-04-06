@@ -66,7 +66,8 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
   const [selectedTags, setSelectedTags] = useState<string[]>(tags);
   const [imagePreview, setImagePreview] = useState<string | null>(post?.featuredImage || null);
   const [uploading, setUploading] = useState(false);
-  const [showSeo, setShowSeo] = useState(false);
+  const [showSeo, setShowSeo] = useState(!!(post?.seoTitle || post?.seoDescription));
+  const [contentLang, setContentLang] = useState<"en" | "es">("en");
   const [postStatus, setPostStatus] = useState(post?.status || "draft");
   const [scheduledAt, setScheduledAt] = useState(
     post?.status === "scheduled" && post?.publishedAt
@@ -127,10 +128,10 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
     const status = postStatus;
     const data: Record<string, unknown> = {
       titleEn: form.get("titleEn"),
-      titleEs: null,
+      titleEs: form.get("titleEs") || null,
       slug: form.get("slug"),
       bodyEn: form.get("bodyEn"),
-      bodyEs: null,
+      bodyEs: form.get("bodyEs") || null,
       category: form.get("category") || null,
       featuredImage: featuredImageUrl || null,
       seoTitle: form.get("seoTitle") || null,
@@ -199,15 +200,64 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
             </div>
 
             <div className="space-y-4">
-              <div>
-                <label className={labelClass}>{t("titleSection")}</label>
-                <input
-                  name="titleEn"
-                  required
-                  defaultValue={post?.titleEn || ""}
-                  className={`${inputClass} text-base font-medium`}
-                  placeholder={t("titlePlaceholder")}
-                />
+              {/* Language tabs */}
+              <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
+                <button type="button" onClick={() => setContentLang("en")}
+                  className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition ${contentLang === "en" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                  English
+                </button>
+                <button type="button" onClick={() => setContentLang("es")}
+                  className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition ${contentLang === "es" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                  Español {!post?.titleEs && <span className="text-gray-400">(optional)</span>}
+                </button>
+              </div>
+
+              {/* English content */}
+              <div className={contentLang === "en" ? "" : "hidden"}>
+                <div>
+                  <label className={labelClass}>{t("titleSection")}</label>
+                  <input
+                    name="titleEn"
+                    required
+                    defaultValue={post?.titleEn || ""}
+                    className={`${inputClass} text-base font-medium`}
+                    placeholder={t("titlePlaceholder")}
+                  />
+                </div>
+                <div className="mt-4">
+                  <label className={labelClass}>{t("content")}</label>
+                  <textarea
+                    name="bodyEn"
+                    required
+                    rows={16}
+                    defaultValue={post?.bodyEn || ""}
+                    className={`${inputClass} font-mono text-[13px] leading-relaxed min-h-[300px] resize-y`}
+                    placeholder={t("contentPlaceholder")}
+                  />
+                </div>
+              </div>
+
+              {/* Spanish content */}
+              <div className={contentLang === "es" ? "" : "hidden"}>
+                <div>
+                  <label className={labelClass}>Título (ES)</label>
+                  <input
+                    name="titleEs"
+                    defaultValue={post?.titleEs || ""}
+                    className={`${inputClass} text-base font-medium`}
+                    placeholder="Título del artículo en español..."
+                  />
+                </div>
+                <div className="mt-4">
+                  <label className={labelClass}>Contenido (ES)</label>
+                  <textarea
+                    name="bodyEs"
+                    rows={16}
+                    defaultValue={post?.bodyEs || ""}
+                    className={`${inputClass} font-mono text-[13px] leading-relaxed min-h-[300px] resize-y`}
+                    placeholder="Contenido del artículo en español..."
+                  />
+                </div>
               </div>
 
               {/* Slug */}
@@ -235,19 +285,6 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
                     </button>
                   )}
                 </div>
-              </div>
-
-              {/* Body */}
-              <div>
-                <label className={labelClass}>{t("content")}</label>
-                <textarea
-                  name="bodyEn"
-                  required
-                  rows={16}
-                  defaultValue={post?.bodyEn || ""}
-                  className={`${inputClass} font-mono text-[13px] leading-relaxed min-h-[300px] resize-y`}
-                  placeholder={t("contentPlaceholder")}
-                />
               </div>
             </div>
           </div>

@@ -2,9 +2,10 @@ import { db } from "@/db";
 import { posts } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { Link } from "@/i18n/navigation";
-import { Plus, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { BlogDeleteButton } from "@/components/admin/blog-delete-button";
+import { NewPostButton } from "@/components/admin/new-post-modal";
 
 type Props = {
   searchParams: Promise<{ status?: string }>;
@@ -34,13 +35,7 @@ export default async function AdminBlogPage({ searchParams }: Props) {
           {" "}
           <span className="text-gray-400 text-lg font-normal ml-3">{tc("management")}</span>
         </h1>
-        <Link
-          href="/admin/blog/new"
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary to-accent text-white text-sm font-medium hover:shadow-lg hover:shadow-primary/20 transition-all duration-200"
-        >
-          <Plus className="h-4 w-4" />
-          {t("newPost")}
-        </Link>
+        <NewPostButton />
       </div>
 
       {/* Filters */}
