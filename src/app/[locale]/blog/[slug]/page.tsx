@@ -80,10 +80,38 @@ function formatDate(dateString: string): string {
 }
 
 function renderBodyContent(body: string) {
-  const paragraphs = body.split(/\n\s*\n/).filter((p) => p.trim());
-  return paragraphs.map((paragraph, i) => (
-    <p key={i}>{paragraph.trim()}</p>
-  ));
+  // Simple markdown → HTML conversion (no external deps)
+  const html = body
+    // Headings
+    .replace(/^### (.+)$/gm, "<h3>$1</h3>")
+    .replace(/^## (.+)$/gm, "<h2>$1</h2>")
+    .replace(/^# (.+)$/gm, "<h1>$1</h1>")
+    // Bold and italic
+    .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>")
+    // Unordered lists
+    .replace(/^[-*] (.+)$/gm, "<li>$1</li>")
+    // Links
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 underline">$1</a>')
+    // Horizontal rules
+    .replace(/^---$/gm, "<hr />")
+    // Paragraphs: wrap non-tag lines in <p>
+    .split(/\n\s*\n/)
+    .map((block) => {
+      const trimmed = block.trim();
+      if (!trimmed) return "";
+      if (/^<(h[1-6]|li|hr|ul|ol)/.test(trimmed)) {
+        // Wrap consecutive <li> items in <ul>
+        if (trimmed.includes("<li>")) return `<ul>${trimmed}</ul>`;
+        return trimmed;
+      }
+      return `<p>${trimmed.replace(/\n/g, "<br />")}</p>`;
+    })
+    .filter(Boolean)
+    .join("\n");
+
+  return <div dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 export default async function BlogPostPage({

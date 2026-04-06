@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { db } from "@/db";
 import { gamesToday } from "@/db/schema";
-import { eq, lt, and, ne } from "drizzle-orm";
+import { eq, lt, gte, and, ne } from "drizzle-orm";
 import { fetchOdds, SPORT_KEYS } from "@/lib/odds-api";
 
 export async function GET(req: NextRequest) {
@@ -12,12 +12,23 @@ export async function GET(req: NextRequest) {
   try {
     const sport = req.nextUrl.searchParams.get("sport");
 
-    let games;
-    if (sport) {
-      games = await db.select().from(gamesToday).where(eq(gamesToday.sport, sport)).orderBy(gamesToday.commenceTime);
-    } else {
-      games = await db.select().from(gamesToday).orderBy(gamesToday.commenceTime);
-    }
+    // Only return games from today onward (ET timezone — subtract 5h from UTC for safe cutoff)
+    const cutoff = new Date();
+    cutoff.setHours(cutoff.getHours() - 5); // approximate ET offset
+    cutoff.setHours(0, 0, 0, 0);
+    const cutoffISO = cutoff.toISOString();
+
+    const conditions = [
+      // Only games with commence time >= start of today (ET-safe)
+      gte(gamesToday.commenceTime, cutoffISO),
+    ];
+    if (sport) conditions.push(eq(gamesToday.sport, sport));
+
+    const games = await db
+      .select()
+      .from(gamesToday)
+      .where(and(...conditions))
+      .orderBy(gamesToday.commenceTime);
 
     return NextResponse.json({ games });
   } catch {
