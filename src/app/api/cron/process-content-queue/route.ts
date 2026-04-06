@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { contentQueue, posts } from "@/db/schema";
 import { eq, and, lte, desc } from "drizzle-orm";
 import { postVictoryToSocial, postFillerToSocial, postBlogToSocial } from "@/lib/social-posting";
-import { sendTelegramPhoto } from "@/lib/telegram";
+import { sendTelegramPhoto, notifyFillerPosted } from "@/lib/telegram";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com";
 const TELEGRAM_FREE_CHAT_ID = process.env.TELEGRAM_FREE_CHAT_ID || "";
@@ -175,6 +175,15 @@ export async function GET(req: Request) {
 
         if (!bufferOk || !telegramOk) {
           console.warn(`[content-queue] Partial delivery for ${item.id}: ${deliveryResults}`);
+        }
+
+        // Notify Oscar via content bot when filler is posted
+        if (item.type === "filler") {
+          notifyFillerPosted({
+            title: item.title,
+            sport: item.preview?.split(" — ")[0] || "",
+            channels: { buffer: bufferOk, telegram: telegramOk },
+          }).catch(err => console.error("[content-queue] Filler notification failed:", err));
         }
 
         return NextResponse.json({ processed: 1, posted: 1, failed: 0, deliveryResults });

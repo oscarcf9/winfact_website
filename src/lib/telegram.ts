@@ -8,7 +8,7 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_FREE_CHAT_ID = process.env.TELEGRAM_FREE_CHAT_ID || "";
 const TELEGRAM_ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || "";
 const TELEGRAM_CONTENT_BOT_TOKEN = process.env.TELEGRAM_CONTENT_BOT_TOKEN || "";
-const TELEGRAM_CONTENT_CHAT_ID = process.env.TELEGRAM_CONTENT_CHAT_ID || "";
+const TELEGRAM_CONTENT_CHAT_ID = process.env.TELEGRAM_CONTENT_CHAT_ID || "570133257";
 
 if (!TELEGRAM_BOT_TOKEN) console.warn("[telegram] TELEGRAM_BOT_TOKEN not set — all Telegram features disabled");
 if (!TELEGRAM_FREE_CHAT_ID) console.warn("[telegram] TELEGRAM_FREE_CHAT_ID not set — free channel delivery disabled");
@@ -182,25 +182,42 @@ export async function sendAdminNotification(
   return sendTelegramMessage(TELEGRAM_ADMIN_CHAT_ID, text);
 }
 
+const CONTENT_BOT_API = TELEGRAM_CONTENT_BOT_TOKEN
+  ? `https://api.telegram.org/bot${TELEGRAM_CONTENT_BOT_TOKEN}`
+  : "";
+
 /**
  * Send a notification via the content bot (winfact_content_bot).
- * Used for blog drafts, content queue updates, and filler notifications.
+ * Supports optional inline keyboard buttons.
  */
 export async function sendContentBotNotification(
-  text: string
+  text: string,
+  buttons?: { text: string; url: string }[][]
 ): Promise<{ ok: boolean; error?: string }> {
-  const token = TELEGRAM_CONTENT_BOT_TOKEN;
   const chatId = TELEGRAM_CONTENT_CHAT_ID || TELEGRAM_ADMIN_CHAT_ID;
-  if (!token || !chatId) {
-    // Fall back to admin notification
+  if (!CONTENT_BOT_API || !chatId) {
     return sendAdminNotification(text);
   }
 
   try {
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const body: Record<string, unknown> = {
+      chat_id: chatId,
+      text,
+      parse_mode: "HTML",
+    };
+
+    if (buttons && buttons.length > 0) {
+      body.reply_markup = {
+        inline_keyboard: buttons.map(row =>
+          row.map(btn => ({ text: btn.text, url: btn.url }))
+        ),
+      };
+    }
+
+    const res = await fetch(`${CONTENT_BOT_API}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (data.ok) return { ok: true };
@@ -211,7 +228,8 @@ export async function sendContentBotNotification(
 }
 
 /**
- * Notify via content bot that a new auto-generated blog draft is ready.
+ * Notify via content bot that a new blog draft is ready.
+ * Shows inline buttons: Preview, Approve (publish), Schedule.
  */
 export async function notifyBlogDraftReady(params: {
   title: string;
@@ -221,14 +239,39 @@ export async function notifyBlogDraftReady(params: {
   postId?: string;
 }): Promise<{ ok: boolean; error?: string }> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com";
-  const editUrl = `${siteUrl}/admin/blog/${params.postId || params.slug}`;
+  const postId = params.postId || params.slug;
+  const editUrl = `${siteUrl}/en/admin/blog/${postId}`;
+  const previewUrl = `${siteUrl}/en/blog/${params.slug}`;
 
   const message =
-    `📝 <b>Blog Draft Ready</b>\n\n` +
-    `Title: ${params.title}\n` +
-    `Sport: ${params.sport}\n` +
-    `Matchup: ${params.matchup}\n\n` +
-    `Review: ${editUrl}`;
+    `📝 <b>New Blog Draft</b>\n\n` +
+    `<b>${params.title}</b>\n` +
+    `🏟 ${params.sport} · ${params.matchup}`;
+
+  return sendContentBotNotification(message, [
+    [
+      { text: "👁 Preview", url: previewUrl },
+      { text: "✏️ Edit & Approve", url: editUrl },
+    ],
+  ]);
+}
+
+/**
+ * Notify that filler posts were published to social media.
+ */
+export async function notifyFillerPosted(params: {
+  title: string;
+  sport: string;
+  channels: { buffer: boolean; telegram: boolean };
+}): Promise<{ ok: boolean; error?: string }> {
+  const channels: string[] = [];
+  if (params.channels.buffer) channels.push("Buffer (IG+FB+X+Threads)");
+  if (params.channels.telegram) channels.push("Telegram");
+
+  const message =
+    `✅ <b>Filler Posted</b>\n\n` +
+    `${params.sport}: ${params.title}\n` +
+    `📢 ${channels.join(" + ") || "No channels succeeded"}`;
 
   return sendContentBotNotification(message);
 }
