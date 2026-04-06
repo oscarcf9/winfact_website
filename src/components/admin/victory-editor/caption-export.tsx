@@ -23,8 +23,8 @@ interface CaptionExportProps {
   winner: string;
   /** Called to render offscreen canvas and get data URL */
   getExportDataUrl: () => string | null;
-  /** Called when "Convert to Post" completes */
-  onConvertToPost: (dataUrl: string) => Promise<void>;
+  /** Called when "Convert to Post" completes — accepts optional edited captions */
+  onConvertToPost: (dataUrl: string, captions?: { en: string; es: string }) => Promise<void>;
   /** Result from successful convert */
   postResult: {
     victoryPostId: string;
@@ -102,8 +102,10 @@ export function CaptionExport({
       alert("Could not render the canvas. Make sure you have a background or ticket.");
       return;
     }
-    await onConvertToPost(dataUrl);
-  }, [getExportDataUrl, onConvertToPost]);
+    // Pass user-edited captions so the API uses them instead of regenerating
+    const captions = generated ? { en: captionEn, es: captionEs } : undefined;
+    await onConvertToPost(dataUrl, captions);
+  }, [getExportDataUrl, onConvertToPost, generated, captionEn, captionEs]);
 
   const copyText = useCallback((text: string, lang: "en" | "es") => {
     navigator.clipboard.writeText(text);

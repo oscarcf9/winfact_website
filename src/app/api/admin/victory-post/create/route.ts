@@ -21,6 +21,8 @@ interface CreateBody {
   winner?: string;
   team1Score?: number;
   team2Score?: number;
+  captionEn?: string;
+  captionEs?: string;
 }
 
 /**
@@ -108,28 +110,35 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── Generate bilingual captions ───────────────────────────
+  // ── Bilingual captions — use provided or generate ────────
   let captionEn: string;
   let captionEs: string;
-  try {
-    const captions = await generateBilingualCaptions({
-      sport,
-      matchup,
-      pickText,
-      odds: odds ?? null,
-      tier,
-    });
-    captionEn = captions.captionEn;
-    captionEs = captions.captionEs;
-  } catch (err) {
-    console.error("[victory-post/create] Caption generation failed:", err);
-    // Fallback captions so the post can still be created
-    const scoreStr =
-      team1Score != null && team2Score != null
-        ? ` (${team1Score}-${team2Score})`
-        : "";
-    captionEn = `Another win in the books! ${winner} covers${scoreStr}. Data doesn't miss. #WinFactPicks #${sport}`;
-    captionEs = `Otra victoria! ${winner} gana${scoreStr}. Los datos no fallan. #WinFactPicks #${sport}`;
+
+  if (body.captionEn && body.captionEs) {
+    // Use user-edited captions from the Caption tab
+    captionEn = body.captionEn;
+    captionEs = body.captionEs;
+    console.log("[victory-post/create] Using user-provided captions");
+  } else {
+    try {
+      const captions = await generateBilingualCaptions({
+        sport,
+        matchup,
+        pickText,
+        odds: odds ?? null,
+        tier,
+      });
+      captionEn = captions.captionEn;
+      captionEs = captions.captionEs;
+    } catch (err) {
+      console.error("[victory-post/create] Caption generation failed:", err);
+      const scoreStr =
+        team1Score != null && team2Score != null
+          ? ` (${team1Score}-${team2Score})`
+          : "";
+      captionEn = `Another win in the books! ${winner} covers${scoreStr}. Data doesn't miss. #WinFactPicks #${sport}`;
+      captionEs = `Otra victoria! ${winner} gana${scoreStr}. Los datos no fallan. #WinFactPicks #${sport}`;
+    }
   }
 
   const hashtags = extractHashtags(captionEn);

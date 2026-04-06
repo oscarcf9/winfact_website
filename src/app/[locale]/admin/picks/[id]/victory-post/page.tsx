@@ -230,7 +230,7 @@ export default function VictoryPostEditorPage() {
   }, []);
 
   // Convert to Post
-  const handleConvertToPost = useCallback(async (compositeDataUrl: string) => {
+  const handleConvertToPost = useCallback(async (compositeDataUrl: string, captions?: { en: string; es: string }) => {
     if (!pick || !winner) { alert("Please select the winner team first"); return; }
     setConverting(true);
     try {
@@ -241,6 +241,8 @@ export default function VictoryPostEditorPage() {
           pickId: pick.id, imageBase64: compositeDataUrl, sport: pick.sport,
           matchup: pick.matchup, pickText: pick.pickText, odds: pick.odds,
           units: pick.units, tier: pick.tier || "free", winner,
+          // Pass user-edited captions so API uses them instead of regenerating
+          ...(captions ? { captionEn: captions.en, captionEs: captions.es } : {}),
         }),
       });
       const data = await res.json();

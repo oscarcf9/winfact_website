@@ -304,6 +304,7 @@ export default function VictoryCompositor({
 
   // Track if layers have been initialized
   const initializedRef = useRef(false);
+  const lastNudgeTimeRef = useRef(0);
   const prevBgRef = useRef<HTMLImageElement | null>(null);
   const prevTicketRef = useRef<HTMLImageElement | null>(null);
   const prevAdditionalRef = useRef<string>("");
@@ -1033,42 +1034,27 @@ export default function VictoryCompositor({
         return;
       }
 
-      // Arrow nudge
+      // Arrow nudge (debounced undo — only pushes if >500ms since last nudge)
       if (selectedLayer && !selectedLayer.locked) {
         const step = e.shiftKey ? 10 : 1;
         let handled = true;
+        const now = Date.now();
+        const shouldPushUndo = now - lastNudgeTimeRef.current > 500;
+        if (shouldPushUndo) pushUndo(layers);
+        lastNudgeTimeRef.current = now;
+
         switch (e.key) {
           case "ArrowLeft":
-            pushUndo(layers);
-            updateLayer(
-              selectedLayer.id,
-              { x: selectedLayer.x - step },
-              true
-            );
+            updateLayer(selectedLayer.id, { x: selectedLayer.x - step }, true);
             break;
           case "ArrowRight":
-            pushUndo(layers);
-            updateLayer(
-              selectedLayer.id,
-              { x: selectedLayer.x + step },
-              true
-            );
+            updateLayer(selectedLayer.id, { x: selectedLayer.x + step }, true);
             break;
           case "ArrowUp":
-            pushUndo(layers);
-            updateLayer(
-              selectedLayer.id,
-              { y: selectedLayer.y - step },
-              true
-            );
+            updateLayer(selectedLayer.id, { y: selectedLayer.y - step }, true);
             break;
           case "ArrowDown":
-            pushUndo(layers);
-            updateLayer(
-              selectedLayer.id,
-              { y: selectedLayer.y + step },
-              true
-            );
+            updateLayer(selectedLayer.id, { y: selectedLayer.y + step }, true);
             break;
           default:
             handled = false;
@@ -1380,6 +1366,9 @@ export default function VictoryCompositor({
             ctx.fillStyle = layer.fillColor || "#FFFFFF";
             ctx.textAlign = layer.textAlign || "center";
             ctx.textBaseline = "middle";
+            if (layer.letterSpacing && "letterSpacing" in ctx) {
+              (ctx as unknown as { letterSpacing: string }).letterSpacing = `${layer.letterSpacing}px`;
+            }
 
             let textX = layer.x + layer.width / 2;
             if (layer.textAlign === "left") textX = layer.x;
@@ -2196,6 +2185,21 @@ export default function VictoryCompositor({
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* Letter Spacing */}
+                <div>
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Letter Spacing
+                  </label>
+                  <input
+                    type="number"
+                    min={-5}
+                    max={20}
+                    value={selectedLayer.letterSpacing ?? 0}
+                    onChange={(e) => updateLayer(selectedLayer.id, { letterSpacing: Number(e.target.value) })}
+                    className="mt-1 w-full h-8 px-2 text-xs border border-gray-300 rounded bg-white focus:border-blue-500 focus:outline-none"
+                  />
                 </div>
               </>
             )}
