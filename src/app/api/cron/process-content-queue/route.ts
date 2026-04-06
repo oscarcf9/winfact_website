@@ -138,14 +138,9 @@ export async function GET(req: Request) {
         // Channel 2: Telegram (always, not random — the randomness is in social-posting for Buffer)
         if (TELEGRAM_FREE_CHAT_ID && item.imageUrl) {
           try {
-            // Build caption: prefer English, add Spanish if it fits (Telegram 1024 char limit)
+            // English only for Telegram
             let caption = item.captionEn || item.title;
             if (item.hashtags) caption += `\n\n${item.hashtags}`;
-            // Add Spanish as second line if fits
-            if (item.captionEs && caption.length + item.captionEs.length + 4 <= 1024) {
-              caption += `\n\n${item.captionEs}`;
-            }
-            // Trim to Telegram's 1024-char caption limit
             if (caption.length > 1024) caption = caption.substring(0, 1021) + "...";
 
             const tgResult = await sendTelegramPhoto(TELEGRAM_FREE_CHAT_ID, item.imageUrl, caption, { parseMode: "none" });
