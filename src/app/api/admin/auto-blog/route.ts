@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
           analysisEn: data.analysisEn || null,
         }),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Enrichment timed out after 15s")), 15000)
+          setTimeout(() => reject(new Error("Enrichment timed out after 25s")), 25000)
         ),
       ]);
       console.log(
@@ -54,7 +54,19 @@ export async function POST(req: NextRequest) {
         enrichment.fetchLog.map((l) => `${l.field}: ${l.status}`).join(", ")
       );
     } catch (err) {
-      console.error("[auto-blog] Enrichment failed/timed out, continuing without data:", err);
+      console.error("[auto-blog] Enrichment failed/timed out, continuing with fallback data:", err);
+    }
+
+    // Log enrichment status for debugging
+    if (enrichment) {
+      const ok = enrichment.fetchLog.filter(l => l.status === "ok").length;
+      const na = enrichment.fetchLog.filter(l => l.status === "unavailable").length;
+      console.log(`[auto-blog] Enrichment: ${ok} fields OK, ${na} unavailable. Teams: ${enrichment.teamAFullName} vs ${enrichment.teamBFullName}`);
+      if (na > 0) {
+        console.log(`[auto-blog] Missing: ${enrichment.fetchLog.filter(l => l.status === "unavailable").map(l => `${l.field}: ${l.detail}`).join(", ")}`);
+      }
+    } else {
+      console.warn("[auto-blog] Running without enrichment — blog will use fallback data only");
     }
 
     const enrichmentMs = Date.now() - startTime;

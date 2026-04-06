@@ -158,11 +158,21 @@ Close with a well-reasoned conclusion. Who's better positioned and why? Note x-f
 - One mid-article: Something like "For those tracking this matchup closer, WinFact's model has been flagging [relevant trend]. Premium members get real-time edge alerts for games like these."
 - One at the end: Something like "Want the full breakdown with our model's pick? Check out today's slate at WinFactPicks.com"
 
+=== DATA-DRIVEN CONTENT RULES (CRITICAL) ===
+
+You MUST cite specific numbers from the data provided above. This is non-negotiable:
+- Reference EXACT team records (e.g., "Cleveland enters at 4-5") using the data above
+- Name specific injured players by name, position, and status from the injury data
+- Quote exact betting lines: spread number, over/under number, moneyline odds from the odds data
+- Reference specific recent form patterns (e.g., "winners of 3 straight" from the W/L form data)
+- If a data field says "Data unavailable", skip that topic entirely. Do NOT guess or fabricate.
+- Every stat you write must come directly from the pick_data block above. Zero fabrication tolerance.
+
 === QUALITY RULES ===
 
 1. LENGTH: 800-1200 words. Dense, substantive paragraphs — no filler.
-2. TONE: Confident, analytical, editorial. Like ESPN's best written analysis, not a box score recap.
-3. NO FABRICATION: If you don't have data for something, skip it. Never invent stats, quotes, player names, or historical facts.
+2. TONE: Confident, analytical, data-forward. Like a Bloomberg Terminal report meets ESPN analysis. Lead with numbers, support with narrative.
+3. NO FABRICATION: If you don't have data for something, skip it. Never invent stats, quotes, player names, or historical facts. If records say "Data unavailable", do NOT write fake records.
 4. NO BANNED WORDS: Do not use these words/phrases: ${BANNED_WORDS.join(", ")}
 5. READABILITY: Short-to-medium paragraphs. No walls of text. Each section should flow naturally into the next.
 6. SEO: Naturally incorporate the team names, sport name, and "picks" / "predictions" / "analysis" keywords without keyword stuffing.
@@ -170,7 +180,8 @@ Close with a well-reasoned conclusion. Who's better positioned and why? Note x-f
 8. NEVER use em dashes (--) anywhere in the text. Use commas, periods, parentheses, or colons instead.
 9. NEVER use more than one exclamation mark in the entire post.
 10. NEVER start the conclusion with "In conclusion," "In summary," or "Overall"
-11. OUTPUT FORMAT: Write the body as clean HTML. Use <h2> for section headers (with emoji prefix). Use <p> for paragraphs. Use <strong> for bold text, <em> for italic. Use <ul><li> for lists. Do NOT use any Markdown syntax (no ## headers, no **bold**, no * bullets). The output must be valid HTML ready to render in a browser.
+11. OUTPUT FORMAT: Write the body as clean HTML. Use <h2> for section headers (with emoji prefix). Use <p> for paragraphs. Use <strong> for bold, <em> for italic. Use <ul><li> for lists. Do NOT use Markdown syntax (no ##, no **, no *). Output valid HTML.
+12. NO EMOJI in body paragraphs. Emoji ONLY in h2 section headers.
 
 FORMAT YOUR RESPONSE EXACTLY AS:
 TITLE_EN: [The sharp, action-driven headline]
