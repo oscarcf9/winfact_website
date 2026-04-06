@@ -23,8 +23,10 @@ export async function GET(req: Request) {
   }
 
   try {
-    // Clean up old games (commenced before today) that don't have picks
+    // Clean up old games (commenced before today ET) that don't have picks
+    // Use ET-safe cutoff: subtract 5h from UTC to approximate ET, then midnight
     const todayStart = new Date();
+    todayStart.setHours(todayStart.getHours() - 5); // approximate ET
     todayStart.setHours(0, 0, 0, 0);
     const oldGames = await db
       .select({ id: gamesToday.id })

@@ -45,8 +45,9 @@ export async function POST(req: NextRequest) {
     const sports = sport ? [sport] : Object.keys(SPORT_KEYS);
     let totalGames = 0;
 
-    // Clean up old games (commenced before today) that don't have picks
+    // Clean up old games (commenced before today ET) that don't have picks
     const todayStart = new Date();
+    todayStart.setHours(todayStart.getHours() - 5); // approximate ET
     todayStart.setHours(0, 0, 0, 0);
     const oldGames = await db
       .select({ id: gamesToday.id })
