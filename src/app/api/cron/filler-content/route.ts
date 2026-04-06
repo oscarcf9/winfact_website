@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { contentQueue, media } from "@/db/schema";
-import { eq, and, gte } from "drizzle-orm";
+import { eq, and, gte, inArray } from "drizzle-orm";
 import { getSiteContent } from "@/db/queries/site-content";
 import { fetchScoreboard, toESPNDate } from "@/lib/espn";
 import { generateMatchupImage } from "@/lib/ai-image";
@@ -25,6 +25,7 @@ type ScheduledGame = {
 };
 
 const FILLER_SPORTS = ["NBA", "MLB", "NFL"];
+const MIN_GAP_MS = 30 * 60 * 1000; // 30 minutes between scheduled posts
 
 const RIVALRIES = [
   ["Yankees", "Red Sox"], ["Lakers", "Celtics"], ["Cowboys", "Eagles"],
@@ -38,9 +39,9 @@ const RIVALRIES = [
 /**
  * GET /api/cron/filler-content
  *
- * Daily cron: selects top 3-4 anticipated games, generates matchup
- * graphics + bilingual captions, saves as drafts in content queue.
- * Schedule: 1:00 PM ET (17:00 UTC)
+ * Runs twice daily (9 AM ET + 1 PM ET) to generate matchup graphics.
+ * IDEMPOTENT: skips games already in the queue (checks by gameId).
+ * Pre-staggers scheduledAt times to enforce 30-min gaps between posts.
  */
 export async function GET(req: Request) {
   const cronSecret = process.env.CRON_SECRET;
@@ -53,27 +54,26 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Check toggle
   const enabled = await getSiteContent("filler_content_enabled");
   if (enabled !== "true") {
     return NextResponse.json({ status: "skipped", reason: "filler_disabled" });
   }
 
   try {
-    // 1. Fetch today's scheduled games for NBA, MLB, NFL
+    // 1. Fetch today's scheduled games
     const date = toESPNDate();
     const allGames: ScheduledGame[] = [];
 
     for (const sport of FILLER_SPORTS) {
       const scoreboard = await fetchScoreboard(sport, date);
       for (const game of scoreboard) {
-        if (game.status !== "pre") continue; // Only upcoming games
+        if (game.status !== "pre") continue;
         allGames.push({
           gameId: game.id,
           sport,
           team1: game.awayTeam,
           team2: game.homeTeam,
-          team1Record: "", // ESPN scoreboard doesn't always include records
+          team1Record: "",
           team2Record: "",
           startTime: game.startTime,
         });
@@ -84,7 +84,18 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: "skipped", reason: "no_games_today" });
     }
 
-    // 2. Get teams used yesterday to avoid repeats
+    // 2. IDEMPOTENT CHECK — find games already in queue (by gameId)
+    const gameIds = allGames.map(g => g.gameId);
+    const existing = await db
+      .select({ referenceId: contentQueue.referenceId })
+      .from(contentQueue)
+      .where(and(
+        eq(contentQueue.type, "filler"),
+        inArray(contentQueue.referenceId, gameIds)
+      ));
+    const existingIds = new Set(existing.map(e => e.referenceId));
+
+    // 3. Filter: remove duplicates + teams used in last 24h
     const yesterdayISO = new Date(Date.now() - 86400000).toISOString();
     const recentFillers = await db
       .select({ title: contentQueue.title })
@@ -95,9 +106,15 @@ export async function GET(req: Request) {
       recentFillers.flatMap((f) => f.title?.split(" vs ") || [])
     );
 
-    // 3. Score and sort games
     const scored = allGames
-      .filter((g) => !recentTeams.has(g.team1) && !recentTeams.has(g.team2))
+      .filter((g) => {
+        if (existingIds.has(g.gameId)) {
+          console.log(`[filler] Skipping ${g.team1} vs ${g.team2} — already in queue`);
+          return false;
+        }
+        if (recentTeams.has(g.team1) || recentTeams.has(g.team2)) return false;
+        return true;
+      })
       .map((g) => ({ ...g, score: scoreAnticipation(g) }))
       .sort((a, b) => b.score - a.score);
 
@@ -117,8 +134,43 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: "skipped", reason: "no_fresh_games" });
     }
 
-    // 5. Generate content for each game
+    // 5. Pre-calculate staggered scheduledAt times
+    const now = new Date();
+    const sortedByGameTime = [...selected].sort(
+      (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+    );
+
+    const scheduleTimes: Map<string, Date> = new Map();
+    let prevSchedule: Date | null = null;
+
+    for (const game of sortedByGameTime) {
+      const gameStart = new Date(game.startTime);
+      let postAt = new Date(gameStart.getTime() - 2.5 * 60 * 60 * 1000);
+
+      // Enforce minimum gap from previous scheduled item
+      if (prevSchedule && postAt.getTime() - prevSchedule.getTime() < MIN_GAP_MS) {
+        // Push this one earlier (sooner, not later) to maintain gap
+        postAt = new Date(prevSchedule.getTime() + MIN_GAP_MS);
+      }
+
+      // Never schedule in the past
+      if (postAt <= now) {
+        postAt = new Date(now.getTime() + 5 * 60 * 1000); // 5 min from now
+      }
+
+      // Never schedule after game start
+      if (postAt >= gameStart) {
+        postAt = new Date(gameStart.getTime() - 30 * 60 * 1000); // 30 min before game
+        if (postAt <= now) postAt = new Date(now.getTime() + 2 * 60 * 1000);
+      }
+
+      scheduleTimes.set(game.gameId, postAt);
+      prevSchedule = postAt;
+    }
+
+    // 6. Generate content for each game
     let generated = 0;
+    let skipped = 0;
 
     for (const game of selected) {
       try {
@@ -130,21 +182,15 @@ export async function GET(req: Request) {
           timeZone: "America/New_York",
         });
 
-        // Generate matchup image (feed size)
         console.log(`[filler] Generating image: ${title}`);
-        const imageResult = await generateMatchupImage(
-          title,
-          game.sport,
-          game.team1,
-          game.team2
-        );
+        const imageResult = await generateMatchupImage(title, game.sport, game.team1, game.team2);
 
         if (imageResult.error || !imageResult.url) {
           console.error(`[filler] Image failed for ${title}:`, imageResult.error);
+          skipped++;
           continue;
         }
 
-        // Save image to media library
         if (imageResult.url && imageResult.filename) {
           await db.insert(media).values({
             id: crypto.randomUUID(),
@@ -157,19 +203,13 @@ export async function GET(req: Request) {
           }).catch((err) => console.error(`[filler] Media insert failed:`, err));
         }
 
-        // Generate bilingual captions
         console.log(`[filler] Generating captions: ${title}`);
         const [captionEn, captionEs] = await Promise.all([
           generateFillerCaption(game, time, "English"),
           generateFillerCaption(game, time, "Spanish (Latin American, Miami vibe)"),
         ]);
 
-        // Auto-schedule 2.5 hours before game time for hands-free posting
-        const gameStart = new Date(game.startTime);
-        const postAt = new Date(gameStart.getTime() - 2.5 * 60 * 60 * 1000);
-        const now = new Date();
-        // If post time is already past, schedule immediately
-        const scheduledAt = postAt > now ? postAt.toISOString() : now.toISOString();
+        const scheduledAt = scheduleTimes.get(game.gameId) || now;
 
         await db.insert(contentQueue).values({
           id: crypto.randomUUID(),
@@ -183,22 +223,22 @@ export async function GET(req: Request) {
           hashtags: generateHashtags(game),
           platform: "all",
           status: "scheduled",
-          scheduledAt,
+          scheduledAt: scheduledAt.toISOString(),
         });
 
         generated++;
-        console.log(`[filler] Created: ${title}`);
+        const ptStr = scheduledAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/New_York" });
+        console.log(`[filler] Created: ${title} → scheduled for ${ptStr} ET`);
       } catch (error) {
         console.error(`[filler] Failed for ${game.team1} vs ${game.team2}:`, error);
+        skipped++;
       }
     }
 
-    // 6. Notify Oscar
     if (generated > 0) {
       const gameList = selected.slice(0, generated).map((g) => {
-        const gt = new Date(g.startTime);
-        const postTime = new Date(gt.getTime() - 2.5 * 60 * 60 * 1000);
-        const ptStr = postTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/New_York" });
+        const st = scheduleTimes.get(g.gameId);
+        const ptStr = st ? st.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/New_York" }) : "ASAP";
         return `• ${g.sport}: ${g.team1} vs ${g.team2} (posts ~${ptStr} ET)`;
       }).join("\n");
       await notifyAdmin({
@@ -207,11 +247,17 @@ export async function GET(req: Request) {
           `🎨 <b>Filler Content Auto-Scheduled</b>\n\n` +
           `${generated} matchup graphics generated & scheduled:\n${gameList}\n\n` +
           `💡 Review: /admin/content-queue`,
-        emailHtml: `<p>${generated} filler matchup graphics have been generated and are ready for review.</p><p>${gameList.replace(/\n/g, "<br/>")}</p>`,
+        emailHtml: `<p>${generated} filler matchup graphics have been generated.</p><p>${gameList.replace(/\n/g, "<br/>")}</p>`,
       });
     }
 
-    return NextResponse.json({ status: "done", generated, total: selected.length });
+    return NextResponse.json({
+      status: "done",
+      generated,
+      skipped,
+      duplicatesSkipped: existingIds.size,
+      total: selected.length,
+    });
   } catch (error) {
     console.error("[filler] Cron error:", error);
     return NextResponse.json({ error: "Failed to generate filler content" }, { status: 500 });
@@ -220,15 +266,12 @@ export async function GET(req: Request) {
 
 function scoreAnticipation(game: ScheduledGame): number {
   let score = 0;
-
-  // Rivalry bonus
   const isRivalry = RIVALRIES.some(([a, b]) =>
     (game.team1.includes(a) && game.team2.includes(b)) ||
     (game.team1.includes(b) && game.team2.includes(a))
   );
   if (isRivalry) score += 30;
 
-  // Winning record bonus
   const parseWinPct = (record: string) => {
     const match = record.match(/(\d+)-(\d+)/);
     if (!match) return 0.5;
@@ -237,9 +280,7 @@ function scoreAnticipation(game: ScheduledGame): number {
   };
   score += (parseWinPct(game.team1Record) + parseWinPct(game.team2Record)) * 20;
 
-  // Evening game bonus (primetime)
   const gameHour = new Date(game.startTime).getUTCHours();
-  // 23-03 UTC = 7-11 PM ET = primetime
   if (gameHour >= 23 || gameHour <= 3) score += 10;
 
   return score;
