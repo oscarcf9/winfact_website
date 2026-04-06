@@ -14,6 +14,7 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize,
+  Sparkles,
   Type,
   ImageIcon,
   Move,
@@ -292,6 +293,8 @@ export default function VictoryCompositor({
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [removingBg, setRemovingBg] = useState(false);
+  const [removeBgProgress, setRemoveBgProgress] = useState(0);
 
   // Undo/Redo stacks
   const [undoStack, setUndoStack] = useState<EditorLayer[][]>([]);
@@ -1547,6 +1550,53 @@ export default function VictoryCompositor({
     setExporting(false);
   }, [renderToCtx, onExport]);
 
+  // ── Remove background (ML-powered, client-side) ────────────────────────────
+  const handleRemoveBackground = useCallback(async (layerId: string) => {
+    const layer = layers.find(l => l.id === layerId);
+    if (!layer?.imageElement) return;
+
+    setRemovingBg(true);
+    setRemoveBgProgress(0);
+    pushUndo(layers);
+
+    try {
+      // Dynamic import to avoid loading the ~5MB model on page load
+      const { removeImageBackground } = await import("@/lib/remove-bg-client");
+
+      // Convert the image element to a data URL for processing
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = layer.imageElement.naturalWidth;
+      tempCanvas.height = layer.imageElement.naturalHeight;
+      const tempCtx = tempCanvas.getContext("2d")!;
+      tempCtx.drawImage(layer.imageElement, 0, 0);
+      const sourceDataUrl = tempCanvas.toDataURL("image/png");
+
+      // Run ML background removal with progress tracking
+      const resultDataUrl = await removeImageBackground(sourceDataUrl, (progress) => {
+        setRemoveBgProgress(progress);
+      });
+
+      // Load the result as a new image element
+      const newImg = new Image();
+      newImg.crossOrigin = "anonymous";
+      await new Promise<void>((resolve, reject) => {
+        newImg.onload = () => resolve();
+        newImg.onerror = () => reject(new Error("Failed to load processed image"));
+        newImg.src = resultDataUrl;
+      });
+
+      // Update the layer with the new transparent image
+      updateLayer(layerId, { imageElement: newImg });
+      console.log("[remove-bg] Background removed successfully for layer:", layerId);
+    } catch (err) {
+      console.error("[remove-bg] Failed:", err);
+      alert("Background removal failed. Try a different image or a simpler background.");
+    } finally {
+      setRemovingBg(false);
+      setRemoveBgProgress(0);
+    }
+  }, [layers, pushUndo, updateLayer]);
+
   // ── Register export function for parent access ─────────────────────────────
   const getExportDataUrl = useCallback((): string | null => {
     const offscreen = document.createElement("canvas");
@@ -2284,6 +2334,39 @@ export default function VictoryCompositor({
                     />
                   </button>
                 </div>
+
+                {/* Remove Background — ML-powered client-side */}
+                {selectedLayer.type === "image" && (
+                  <div className="pt-2 border-t border-gray-200">
+                    <button
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium rounded-lg bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={removingBg}
+                      onClick={() => handleRemoveBackground(selectedLayer.id)}
+                    >
+                      {removingBg ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          {removeBgProgress > 0
+                            ? `Removing... ${Math.round(removeBgProgress * 100)}%`
+                            : "Loading AI model..."}
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-3.5 w-3.5" />
+                          Remove Background
+                        </>
+                      )}
+                    </button>
+                    {removingBg && (
+                      <div className="mt-2 h-1.5 w-full rounded-full bg-gray-200 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-300"
+                          style={{ width: `${Math.max(removeBgProgress * 100, 5)}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>
