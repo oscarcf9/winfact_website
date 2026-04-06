@@ -112,12 +112,13 @@ export async function GET(req: Request) {
   }
 
   try {
-    // Dual-frequency posting:
-    // - Buffer (Twitter/Threads): ~50% skip = post every ~30 min
-    // - Telegram: ~75% skip = post every ~1 hour
-    const roll = Math.random();
-    const skipBuffer = roll < 0.50;   // 50% skip = ~1 post per 30 min
-    const skipTelegram = roll < 0.75; // 75% skip = ~1 post per hour
+    // Dual-frequency posting with independent rolls:
+    // - Buffer (Twitter/Threads): ~33% skip = post every ~22 min
+    // - Telegram: ~50% skip = post every ~30 min
+    const bufferRoll = Math.random();
+    const telegramRoll = Math.random();
+    const skipBuffer = bufferRoll < 0.33;
+    const skipTelegram = telegramRoll < 0.50;
 
     // If both channels would be skipped, skip entirely
     if (skipBuffer && skipTelegram) {

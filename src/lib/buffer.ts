@@ -18,6 +18,12 @@ const KNOWN_CHANNEL_IDS = [
   "692a863b29ea336fd63c647f", // Facebook
 ];
 
+// Text-only channels (Twitter/Threads/Facebook — NOT Instagram which requires images)
+// Set BUFFER_TEXT_CHANNEL_IDS env var to override (comma-separated)
+const TEXT_CHANNEL_IDS = process.env.BUFFER_TEXT_CHANNEL_IDS
+  ? process.env.BUFFER_TEXT_CHANNEL_IDS.split(",").map(id => id.trim()).filter(Boolean)
+  : ["692a863b29ea336fd63c647f"]; // Facebook only as default (Instagram needs images)
+
 if (!BUFFER_ACCESS_TOKEN) console.warn("[buffer] BUFFER_ACCESS_TOKEN not set — social posting disabled");
 if (!BUFFER_ORG_ID) console.warn("[buffer] BUFFER_ORG_ID not set — cannot fetch channels");
 
@@ -76,7 +82,7 @@ async function getChannelIds(): Promise<string[]> {
   }
 
   const result = await bufferGraphQL(`
-    query GetChannels($orgId: ID!) {
+    query GetChannels($orgId: OrganizationId!) {
       channels(input: { organizationId: $orgId }) {
         id
         name
@@ -142,7 +148,7 @@ export async function postToBufferWithMedia(
   for (const channelId of channelIds) {
     try {
       const mutation = imageUrl
-        ? `mutation CreatePost($text: String!, $channelId: ID!, $imageUrl: String!) {
+        ? `mutation CreatePost($text: String!, $channelId: ChannelId!, $imageUrl: String!) {
           createPost(input: {
             text: $text,
             channelId: $channelId,
@@ -154,7 +160,7 @@ export async function postToBufferWithMedia(
             ... on MutationError { message }
           }
         }`
-        : `mutation CreatePost($text: String!, $channelId: ID!) {
+        : `mutation CreatePost($text: String!, $channelId: ChannelId!) {
           createPost(input: {
             text: $text,
             channelId: $channelId,
@@ -201,6 +207,7 @@ export async function postToBufferWithMedia(
 
 /**
  * Post live commentary to Buffer using the dedicated live commentary token.
+ * Uses text-only channels (Twitter, Threads, Facebook — NOT Instagram which requires images).
  * This keeps live content separate from scheduled content in Buffer analytics.
  */
 export async function postLiveToBuffer(text: string): Promise<{ ok: boolean; error?: string }> {
@@ -208,7 +215,60 @@ export async function postLiveToBuffer(text: string): Promise<{ ok: boolean; err
   if (!token) {
     return { ok: false, error: "Buffer live token not configured" };
   }
-  return postToBufferWithMedia(text, undefined, token);
+
+  // Use text-only channels to avoid Instagram (which rejects posts without images)
+  const channelIds = TEXT_CHANNEL_IDS.length > 0 ? TEXT_CHANNEL_IDS : await getChannelIds();
+  if (channelIds.length === 0) {
+    return { ok: false, error: "No Buffer text channels configured" };
+  }
+
+  console.log(`[buffer-live] Posting to ${channelIds.length} text channels`);
+
+  let successCount = 0;
+  let lastError = "";
+
+  for (const channelId of channelIds) {
+    try {
+      const result = await bufferGraphQL(`
+        mutation CreatePost($text: String!, $channelId: ChannelId!) {
+          createPost(input: {
+            text: $text,
+            channelId: $channelId,
+            schedulingType: automatic,
+            mode: shareNow
+          }) {
+            ... on PostActionSuccess { post { id } }
+            ... on MutationError { message }
+          }
+        }
+      `, { text, channelId }, token);
+
+      if (result.errors) {
+        lastError = result.errors[0].message;
+        console.error(`[buffer-live] Channel ${channelId} error:`, lastError);
+        continue;
+      }
+
+      const payload = result.data?.createPost as Record<string, unknown> | undefined;
+      if (payload?.message) {
+        lastError = String(payload.message);
+        console.error(`[buffer-live] Channel ${channelId} mutation error:`, lastError);
+        continue;
+      }
+
+      successCount++;
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+      console.error(`[buffer-live] Channel ${channelId} failed:`, lastError);
+    }
+  }
+
+  if (successCount > 0) {
+    console.log(`[buffer-live] Posted to ${successCount}/${channelIds.length} channels`);
+    return { ok: true };
+  }
+
+  return { ok: false, error: lastError || "All text channels failed" };
 }
 
 /**
