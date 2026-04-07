@@ -221,9 +221,9 @@ export async function postLiveToBuffer(text: string): Promise<{ ok: boolean; err
  * Post blog link to Facebook ONLY.
  * Blog URLs with OG tags — Facebook renders the preview automatically.
  */
-export async function postBlogLinkToBuffer(text: string): Promise<{ ok: boolean; error?: string }> {
+export async function postBlogLinkToBuffer(text: string, imageUrl?: string): Promise<{ ok: boolean; error?: string }> {
   const channels = getChannelsForRoute("facebook_only");
-  return publishPost(text, channels);
+  return publishPost(text, channels, imageUrl);
 }
 
 /**

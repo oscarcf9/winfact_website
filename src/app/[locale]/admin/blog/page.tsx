@@ -6,6 +6,7 @@ import { FileText } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { BlogDeleteButton } from "@/components/admin/blog-delete-button";
 import { NewPostButton } from "@/components/admin/new-post-modal";
+import { BlogShareButton } from "@/components/admin/blog-share-button";
 
 type Props = {
   searchParams: Promise<{ status?: string }>;
@@ -73,10 +74,21 @@ export default async function AdminBlogPage({ searchParams }: Props) {
               </tr>
             </thead>
             <tbody>
-              {allPosts.map((post) => (
-                <tr key={post.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                  <td className="py-3 px-6 font-medium text-gray-800 max-w-[200px] truncate">{post.titleEn}</td>
-                  <td className="py-3 px-6 text-gray-400 font-mono text-xs">{post.slug}</td>
+              {allPosts.map((post) => {
+                const excerpt = post.seoDescription
+                  || (post.bodyEn ? post.bodyEn.replace(/<[^>]*>/g, "").slice(0, 200).replace(/\s+\S*$/, "...") : "");
+                return (
+                <tr key={post.id} className="border-b border-gray-100 hover:bg-gray-50/80 transition-colors group">
+                  <td className="py-3 px-6 font-medium text-gray-800 max-w-[200px] truncate">
+                    <Link href={`/admin/blog/${post.id}`} className="block hover:text-primary transition-colors">
+                      {post.titleEn}
+                    </Link>
+                  </td>
+                  <td className="py-3 px-6 text-gray-400 font-mono text-xs">
+                    <Link href={`/admin/blog/${post.id}`} className="block hover:text-primary transition-colors">
+                      {post.slug}
+                    </Link>
+                  </td>
                   <td className="py-3 px-6 text-center text-xs text-gray-500">
                     {post.category ? post.category.replace(/_/g, " ") : "\u2014"}
                   </td>
@@ -95,7 +107,13 @@ export default async function AdminBlogPage({ searchParams }: Props) {
                     {post.publishedAt ? new Date(post.publishedAt).toLocaleDateString() : "\u2014"}
                   </td>
                   <td className="py-3 px-6 text-right">
-                    <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <BlogShareButton
+                        postId={post.id}
+                        slug={post.slug}
+                        excerpt={excerpt}
+                        imageUrl={post.featuredImage || undefined}
+                      />
                       <Link
                         href={`/admin/blog/${post.id}`}
                         className="text-accent/70 hover:text-accent text-sm transition-colors"
@@ -110,7 +128,8 @@ export default async function AdminBlogPage({ searchParams }: Props) {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
               {allPosts.length === 0 && (
                 <tr>
                   <td colSpan={6} className="py-12 text-center">
