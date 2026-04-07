@@ -26,10 +26,38 @@ function formatDate(dateString: string): string {
 }
 
 function renderBodyContent(body: string) {
-  const paragraphs = body.split(/\n\s*\n/).filter((p) => p.trim());
-  return paragraphs.map((paragraph, i) => (
-    <p key={i}>{paragraph.trim()}</p>
-  ));
+  // If body contains HTML tags, render as HTML
+  const hasHtml = /<(h[1-6]|p|div|ul|ol|strong|em|a|br)\b/i.test(body);
+
+  let html: string;
+  if (hasHtml) {
+    html = body
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.+?)\*/g, "<em>$1</em>");
+  } else {
+    // Legacy markdown → HTML
+    html = body
+      .replace(/^### (.+)$/gm, "<h3>$1</h3>")
+      .replace(/^## (.+)$/gm, "<h2>$1</h2>")
+      .replace(/^# (.+)$/gm, "<h1>$1</h1>")
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.+?)\*/g, "<em>$1</em>")
+      .replace(/^[-*] (.+)$/gm, "<li>$1</li>")
+      .split(/\n\s*\n/)
+      .map((block) => {
+        const trimmed = block.trim();
+        if (!trimmed) return "";
+        if (/^<(h[1-6]|li|hr|ul|ol)/.test(trimmed)) {
+          if (trimmed.includes("<li>")) return `<ul>${trimmed}</ul>`;
+          return trimmed;
+        }
+        return `<p>${trimmed.replace(/\n/g, "<br />")}</p>`;
+      })
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  return <div dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 export default async function BlogPreviewPage({ params }: Props) {
@@ -47,8 +75,9 @@ export default async function BlogPreviewPage({ params }: Props) {
   const category = (post.category ?? "news") as "free_pick" | "game_preview" | "strategy" | "model_breakdown" | "news";
   const publishedAt = post.publishedAt ?? post.createdAt ?? new Date().toISOString();
   const author = post.author ?? "WinFact";
+  const featuredImage = post.featuredImage || null;
   const readingTime = body ? Math.ceil(body.split(/\s+/).length / 200) : 5;
-  const excerpt = body ? body.slice(0, 200).replace(/\s+\S*$/, "...") : "";
+  const excerpt = body ? body.replace(/<[^>]*>/g, "").slice(0, 200).replace(/\s+\S*$/, "...") : "";
   const isDraft = post.status !== "published";
 
   return (
@@ -122,9 +151,23 @@ export default async function BlogPreviewPage({ params }: Props) {
         <Section>
           <Container size="narrow">
             <article className="prose prose-lg max-w-none">
+              {/* Featured Image */}
+              {featuredImage && (
+                <div className="mb-8 rounded-2xl overflow-hidden shadow-lg">
+                  <img
+                    src={featuredImage}
+                    alt={title}
+                    className="w-full h-auto object-cover"
+                    loading="eager"
+                  />
+                </div>
+              )}
+
+              {excerpt && (
               <p className="text-xl text-gray-700 leading-relaxed font-medium mb-8 border-l-4 border-primary pl-6">
                 {excerpt}
               </p>
+              )}
 
               <div className="space-y-6 text-gray-600 leading-relaxed">
                 {body ? renderBodyContent(body) : (

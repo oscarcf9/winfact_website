@@ -156,7 +156,7 @@ export default async function BlogPostPage({
     const readingTime = body
       ? Math.ceil(body.split(/\s+/).length / 200)
       : 5;
-    const excerpt = body ? body.slice(0, 200).replace(/\s+\S*$/, "...") : "";
+    const excerpt = body ? body.replace(/<[^>]*>/g, "").slice(0, 200).replace(/\s+\S*$/, "...") : "";
 
     return (
       <>

@@ -329,7 +329,7 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
                 <img
                   src={imagePreview}
                   alt="Preview"
-                  className="w-full h-48 object-cover"
+                  className="w-full h-auto max-h-[400px] object-contain bg-gray-100"
                 />
                 {(uploading || generatingAiImage) && (
                   <div className="absolute inset-0 flex items-center justify-center bg-white/70">
