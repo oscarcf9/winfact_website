@@ -154,11 +154,11 @@ export default async function BlogPreviewPage({ params }: Props) {
           <Container size="narrow">
               {/* Featured Image */}
               {featuredImage && (
-                <div className="mb-8 rounded-2xl overflow-hidden shadow-lg">
+                <div className="mb-8 rounded-2xl overflow-hidden shadow-lg aspect-[3/2]">
                   <img
                     src={featuredImage}
                     alt={title}
-                    className="w-full h-auto object-cover"
+                    className="w-full h-full object-cover"
                     loading="eager"
                   />
                 </div>

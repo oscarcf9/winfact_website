@@ -137,16 +137,21 @@ export default async function BlogPostPage({
   }
 
   if (dbPost) {
-    const tags = await getPostTags(dbPost.id);
-    const sports = tags.map((t) => t.sport);
-    const dbRelated = await getRelatedPosts(dbPost.slug, sports, 3);
+    let tags: { sport: string }[] = [];
+    let relatedWithTags: Array<typeof dbPost & { sports: string[] }> = [];
+    try {
+      tags = await getPostTags(dbPost.id);
+    } catch { /* no tags yet */ }
+    const sports = tags.map((tg) => tg.sport);
 
-    // Build related posts with tags (batch to avoid N+1)
-    const relatedTagsMap = await getPostTagsBatch(dbRelated.map((rp) => rp.id));
-    const relatedWithTags = dbRelated.map((rp) => ({
-      ...rp,
-      sports: relatedTagsMap.get(rp.id) ?? [],
-    }));
+    try {
+      const dbRelated = await getRelatedPosts(dbPost.slug, sports, 3);
+      const relatedTagsMap = await getPostTagsBatch(dbRelated.map((rp) => rp.id));
+      relatedWithTags = dbRelated.map((rp) => ({
+        ...rp,
+        sports: relatedTagsMap.get(rp.id) ?? [],
+      }));
+    } catch { /* no related posts */ }
 
     const title = locale === "es" && dbPost.titleEs ? dbPost.titleEs : dbPost.titleEn;
     const body = (locale === "es" && dbPost.bodyEs ? dbPost.bodyEs : dbPost.bodyEn) || "";
@@ -214,11 +219,11 @@ export default async function BlogPostPage({
             <Container size="narrow">
               {/* Featured Image */}
               {featuredImage && (
-                <div className="mb-8 rounded-2xl overflow-hidden shadow-lg">
+                <div className="mb-8 rounded-2xl overflow-hidden shadow-lg aspect-[3/2]">
                   <img
                     src={featuredImage}
                     alt={title}
-                    className="w-full h-auto object-cover"
+                    className="w-full h-full object-cover"
                     loading="eager"
                   />
                 </div>

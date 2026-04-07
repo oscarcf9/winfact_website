@@ -56,6 +56,7 @@ type BlogPost = {
   readingTime: number;
   publishedAt: string;
   author: string;
+  featuredImage: string | null;
 };
 
 const CATEGORIES = [
@@ -97,7 +98,20 @@ async function BlogCard({
 }) {
   return (
     <Link href={`/blog/${post.slug}`} className="group block h-full">
-      <Card className="h-full flex flex-col group-hover:border-primary/20 group-hover:shadow-lg transition-all duration-300">
+      <Card className="h-full flex flex-col group-hover:border-primary/20 group-hover:shadow-lg transition-all duration-300 overflow-hidden !p-0">
+        {/* Thumbnail */}
+        {post.featuredImage && (
+          <div className="aspect-[3/2] overflow-hidden">
+            <img
+              src={post.featuredImage}
+              alt={post.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              loading="lazy"
+            />
+          </div>
+        )}
+
+        <div className="p-5 flex flex-col flex-1">
         {/* Category + Sport badges */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <Badge
@@ -139,6 +153,7 @@ async function BlogCard({
             {readMoreLabel}
             <ArrowRight className="h-3.5 w-3.5" />
           </span>
+        </div>
         </div>
       </Card>
     </Link>
@@ -201,6 +216,7 @@ export default async function BlogPage({
       })(),
       publishedAt: p.publishedAt ?? p.createdAt ?? new Date().toISOString(),
       author: p.author ?? "WinFact",
+      featuredImage: p.featuredImage || null,
     }));
   }
 
