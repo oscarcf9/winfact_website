@@ -11,21 +11,24 @@ import {
   AlertCircle,
   ChevronRight,
   Trophy,
-  Clock,
+  Radio,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Game = {
+type ESPNGame = {
   id: string;
-  sport: string;
   homeTeam: string;
   awayTeam: string;
-  commenceTime: string;
-  status: string;
-  homeOdds: number | null;
-  awayOdds: number | null;
-  homeSpread: number | null;
-  totalLine: number | null;
+  homeScore: number;
+  awayScore: number;
+  status: "pre" | "in" | "post";
+  statusDetail: string;
+  startTime: string;
+};
+
+type LeagueGames = {
+  league: string;
+  games: ESPNGame[];
 };
 
 type Step = "select" | "configure" | "generating" | "done";
@@ -45,6 +48,8 @@ const TONES = [
 const SPORT_ICONS: Record<string, string> = {
   NBA: "🏀", MLB: "⚾", NFL: "🏈", NHL: "🏒", Soccer: "⚽",
   NCAAF: "🏈", NCAAB: "🏀", MLS: "⚽",
+  "Premier League": "⚽", "La Liga": "⚽", "Serie A": "⚽",
+  "Bundesliga": "⚽", "Champions League": "⚽", "Liga MX": "⚽",
 };
 
 export default function AiCreateBlogPage() {
@@ -52,11 +57,12 @@ export default function AiCreateBlogPage() {
   const [step, setStep] = useState<Step>("select");
 
   // Step 1: Game selection
-  const [games, setGames] = useState<Game[]>([]);
+  const [leagueData, setLeagueData] = useState<LeagueGames[]>([]);
   const [loadingGames, setLoadingGames] = useState(true);
   const [sportFilter, setSportFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedGame, setSelectedGame] = useState<Game | null>(null);
+  const [selectedGame, setSelectedGame] = useState<ESPNGame | null>(null);
+  const [selectedLeague, setSelectedLeague] = useState("");
   const [customMatchup, setCustomMatchup] = useState("");
   const [customSport, setCustomSport] = useState("NBA");
   const [useCustom, setUseCustom] = useState(false);
@@ -80,14 +86,14 @@ export default function AiCreateBlogPage() {
   } | null>(null);
   const [genError, setGenError] = useState("");
 
-  // Fetch games
+  // Fetch games from ESPN scoreboard (same source as dashboard)
   useEffect(() => {
     async function loadGames() {
       try {
-        const res = await fetch("/api/admin/games-today");
+        const res = await fetch("/api/admin/games-scoreboard");
         if (!res.ok) throw new Error("Failed to fetch games");
-        const data = await res.json();
-        setGames(Array.isArray(data) ? data : data.games || []);
+        const data: LeagueGames[] = await res.json();
+        setLeagueData(Array.isArray(data) ? data : []);
       } catch {
         console.error("Failed to load games");
       } finally {
@@ -97,16 +103,32 @@ export default function AiCreateBlogPage() {
     loadGames();
   }, []);
 
-  const sports = ["All", ...new Set(games.map(g => g.sport))];
+  const sports = ["All", ...new Set(leagueData.map(ld => ld.league))];
 
-  const filteredGames = games.filter(g => {
-    if (sportFilter !== "All" && g.sport !== sportFilter) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return g.homeTeam.toLowerCase().includes(q) || g.awayTeam.toLowerCase().includes(q);
-    }
-    return true;
-  });
+  const filteredLeagues = leagueData
+    .map(ld => ({
+      ...ld,
+      games: ld.games.filter(g => {
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          return g.homeTeam.toLowerCase().includes(q) || g.awayTeam.toLowerCase().includes(q);
+        }
+        return true;
+      }),
+    }))
+    .filter(ld => {
+      if (sportFilter !== "All" && ld.league !== sportFilter) return false;
+      return ld.games.length > 0;
+    });
+
+  function formatTime(iso: string): string {
+    return new Date(iso).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "America/New_York",
+    });
+  }
 
   const matchup = useCustom
     ? customMatchup
@@ -114,7 +136,7 @@ export default function AiCreateBlogPage() {
     ? `${selectedGame.awayTeam} vs ${selectedGame.homeTeam}`
     : "";
 
-  const sport = useCustom ? customSport : selectedGame?.sport || "";
+  const sport = useCustom ? customSport : selectedLeague || "";
 
   const canProceed = step === "select" && (selectedGame || (useCustom && customMatchup.trim()));
 
@@ -135,8 +157,8 @@ export default function AiCreateBlogPage() {
           league: sport,
           matchup,
           pickText: `AI Blog: ${matchup}`,
-          gameDate: selectedGame?.commenceTime?.split("T")[0] || null,
-          odds: selectedGame?.homeOdds || null,
+          gameDate: selectedGame?.startTime?.split("T")[0] || null,
+          odds: null,
           tier: "free",
           // Pass config as metadata
           blogConfig: { postType, tone, language, includeOdds, includeInjuries, includeForm },
@@ -272,45 +294,58 @@ export default function AiCreateBlogPage() {
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-5 w-5 animate-spin text-gray-300" />
                   </div>
-                ) : filteredGames.length === 0 ? (
+                ) : filteredLeagues.length === 0 ? (
                   <p className="py-8 text-center text-sm text-gray-400">No games found. Try a custom matchup instead.</p>
                 ) : (
-                  <div className="max-h-[400px] space-y-1.5 overflow-y-auto">
-                    {filteredGames.map(game => {
-                      const isSelected = selectedGame?.id === game.id;
-                      const time = new Date(game.commenceTime).toLocaleTimeString("en-US", {
-                        hour: "numeric",
-                        minute: "2-digit",
-                        hour12: true,
-                        timeZone: "America/New_York",
-                      });
-                      return (
-                        <button
-                          key={game.id}
-                          type="button"
-                          onClick={() => setSelectedGame(isSelected ? null : game)}
-                          className={cn(
-                            "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition",
-                            isSelected
-                              ? "border-2 border-blue-500 bg-blue-50"
-                              : "border border-gray-100 hover:border-gray-200 hover:bg-gray-50"
-                          )}
-                        >
-                          <span className="text-lg">{SPORT_ICONS[game.sport] || "🏟"}</span>
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-800">
-                              {game.awayTeam} <span className="text-gray-400">@</span> {game.homeTeam}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {game.sport} · {time} ET
-                              {game.homeSpread != null && ` · Spread: ${game.homeSpread > 0 ? "+" : ""}${game.homeSpread}`}
-                              {game.totalLine != null && ` · O/U: ${game.totalLine}`}
-                            </p>
-                          </div>
-                          {isSelected && <CheckCircle className="h-5 w-5 text-blue-600" />}
-                        </button>
-                      );
-                    })}
+                  <div className="max-h-[400px] space-y-3 overflow-y-auto">
+                    {filteredLeagues.map(ld => (
+                      <div key={ld.league}>
+                        <p className="mb-1 text-xs font-semibold text-gray-500">
+                          {SPORT_ICONS[ld.league] || "🏟"} {ld.league} — {ld.games.length} {ld.games.length === 1 ? "game" : "games"}
+                        </p>
+                        <div className="space-y-1.5">
+                          {ld.games.map(game => {
+                            const isSelected = selectedGame?.id === game.id;
+                            return (
+                              <button
+                                key={game.id}
+                                type="button"
+                                onClick={() => {
+                                  if (isSelected) {
+                                    setSelectedGame(null);
+                                    setSelectedLeague("");
+                                  } else {
+                                    setSelectedGame(game);
+                                    setSelectedLeague(ld.league);
+                                  }
+                                }}
+                                className={cn(
+                                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition",
+                                  isSelected
+                                    ? "border-2 border-blue-500 bg-blue-50"
+                                    : "border border-gray-100 hover:border-gray-200 hover:bg-gray-50"
+                                )}
+                              >
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-gray-800">
+                                    {game.awayTeam} <span className="text-gray-400">@</span> {game.homeTeam}
+                                  </p>
+                                  <p className="text-xs text-gray-400">
+                                    {game.status === "pre"
+                                      ? `${formatTime(game.startTime)} ET`
+                                      : game.status === "in"
+                                      ? `LIVE · ${game.awayScore}-${game.homeScore}`
+                                      : `Final · ${game.awayScore}-${game.homeScore}`}
+                                  </p>
+                                </div>
+                                {game.status === "in" && <Radio className="h-4 w-4 text-red-500 animate-pulse" />}
+                                {isSelected && <CheckCircle className="h-5 w-5 text-blue-600" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </>
