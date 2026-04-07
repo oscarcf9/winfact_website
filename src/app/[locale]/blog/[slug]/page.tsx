@@ -126,8 +126,14 @@ export default async function BlogPostPage({
   const { locale, slug } = await params;
   const t = await getTranslations({ locale, namespace: "blog" });
 
-  // Try DB first
-  const dbPost = await getPostBySlug(slug);
+  // Try DB first — also try draft posts to prevent 404 for auto-generated content
+  let dbPost = await getPostBySlug(slug);
+
+  // If not found as published, check if it exists as draft (auto-blog creates drafts)
+  if (!dbPost) {
+    const { getPostBySlugAnyStatus } = await import("@/db/queries/posts");
+    dbPost = await getPostBySlugAnyStatus(slug);
+  }
 
   if (dbPost) {
     const tags = await getPostTags(dbPost.id);

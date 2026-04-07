@@ -76,6 +76,7 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [featuredImageUrl, setFeaturedImageUrl] = useState(post?.featuredImage || "");
+  const [generatingAiImage, setGeneratingAiImage] = useState(false);
 
   function toggleTag(sport: string) {
     setSelectedTags((prev) =>
@@ -117,6 +118,33 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
     setImagePreview(null);
     setFeaturedImageUrl("");
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function handleGenerateAiImage() {
+    if (!isEdit || !post) return;
+    setGeneratingAiImage(true);
+    setError("");
+    try {
+      const titleInput = document.querySelector<HTMLInputElement>('input[name="titleEn"]');
+      const matchup = titleInput?.value || post.titleEn || "";
+      const res = await fetch(`/api/admin/blog/${post.id}/generate-image`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchup, sport: "Sports" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFeaturedImageUrl(data.url);
+        setImagePreview(data.url);
+      } else {
+        const err = await res.json();
+        setError(err.error || "Failed to generate AI image");
+      }
+    } catch {
+      setError("Failed to generate AI image");
+    } finally {
+      setGeneratingAiImage(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -303,9 +331,12 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
                   alt="Preview"
                   className="w-full h-48 object-cover"
                 />
-                {uploading && (
+                {(uploading || generatingAiImage) && (
                   <div className="absolute inset-0 flex items-center justify-center bg-white/70">
-                    <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                      {generatingAiImage && <span className="text-xs text-primary font-medium">Generating AI image...</span>}
+                    </div>
                   </div>
                 )}
                 <button
@@ -317,19 +348,41 @@ export function PostForm({ post, tags = [], deleteButton }: Props) {
                 </button>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full border-2 border-dashed border-gray-200 rounded-xl p-8 flex flex-col items-center gap-3 hover:border-primary/30 hover:bg-primary/5 transition-all duration-200 cursor-pointer group"
-              >
-                <div className="p-3 rounded-xl bg-gray-100 group-hover:bg-primary/10 transition-colors">
-                  <Upload className="h-6 w-6 text-gray-400 group-hover:text-primary transition-colors" />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-medium text-gray-600">{t("clickToUpload")}</p>
-                  <p className="text-xs text-gray-400 mt-1">{t("uploadFormats")}</p>
-                </div>
-              </button>
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center gap-3 hover:border-primary/30 hover:bg-primary/5 transition-all duration-200 cursor-pointer group"
+                >
+                  <div className="p-3 rounded-xl bg-gray-100 group-hover:bg-primary/10 transition-colors">
+                    <Upload className="h-6 w-6 text-gray-400 group-hover:text-primary transition-colors" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-gray-600">{t("clickToUpload")}</p>
+                    <p className="text-xs text-gray-400 mt-1">{t("uploadFormats")}</p>
+                  </div>
+                </button>
+                {isEdit && (
+                  <button
+                    type="button"
+                    onClick={handleGenerateAiImage}
+                    disabled={generatingAiImage}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20 text-primary text-sm font-medium hover:from-primary/15 hover:to-accent/15 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {generatingAiImage ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Generating AI Image...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Generate AI Image
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
             )}
 
             <input

@@ -33,6 +33,16 @@ export async function getPostBySlug(slug: string) {
   return result[0] ?? null;
 }
 
+/** Fetch any post by slug regardless of status (fallback for auto-blog drafts). */
+export async function getPostBySlugAnyStatus(slug: string) {
+  const result = await db
+    .select()
+    .from(posts)
+    .where(eq(posts.slug, slug))
+    .limit(1);
+  return result[0] ?? null;
+}
+
 /** Fetch any post by ID regardless of status (for admin preview). */
 export async function getPostById(id: string) {
   const result = await db
