@@ -5,6 +5,7 @@ import { generateBlogHeroImage } from "@/lib/ai-image";
 import { notifyBlogDraftReady } from "@/lib/telegram";
 import { enrichPickData } from "@/lib/blog-enrichment";
 import { todayISOET } from "@/lib/timezone";
+import { like } from "drizzle-orm";
 
 type AutoBlogInput = {
   sport: string;
@@ -36,6 +37,31 @@ type AutoBlogResult = {
  */
 export async function runAutoBlog(data: AutoBlogInput): Promise<AutoBlogResult> {
   const startTime = Date.now();
+
+  // Step 0: Check for duplicate — prevent creating two posts for the same matchup
+  const slugBase = data.matchup
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+  const existing = await db
+    .select({ id: posts.id, slug: posts.slug, title: posts.titleEn, featuredImage: posts.featuredImage })
+    .from(posts)
+    .where(like(posts.slug, `%${slugBase}%`))
+    .limit(1);
+
+  if (existing.length > 0) {
+    const dup = existing[0];
+    console.log(`[auto-blog] Duplicate detected: "${dup.title}" (${dup.slug})`);
+    return {
+      postId: dup.id,
+      slug: dup.slug,
+      title: dup.title || data.matchup,
+      featuredImage: dup.featuredImage || null,
+      imageError: null,
+      blogError: `A blog post for this matchup already exists: ${dup.slug}`,
+      timing: { enrichmentMs: 0, totalMs: Date.now() - startTime },
+    };
+  }
 
   // Step 1: Fetch enrichment data from ESPN + The Odds API (with 25s timeout)
   let enrichment: Awaited<ReturnType<typeof enrichPickData>> | null = null;
