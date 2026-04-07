@@ -142,10 +142,11 @@ export default async function BlogPostPage({
     }));
 
     const title = locale === "es" && dbPost.titleEs ? dbPost.titleEs : dbPost.titleEn;
-    const body = locale === "es" && dbPost.bodyEs ? dbPost.bodyEs : dbPost.bodyEn;
+    const body = (locale === "es" && dbPost.bodyEs ? dbPost.bodyEs : dbPost.bodyEn) || "";
     const category = (dbPost.category ?? "news") as "free_pick" | "game_preview" | "strategy" | "model_breakdown" | "news";
     const publishedAt = dbPost.publishedAt ?? dbPost.createdAt ?? new Date().toISOString();
     const author = dbPost.author ?? "WinFact";
+    const featuredImage = dbPost.featuredImage || null;
     const readingTime = body
       ? Math.ceil(body.split(/\s+/).length / 200)
       : 5;
@@ -203,15 +204,31 @@ export default async function BlogPostPage({
           <Section>
             <Container size="narrow">
               <article className="prose prose-lg max-w-none">
+                {/* Featured Image */}
+                {featuredImage && (
+                  <div className="mb-8 rounded-2xl overflow-hidden shadow-lg">
+                    <img
+                      src={featuredImage}
+                      alt={title}
+                      className="w-full h-auto object-cover"
+                      loading="eager"
+                    />
+                  </div>
+                )}
+
                 {/* Lead excerpt */}
+                {excerpt && (
                 <p className="text-xl text-gray-700 leading-relaxed font-medium mb-8 border-l-4 border-primary pl-6">
                   {excerpt}
                 </p>
+                )}
 
                 {/* Article content from DB */}
+                {body && (
                 <div className="space-y-6 text-gray-600 leading-relaxed">
                   {renderBodyContent(body)}
                 </div>
+                )}
               </article>
 
               {/* CTA within article */}
