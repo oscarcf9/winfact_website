@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { posts, postTags, media, contentQueue } from "@/db/schema";
 import { generateGameBlog } from "@/lib/ai-blog-engine";
-import { generateMatchupImage } from "@/lib/ai-image";
+import { generateBlogHeroImage } from "@/lib/ai-image";
 import { notifyBlogDraftReady } from "@/lib/telegram";
 import { enrichPickData } from "@/lib/blog-enrichment";
 import { todayISOET } from "@/lib/timezone";
@@ -91,7 +91,7 @@ export async function runAutoBlog(data: AutoBlogInput): Promise<AutoBlogResult> 
       },
       enrichment?.dataBlock
     ),
-    generateMatchupImage(
+    generateBlogHeroImage(
       data.matchup,
       data.league || data.sport,
       enrichment?.teamAFullName,
@@ -108,7 +108,7 @@ export async function runAutoBlog(data: AutoBlogInput): Promise<AutoBlogResult> 
   if (!imageResult.url) {
     console.warn(`[auto-blog] Image failed (${imageResult.error}), retrying once...`);
     try {
-      const retryResult = await generateMatchupImage(
+      const retryResult = await generateBlogHeroImage(
         data.matchup,
         data.league || data.sport,
         enrichment?.teamAFullName,

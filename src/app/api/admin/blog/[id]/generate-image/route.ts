@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { db } from "@/db";
 import { posts, media } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { generateMatchupImage } from "@/lib/ai-image";
+import { generateBlogHeroImage } from "@/lib/ai-image";
 
 /**
  * POST /api/admin/blog/[id]/generate-image
@@ -36,7 +36,7 @@ export async function POST(
 
     console.log(`[generate-image] Generating image for post ${id}: ${matchup} (${sport})`);
 
-    const imageResult = await generateMatchupImage(matchup, sport);
+    const imageResult = await generateBlogHeroImage(matchup, sport);
 
     if (!imageResult.url) {
       console.error(`[generate-image] Image generation failed:`, imageResult.error);
