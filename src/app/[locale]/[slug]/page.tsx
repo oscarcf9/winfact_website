@@ -38,9 +38,7 @@ const SPORT_DB_NAME: Record<string, string> = {
   ncaa: "NCAA",
 };
 
-export function generateStaticParams() {
-  return Object.keys(SPORT_PAGES).map((slug) => ({ slug }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,

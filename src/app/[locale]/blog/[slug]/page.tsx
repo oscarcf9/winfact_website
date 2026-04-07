@@ -18,16 +18,10 @@ import {
   getPostTags,
   getPostTagsBatch,
   getRelatedPosts,
-  getAllPublishedSlugs,
 } from "@/db/queries/posts";
 import { SITE_URL } from "@/lib/constants";
 
-export const revalidate = 3600;
-
-export async function generateStaticParams() {
-  const slugs = await getAllPublishedSlugs();
-  return slugs.map(({ slug }) => ({ slug }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,

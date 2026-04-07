@@ -15,7 +15,7 @@ import { AnimatedSection } from "@/components/ui/animated-section";
 import { Link } from "@/i18n/navigation";
 import { getPublishedPosts, getPostTagsBatch } from "@/db/queries/posts";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
