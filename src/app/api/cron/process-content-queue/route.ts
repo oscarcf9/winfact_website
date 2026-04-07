@@ -7,7 +7,7 @@ import { sendTelegramPhoto, notifyFillerPosted } from "@/lib/telegram";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com";
 const TELEGRAM_FREE_CHAT_ID = process.env.TELEGRAM_FREE_CHAT_ID || "";
-const MIN_GAP_MS = 30 * 60 * 1000; // 30 minutes between posts
+const MIN_GAP_MS = 10 * 60 * 1000; // 10 minutes between posts (reduced from 30)
 
 export async function GET(req: Request) {
   const cronSecret = process.env.CRON_SECRET;

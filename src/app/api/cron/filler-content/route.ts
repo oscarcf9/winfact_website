@@ -25,7 +25,7 @@ type ScheduledGame = {
 };
 
 const FILLER_SPORTS = ["NBA", "MLB", "NFL"];
-const MIN_GAP_MS = 30 * 60 * 1000; // 30 minutes between scheduled posts
+const MIN_GAP_MS = 10 * 60 * 1000; // 10 minutes between scheduled posts
 
 const RIVALRIES = [
   ["Yankees", "Red Sox"], ["Lakers", "Celtics"], ["Cowboys", "Eagles"],
