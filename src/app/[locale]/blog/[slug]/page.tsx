@@ -85,8 +85,9 @@ function renderBodyContent(body: string) {
 
   let html: string;
   if (hasHtml) {
-    // Already HTML — just clean up any stray markdown
+    // Already HTML — clean up stray markdown and strip emoji from headers
     html = body
+      .replace(/(<h[1-6][^>]*>)\s*[\u{1F300}-\u{1FAD6}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}]+\s*/gu, "$1")
       .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
       .replace(/\*(.+?)\*/g, "<em>$1</em>");
   } else {
@@ -156,7 +157,9 @@ export default async function BlogPostPage({
     const readingTime = body
       ? Math.ceil(body.split(/\s+/).length / 200)
       : 5;
-    const excerpt = body ? body.replace(/<[^>]*>/g, "").slice(0, 200).replace(/\s+\S*$/, "...") : "";
+    // Use seoDescription as excerpt (it's a separate AI-generated summary, not a slice of the body)
+    const excerpt = dbPost.seoDescription
+      || (body ? body.replace(/<[^>]*>/g, "").slice(0, 200).replace(/\s+\S*$/, "...") : "");
 
     return (
       <>
@@ -209,33 +212,31 @@ export default async function BlogPostPage({
           {/* Article Body */}
           <Section>
             <Container size="narrow">
-              <article className="prose prose-lg max-w-none">
-                {/* Featured Image */}
-                {featuredImage && (
-                  <div className="mb-8 rounded-2xl overflow-hidden shadow-lg">
-                    <img
-                      src={featuredImage}
-                      alt={title}
-                      className="w-full h-auto object-cover"
-                      loading="eager"
-                    />
-                  </div>
-                )}
-
-                {/* Lead excerpt */}
-                {excerpt && (
-                <p className="text-xl text-gray-700 leading-relaxed font-medium mb-8 border-l-4 border-primary pl-6">
-                  {excerpt}
-                </p>
-                )}
-
-                {/* Article content from DB */}
-                {body && (
-                <div className="space-y-6 text-gray-600 leading-relaxed">
-                  {renderBodyContent(body)}
+              {/* Featured Image */}
+              {featuredImage && (
+                <div className="mb-8 rounded-2xl overflow-hidden shadow-lg">
+                  <img
+                    src={featuredImage}
+                    alt={title}
+                    className="w-full h-auto object-cover"
+                    loading="eager"
+                  />
                 </div>
-                )}
+              )}
+
+              {/* Lead excerpt */}
+              {excerpt && (
+              <p className="text-xl text-gray-700 leading-relaxed font-medium mb-10 border-l-4 border-primary pl-6">
+                {excerpt}
+              </p>
+              )}
+
+              {/* Article content — prose handles h2 bold, paragraph spacing, lists */}
+              {body && (
+              <article className="prose prose-lg max-w-none prose-headings:font-bold prose-headings:text-navy prose-headings:mt-10 prose-headings:mb-4 prose-p:text-gray-600 prose-p:leading-relaxed prose-p:mb-5 prose-li:text-gray-600 prose-strong:text-gray-800 prose-a:text-primary">
+                {renderBodyContent(body)}
               </article>
+              )}
 
               {/* CTA within article */}
               <Card variant="navy" className="mt-12 text-center">

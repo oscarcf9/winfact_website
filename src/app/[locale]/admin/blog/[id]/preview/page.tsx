@@ -32,6 +32,7 @@ function renderBodyContent(body: string) {
   let html: string;
   if (hasHtml) {
     html = body
+      .replace(/(<h[1-6][^>]*>)\s*[\u{1F300}-\u{1FAD6}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}]+\s*/gu, "$1")
       .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
       .replace(/\*(.+?)\*/g, "<em>$1</em>");
   } else {
@@ -77,7 +78,8 @@ export default async function BlogPreviewPage({ params }: Props) {
   const author = post.author ?? "WinFact";
   const featuredImage = post.featuredImage || null;
   const readingTime = body ? Math.ceil(body.split(/\s+/).length / 200) : 5;
-  const excerpt = body ? body.replace(/<[^>]*>/g, "").slice(0, 200).replace(/\s+\S*$/, "...") : "";
+  const excerpt = post.seoDescription
+    || (body ? body.replace(/<[^>]*>/g, "").slice(0, 200).replace(/\s+\S*$/, "...") : "");
   const isDraft = post.status !== "published";
 
   return (
@@ -150,7 +152,6 @@ export default async function BlogPreviewPage({ params }: Props) {
         {/* Article Body */}
         <Section>
           <Container size="narrow">
-            <article className="prose prose-lg max-w-none">
               {/* Featured Image */}
               {featuredImage && (
                 <div className="mb-8 rounded-2xl overflow-hidden shadow-lg">
@@ -164,17 +165,16 @@ export default async function BlogPreviewPage({ params }: Props) {
               )}
 
               {excerpt && (
-              <p className="text-xl text-gray-700 leading-relaxed font-medium mb-8 border-l-4 border-primary pl-6">
+              <p className="text-xl text-gray-700 leading-relaxed font-medium mb-10 border-l-4 border-primary pl-6">
                 {excerpt}
               </p>
               )}
 
-              <div className="space-y-6 text-gray-600 leading-relaxed">
+              <article className="prose prose-lg max-w-none prose-headings:font-bold prose-headings:text-navy prose-headings:mt-10 prose-headings:mb-4 prose-p:text-gray-600 prose-p:leading-relaxed prose-p:mb-5 prose-li:text-gray-600 prose-strong:text-gray-800 prose-a:text-primary">
                 {body ? renderBodyContent(body) : (
                   <p className="text-gray-400 italic">No content yet.</p>
                 )}
-              </div>
-            </article>
+              </article>
 
             <Card variant="navy" className="mt-12 text-center">
               <CardContent className="py-8">

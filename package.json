@@ -20,6 +20,7 @@
     "@clerk/ui": "^1.1.0",
     "@imgly/background-removal": "^1.7.0",
     "@libsql/client": "0.17.0",
+    "@tailwindcss/typography": "^0.5.19",
     "@types/dompurify": "^3.0.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

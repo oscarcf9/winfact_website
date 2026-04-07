@@ -114,44 +114,44 @@ This data block contains REAL, verified information from live sports APIs. Use O
 
 Generate a high-quality, long-form sports blog article about this matchup. The article should be analytical, engaging, and narrative-driven, written in a confident and professional editorial tone. Prioritize deep paragraph content with opinion, context, and insight. Stats should support the story, not dominate it.
 
-Structure the article using these sections. Use the emoji headers exactly as shown:
+Structure the article using these sections. Use PLAIN TEXT headers (NO emoji in headers or anywhere in the article):
 
-🏷️ **Title**
+**Title**
 Craft a sharp, action-driven headline that captures the matchup's theme, tension, or central narrative. No generic "Preview" titles — find the angle. Examples of good titles: "Can the Celtics' Defense Silence the Lakers' Resurgence?" or "Braves Look to Extend Dominance in Rivalry Renewal."
 
-✂️ **Excerpt** (output in EXCERPT field ONLY — do NOT include in BODY_EN)
-A brief teaser (1-2 sentences) highlighting the key narrative hook. This appears as the blog card preview, NOT inside the article body.
+**Excerpt** (output in EXCERPT field ONLY — do NOT include in BODY_EN)
+A brief teaser (1-2 sentences) highlighting the key narrative hook. This appears as the blog card preview, NOT inside the article body. It must be DIFFERENT from the introduction paragraph.
 
-📝 **Meta Description** (output in SEO_DESC field ONLY — do NOT include in BODY_EN)
+**Meta Description** (output in SEO_DESC field ONLY — do NOT include in BODY_EN)
 1-2 sentences, 150-160 characters max. SEO-optimized summary.
 
-🎬 **Introduction** (this is where BODY_EN starts)
+**Introduction** (this is where BODY_EN starts)
 Open with the storyline: What's at stake? Why does this game matter right now? Set the editorial tone early with smart context. Reference the moment in the season — playoff implications, streak context, rivalry history, or turning-point narratives.
 
-📅 **Game Info**
+**Game Info**
 - Date, Time, Location/Venue
 - Weave in context: momentum, pressure, playoff positioning, historical patterns
 - Reference past clashes, revenge angles, emotional storylines (rivalry, coach-player reunions, homecomings)
 
-🧩 **Key Player Spotlights**
+**Key Player Spotlights**
 Choose 1-2 key players from each team. Describe their recent form, role in this specific game, and strategic importance. Include style quirks, leadership dynamics, or matchup-specific advantages. USE ONLY players confirmed in the data above — do not assume rosters.
 
-📈 **Recent Trends & Team Dynamics**
+**Recent Trends & Team Dynamics**
 Who's hot or cold? Mention win/loss streaks, team energy, injuries impacting rotation/depth, and tactical adjustments. Reference any lineup shifts or coaching decisions that matter. ONLY cite trends supported by the real data provided.
 
-⚔️ **Tactical Matchup Breakdown**
+**Tactical Matchup Breakdown**
 Strength vs weakness: How do the offenses and defenses match up? Where could the game be decided? Keep it sharp, analytical but accessible — not overly technical jargon. Think "what a smart bettor notices."
 
-🧠 **Curiosities & Under-the-Radar Angles**
+**Curiosities & Under-the-Radar Angles**
 Quirky historical facts, rare patterns, or angles that might surprise even a veteran bettor. ONLY include facts you can confirm from the data provided — if no interesting angles are available from the data, write about situational factors (schedule spots, travel, rest, motivation).
 
-🏟️ **Home/Away Factors & Atmosphere**
+**Home/Away Factors & Atmosphere**
 Venue impact, crowd energy, travel fatigue, altitude, weather (if outdoor sport and data available). Include home/road record splits if provided in the data.
 
-🧮 **Supporting Stats**
+**Supporting Stats**
 Use data ONLY to reinforce arguments already made in the narrative sections. Prioritize metrics relevant to the sport (ERA, QBR, offensive rating, xG, save %, etc.). Keep stat presentation clean and minimal — no stat overload. Stats are supporting cast, not the star.
 
-🧾 **Final Takeaway**
+**Final Takeaway**
 Close with a well-reasoned conclusion. Who's better positioned and why? Note x-factors, late-breaking angles, or what would need to happen for an upset. End with a confident editorial perspective — take a stance.
 
 === WINFACT CALLOUTS (embed exactly 2, naturally) ===
@@ -180,8 +180,8 @@ You MUST cite specific numbers from the data provided above. This is non-negotia
 8. NEVER use em dashes (--) anywhere in the text. Use commas, periods, parentheses, or colons instead.
 9. NEVER use more than one exclamation mark in the entire post.
 10. NEVER start the conclusion with "In conclusion," "In summary," or "Overall"
-11. OUTPUT FORMAT: Write the body as clean HTML. Use <h2> for section headers (with emoji prefix). Use <p> for paragraphs. Use <strong> for bold, <em> for italic. Use <ul><li> for lists. Do NOT use Markdown syntax (no ##, no **, no *). Output valid HTML.
-12. NO EMOJI in body paragraphs. Emoji ONLY in h2 section headers.
+11. OUTPUT FORMAT: Write the body as clean HTML. Use <h2> for section headers (NO emoji, plain text only). Use <p> for paragraphs. Use <strong> for bold, <em> for italic. Use <ul><li> for lists. Do NOT use Markdown syntax (no ##, no **, no *). Output valid HTML.
+12. ABSOLUTELY NO EMOJI anywhere in the article. Not in headers, not in paragraphs, not anywhere. Zero emoji.
 
 FORMAT YOUR RESPONSE EXACTLY AS:
 TITLE_EN: [The sharp, action-driven headline]
@@ -191,7 +191,7 @@ SEO_DESC: [150-160 chars. Lead with main storyline, mention key factors, include
 EXCERPT: [1-2 punchy sentences that hook the reader.]
 ALT_TEXT: [Descriptive alt text for featured image]
 BODY_EN:
-[Full blog post in clean HTML (h2, p, strong, em, ul/li — NO markdown syntax). Include emoji section headers in h2 tags.]`;
+[Full blog post in clean HTML (h2, p, strong, em, ul/li — NO markdown syntax, NO emoji anywhere).]`;
 }
 
 function buildFallbackDataBlock(pick: PickData): string {
@@ -234,7 +234,7 @@ function buildTranslationPrompt(englishArticle: string): string {
 
 Maintain the same:
 - Editorial tone and confidence
-- Section structure and emoji headers
+- Section structure and headers (no emoji)
 - Statistical accuracy (do not change any numbers or data)
 - SEO optimization (translate keywords naturally)
 
