@@ -113,6 +113,10 @@ async function publishPost(
         ? `assets: { images: [{ url: ${JSON.stringify(imageUrl)} }] }`
         : "";
 
+      // Facebook requires postType (post, story, or reel)
+      const isFacebook = channelId === CHANNELS.facebook;
+      const postTypeBlock = isFacebook ? `, postType: post` : "";
+
       const mutation = `
         mutation CreatePost {
           createPost(input: {
@@ -120,6 +124,7 @@ async function publishPost(
             channelId: "${channelId}",
             schedulingType: automatic,
             mode: addToQueue
+            ${postTypeBlock}
             ${assetsBlock ? `, ${assetsBlock}` : ""}
           }) {
             ... on PostActionSuccess {
