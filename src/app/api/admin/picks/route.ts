@@ -6,6 +6,7 @@ import { eq, desc, and, gte, inArray } from "drizzle-orm";
 import { distributePickOnPublish } from "@/lib/delivery";
 import { logAdminAction } from "@/lib/audit";
 import { createPickSchema } from "@/lib/validations";
+import { runAutoBlog } from "@/lib/auto-blog";
 
 /**
  * Calculate the start of the current 4 AM ET visibility window.
@@ -239,36 +240,24 @@ export async function POST(req: NextRequest) {
     const blogToggleRow = await db.select().from(siteContent).where(eq(siteContent.key, "blog_auto_generator")).limit(1);
     const blogEnabled = blogToggleRow[0]?.value === "true" || process.env.ENABLE_AUTO_BLOG === "true";
     if (data.status === "published" && blogEnabled) {
-      // Call auto-blog via internal server route with forwarded cookies
-      // (direct function import would bypass the route's own error handling)
-      try {
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
-        const cookieHeader = req.headers.get("cookie") || "";
-        console.log(`[auto-blog] Triggering for pick ${id}: ${data.matchup}`);
-        fetch(`${siteUrl}/api/admin/auto-blog`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Cookie": cookieHeader,
-          },
-          body: JSON.stringify({
-            sport: data.sport,
-            league: data.league || data.sport,
-            matchup: data.matchup,
-            pickText: data.pickText,
-            gameDate: data.gameDate || null,
-            odds: data.odds || null,
-            units: data.units || null,
-            stars: data.stars || null,
-            tier: data.tier || "vip",
-            analysisEn: data.analysisEn || null,
-          }),
-        }).catch((err) => {
-          console.error("[auto-blog] Failed to trigger:", err);
-        });
-      } catch (err) {
-        console.error("[auto-blog] Error:", err);
-      }
+      // Call runAutoBlog directly — no HTTP fetch, no auth issues
+      console.log(`[auto-blog] Triggering for pick ${id}: ${data.matchup}`);
+      runAutoBlog({
+        sport: data.sport,
+        league: data.league || data.sport,
+        matchup: data.matchup,
+        pickText: data.pickText,
+        gameDate: data.gameDate || null,
+        odds: data.odds || null,
+        units: data.units || null,
+        confidence: data.confidence || data.stars || null,
+        tier: data.tier || "vip",
+        analysisEn: data.analysisEn || null,
+      }).then((result) => {
+        console.log(`[auto-blog] Success: ${result.slug}, image: ${result.featuredImage ? "YES" : "NO"}`);
+      }).catch((err) => {
+        console.error("[auto-blog] Failed:", err);
+      });
     }
 
     return NextResponse.json({ id, distributed, distributionError });

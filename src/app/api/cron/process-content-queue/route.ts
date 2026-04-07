@@ -118,6 +118,14 @@ export async function GET(req: Request) {
       }
 
       // ── Filler posts → Buffer (all channels) + Telegram ──────────
+      if (item.type === "filler" && !item.imageUrl) {
+        console.error(`[content-queue] Filler item ${item.id} has no imageUrl — skipping. Title: ${item.title}`);
+        await db
+          .update(contentQueue)
+          .set({ status: "failed", error: "No image URL — image generation likely failed" })
+          .where(eq(contentQueue.id, item.id));
+        return NextResponse.json({ processed: 1, posted: 0, failed: 1, reason: "no_image_url" });
+      }
       if (item.type === "filler" && item.imageUrl) {
         // Channel 1: Buffer (Instagram + Facebook + Twitter + Threads)
         try {

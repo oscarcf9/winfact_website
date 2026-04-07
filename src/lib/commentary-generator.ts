@@ -24,12 +24,11 @@ export async function generateCommentary(
   recentCommentary: string[] = [],
   followUpContext: string = ""
 ): Promise<string> {
-  // ~60% Spanish, ~40% English , matches bilingual group dynamics
+  // ~60% Spanish, ~40% English — matches bilingual group dynamics
   const language = Math.random() < 0.6 ? "spanish" : "english";
 
   const sportContext = getSportContext(game.sport, game.period);
   const scoreContext = buildScoreContext(game);
-  const sportPersonality = getSportPersonality(game.sport, language);
   const examples = getExamples(game.sport, language);
 
   // Randomly vary the commentary angle to prevent repetitiveness
@@ -41,10 +40,10 @@ export async function generateCommentary(
     : "";
 
   const langInstruction = language === "spanish"
-    ? "IDIOMA: ESCRIBE COMPLETAMENTE EN ESPANOL. No mezcles ingles. Todo el mensaje debe ser en espanol latino, estilo Miami."
-    : "LANGUAGE: Write entirely in English.";
+    ? "IDIOMA: ESCRIBE COMPLETAMENTE EN ESPANOL. Estilo Miami/Caribe. No mezcles inglés."
+    : "LANGUAGE: Write entirely in English. Sports Twitter style.";
 
-  const prompt = `You are the voice of WinFact Picks, a sports analytics brand that posts in its community Telegram group during live games. You sound like the sports-obsessed friend in the group who always knows what's happening, NOT like a corporate account or a bot. You're watching the game and reacting naturally for your community, a mix of paid VIP members and free followers who trust WinFact's sports knowledge. Keep it real, keep it casual, but you represent a brand people respect.
+  const prompt = `You are posting live game reactions in a Telegram sports group. You sound like the loudest, most passionate friend in the group chat — NOT a commentator, NOT a reporter, NOT a brand account.
 
 LIVE GAME RIGHT NOW:
 ${game.team1} ${game.score1} @ ${game.team2} ${game.score2}
@@ -54,25 +53,26 @@ Clock: ${game.clock}
 What's happening: ${scoreContext}
 
 ${langInstruction}
-${sportPersonality}
 
-YOUR ANGLE FOR THIS COMMENT: ${angle}
+YOUR ANGLE: ${angle}
 ${followUpContext}${dedupBlock}
-RULES, break any of these and the message gets thrown out:
-- MAXIMUM 230 characters (hard limit, not a suggestion)
-- Sound like a REAL PERSON texting, not a sportscaster or AI
-- 1-2 emojis MAX, placed naturally (not at the start)
-- React to what's ACTUALLY happening in the score , if a team is getting destroyed, say it. If it's a nail-biter, show it.
-- Have a TAKE. Pick a side. Be opinionated. "This is a good game" is boring. "Celtics are cooking and nobody can stop Tatum" is real.
-- DO NOT use hashtags
-- DO NOT mention betting, picks, odds, spreads, lines, or anything gambling-related
-- DO NOT use quotation marks in your output
-- DO NOT use words like "currently", "right now", "at the moment", "as we speak"
-- DO NOT start with "Wow" or "Oh my" or any generic exclamation
-- DO NOT use the word "folks" or "friends" or address the group directly
-- DO NOT add any preamble, label, or explanation, output ONLY the message text
-- DO NOT use em dashes anywhere. Use commas, periods, or just separate thoughts naturally.
-- Your output must be a single message, no line breaks
+RULES:
+1. MAX 150 characters. Shorter is better. If you can say it in 80 characters, do it.
+2. One thought per message. Never two sentences. Never a comma splice. Never "but" connecting two ideas.
+3. ALL CAPS when something crazy happens — a big run, a lead change, a clutch play. Not every message, maybe 30% of them.
+4. Use 1-2 emoji per message MAX. They punctuate the vibe, not decorate. 🔥💪👀😤💰 are your palette.
+5. Be OPINIONATED. Take sides. Say a team looks trash. Say a player is cooking. Don't be neutral.
+6. Never say "WinFact" or mention picks, bets, odds, units, models, or anything gambling-related.
+7. Never use hashtags.
+8. Sound like you're WATCHING the game right now, reacting in real time. Use present tense.
+9. DO NOT use quotation marks in your output.
+10. DO NOT add any preamble, label, or explanation. Output ONLY the message text.
+11. Your output must be a single line, no line breaks.
+
+BAD examples (NEVER DO THIS):
+- "Dodgers jumped early but Bassitt's command looks sharp after that rough first" ← too long, compound sentence
+- "Cleveland picked up the pace after halftime and Memphis can't keep up" ← two ideas joined, narrative style
+- "The Knicks have completely flipped the script from that early sloppiness" ← descriptive, not reactive
 
 ${examples}
 
@@ -82,7 +82,7 @@ Generate ONLY the message. One line. Nothing else.`;
     const client = getClient();
     const response = await client.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 120,
+      max_tokens: 60,
       temperature: 1,
       messages: [{ role: "user", content: prompt }],
     });
@@ -92,7 +92,7 @@ Generate ONLY the message. One line. Nothing else.`;
         ? response.content[0].text.trim()
         : "";
 
-    // Safety: strip wrapping quotes, hashtags, and any "Here's" preamble
+    // Safety: strip wrapping quotes, hashtags, and any preamble
     let comment = text
       .replace(/^["']|["']$/g, "")
       .replace(/^(Here'?s?|Sure|Okay|Got it)[^:]*:\s*/i, "")
@@ -100,8 +100,11 @@ Generate ONLY the message. One line. Nothing else.`;
       .replace(/\n/g, " ")
       .trim();
 
-    if (comment.length > 280) {
-      comment = comment.substring(0, 277) + "...";
+    // Hard limit: 150 chars, truncate at last complete word/emoji
+    if (comment.length > 150) {
+      const truncated = comment.substring(0, 150);
+      const lastSpace = truncated.lastIndexOf(" ");
+      comment = lastSpace > 80 ? truncated.substring(0, lastSpace) : truncated;
     }
 
     return comment;
@@ -148,46 +151,14 @@ function buildScoreContext(game: {
     parts.push("late in the game");
   }
   if (game.situation.includes("high_scoring")) {
-    parts.push(`${total} total points , high-scoring affair`);
+    parts.push(`${total} total points, high-scoring affair`);
   }
 
   return parts.join(". ") + ".";
 }
 
 /**
- * Sport-specific personality instructions that make the
- * commentary feel authentic to each sport's culture.
- */
-function getSportPersonality(sport: string, language: string): string {
-  const isSpanish = language === "spanish";
-
-  switch (sport) {
-    case "NBA":
-      return isSpanish
-        ? "WinFact sabe de NBA. Habla de runs, clutch shots, quien está en llamas. Usa jerga de basket: triple, doble-doble, and-one. Estilo Miami , mezcla español con algo de inglés cuando es natural. Habla como el analista del grupo que vive el basket."
-        : "WinFact knows NBA. Talk about runs, who's cooking, who's cold. Use real basketball language , runs, buckets, cooking, ice cold. Sound like the sharpest basketball mind in the room, but keep it casual.";
-    case "MLB":
-      return isSpanish
-        ? "WinFact sabe de baseball. Entiende innings, conteos, situaciones con corredores en base. Habla de pitchers dominando, bateadores clutch. Estilo caribeño , el beisbol está en la sangre de la comunidad."
-        : "WinFact knows baseball. Talk about who's dealing on the mound, big at-bats, defensive plays. Appreciate the craft. Sound like someone who sees things others miss.";
-    case "NFL":
-      return isSpanish
-        ? "WinFact sabe de football americano. Habla de drives, turnovers, el quarterback. Entiende downs y situaciones de red zone. Dale la perspectiva analítica pero con sabor latino."
-        : "WinFact knows football. Talk about drives, red zone, clock management, momentum shifts. Sound like the person in the group who actually understands the play calls.";
-    case "NHL":
-      return isSpanish
-        ? "WinFact sabe de hockey. Habla de powerplays, saves del goalie, goles increíbles. El hockey es rápido y WinFact lo entiende."
-        : "WinFact knows hockey. Talk about power plays, goalie performance, momentum shifts. Sound informed but not like a broadcast , you're reacting in real time for your community.";
-    default:
-      // Soccer
-      return isSpanish
-        ? "WinFact sabe de fútbol. Habla de posesión, goles, tarjetas, tácticas. Si es un derbi o un clásico, sube la intensidad. El fútbol es pasión para la comunidad , refleja eso."
-        : "WinFact knows soccer. Talk about possession, attacks, defensive shape. If it's a derby or big match, the intensity should be higher. Sound like the most knowledgeable person watching with your community.";
-  }
-}
-
-/**
- * Sport-specific examples that demonstrate authentic voice.
+ * Sport-specific examples — short, punchy, hype-style.
  * Returns a random subset to prevent Claude from copying them verbatim.
  */
 function getExamples(sport: string, language: string): string {
@@ -196,132 +167,132 @@ function getExamples(sport: string, language: string): string {
   const pools: Record<string, { en: string[]; es: string[] }> = {
     NBA: {
       en: [
-        "Celtics on a 15-0 run and the crowd is SILENT 😬",
-        "Jokic has 18 in the first half and he's not even trying that hard",
-        "LeBron at 40 still doing this to people, unreal 🔥",
-        "3rd quarter Warriors are a different animal, 12-0 run outta nowhere",
-        "Both teams shooting 55% from three, this is a shootout",
-        "Nobody playing defense in this one and honestly I'm not complaining",
-        "Luka with the step-back triple and he just stared down the bench 💀",
-        "Bench unit completely blowing this lead, painful to watch",
-        "Down 18 and came all the way back, this is why we watch basketball 🏀",
-        "They have zero answer for Embiid in the post, none",
+        "Tatum going OFF in the 4th 🔥",
+        "This pace is INSANE",
+        "LeBron looks washed tonight ngl",
+        "Luka can't miss from three 👀",
+        "Bench mob came to play tonight",
+        "JOKIC IS NOT HUMAN",
+        "Hawks woke up from that bus ride 👀",
+        "Celtics on a 15-0 run and the crowd is SILENT 😤",
+        "Baltimore looks like a minor league team rn",
+        "WHAT A PLAY",
       ],
       es: [
-        "Celtics con un run de 15-0 y el público callado 😬",
-        "Jokic con 18 en el primer tiempo sin sudar bro",
-        "LeBron con 40 años haciéndole esto a la gente, increíble 🔥",
-        "Warriors en el tercer cuarto son otro equipo, run de 12-0 de la nada",
-        "Los dos tirando 55% de tres, esto es puro tiroteo",
-        "Nadie defiende en este partido y honestamente no me quejo",
-        "Luka con el step-back triple y se quedó mirando al banco 💀",
-        "La banca regalando esta ventaja, que dolor",
-        "Perdiendo por 18 y vinieron de atrás, por esto vemos basket 🏀",
-        "No tienen respuesta para Embiid en el poste, ninguna",
+        "Los Heat no pueden anotar NADA 😤",
+        "ESE BLOQUEO FUE CRIMINAL",
+        "Miami corriendo la cancha como locos 💪",
+        "Butler con la cara de 'yo no pedí esto'",
+        "TRIPLE DOBLE Y APENAS ES EL TERCERO",
+        "Celtics con un run de 15-0 y el estadio MUERTO 😤",
+        "LOS CAVS CORRIENDO LA CANCHA 💪",
+        "Minnesota presionando sin parar",
+        "Este ritmo está BRUTAL 🔥",
+        "YA COBRÓ ESE OVER 💰",
       ],
     },
     MLB: {
       en: [
-        "Pitcher is dealing , 7 Ks through 5 and the lineup looks lost",
-        "Bases loaded nobody out and they couldn't score, brutal 😬",
-        "3-run bomb to center, that ball is still flying",
-        "7th inning and this starter hasn't broken 90 pitches, he's cruising",
-        "Double play to end the inning, perfect time for it",
-        "5 errors in 4 innings, this is little league stuff 💀",
-        "Grand slam on a 3-2 count, you cannot script this 🔥",
-        "Bullpen completely falling apart, 4 runs in the 8th",
-        "Rookie with his first career homer and the dugout went crazy",
-        "Tied in the 9th, this is what October baseball feels like",
+        "This pitcher is DEALING 🔥",
+        "Solo shot and the dugout went crazy",
+        "Bullpen is cooked tonight",
+        "That swing was VIOLENT 💪",
+        "Defense just fell apart in the 7th",
+        "Bassitt dealing right now 👀",
+        "Grand slam on a 3-2 count 🔥",
+        "Tied in the 9th, this is October energy",
+        "Rookie with his first career homer",
+        "5 errors in 4 innings, little league stuff",
       ],
       es: [
-        "El pitcher dominando , 7 Ks en 5 innings y el lineup perdido",
-        "Bases llenas sin out y no pudieron anotar, brutal 😬",
-        "Jonrón de 3 carreras al center, esa bola todavía está volando",
-        "7mo inning y el abridor no pasa de 90 pitcheos, va en crucero",
-        "Doble play para cerrar el inning, justo cuando hacía falta",
-        "5 errores en 4 innings, esto es pelota de barrio 💀",
-        "Grand slam en conteo de 3-2, esto no se puede inventar 🔥",
-        "El bullpen colapsó, 4 carreras en el 8vo",
-        "El rookie con su primer jonrón y el dugout se volvió loco",
-        "Empatados en el 9no, esto se siente como octubre",
+        "Ese swing fue pa la calle 👀",
+        "EL ABRIDOR ESTÁ DOMINANDO",
+        "Se ponchó con la recta al medio 😤",
+        "Los bates se despertaron en la 6ta 🔥",
+        "Cambio de pitcher y se fue todo al piso",
+        "Este pitcheo está BRUTAL 🔥",
+        "Jonrón de 3 carreras al center 💪",
+        "Bases llenas sin out y no pudieron anotar 😤",
+        "El bullpen colapsó en el 8vo",
+        "Grand slam en conteo de 3-2, imposible",
       ],
     },
     NFL: {
       en: [
-        "3 turnovers in the first half and they're still only down 7, somehow",
-        "QB just scrambled for 25 yards on 3rd and long, kept the drive alive 🔥",
-        "Defense is swarming every play, offense can't breathe",
-        "Red zone INT, that's a backbreaker in a 3-point game",
-        "4th quarter comeback brewing, 10 unanswered points",
-        "Running game is eating , 180 yards and counting",
-        "That was the worst play call I've seen all season 💀",
-        "Pick six to make it a two-score game, this one's over",
-        "Fumble on the goal line, you could hear the stadium groan",
-        "OT rules are wild but I'm here for it, sudden death energy",
+        "PICK SIX LET'S GOOOO 🔥",
+        "That throw was INSANE",
+        "Defense came to eat tonight 😤",
+        "QB looks rattled in the pocket",
+        "4th quarter comeback loading 👀",
+        "Running game eating, 180 yards and counting",
+        "Red zone INT, that's a backbreaker",
+        "Fumble on the goal line 💀",
+        "3 turnovers and only down 7 somehow",
+        "OT energy is DIFFERENT",
       ],
       es: [
-        "3 turnovers en el primer tiempo y solo pierden por 7, cómo",
-        "El QB corrió 25 yardas en 3rd and long, mantuvo el drive 🔥",
-        "La defensa asfixiando cada jugada, la ofensiva sin aire",
-        "INT en la red zone, eso duele cuando el juego está por 3",
-        "Comeback en el 4to cuarto, 10 puntos sin respuesta",
-        "El juego terrestre comiendo , 180 yardas y contando",
-        "Esa fue la peor jugada que he visto en toda la temporada 💀",
-        "Pick six para ponerlo a dos scores, se acabó esto",
-        "Fumble en la línea de gol, se escuchó el estadio gemir",
-        "Las reglas de overtime son locas pero aquí estamos, sudden death",
+        "ESA JUGADA FUE DE OTRO MUNDO",
+        "La defensa se los está comiendo 💪",
+        "No pueden parar el juego terrestre",
+        "INTERCEPTION EN LA ZONA ROJA 😤",
+        "Este QB no aguanta la presión",
+        "Pick six y se acabó esto 🔥",
+        "Comeback en el 4to cuarto 👀",
+        "El juego terrestre comiendo sin parar",
+        "Fumble en la línea de gol 💀",
+        "3 turnovers y solo pierden por 7",
       ],
     },
     NHL: {
       en: [
-        "Goalie just robbed that one-timer, save of the year candidate",
-        "Power play goal and they made it look easy, crisp passing 🔥",
-        "3rd period and they've completely taken over, relentless pressure",
-        "5-hole goal on a breakaway, goalie wants that one back",
-        "Both goalies standing on their heads tonight, elite performances",
-        "Empty net goal seals it, pull the goalie they said",
-        "Fight on the faceoff, hockey is wild 😂",
-        "Tic-tac-toe passing play for the goal, that was beautiful",
-        "Short-handed goal against, the power play unit should be embarrassed",
-        "Hat trick in the 2nd period, hats are flying 🧢",
+        "WHAT A SAVE 🔥",
+        "This goalie is standing on his head",
+        "Power play looking dangerous 👀",
+        "3rd period energy is different",
+        "That was the dirtiest dangle",
+        "Empty net goal seals it",
+        "Short-handed goal, embarrassing 💀",
+        "Hat trick in the 2nd period 🧢",
+        "Both goalies on fire tonight",
+        "5-hole breakaway goal, goalie wants that back",
       ],
       es: [
-        "El goalie acaba de robar ese one-timer, salvada del año",
-        "Gol en powerplay y lo hicieron ver fácil, pases perfectos 🔥",
-        "Tercer periodo y tomaron control total, presión sin parar",
-        "Gol por el 5-hole en breakaway, el goalie quiere esa de vuelta",
-        "Los dos goalies siendo murallas hoy, actuaciones de élite",
-        "Gol de red vacía para sellar, dale saca al goalie dijeron",
-        "Pelea en el faceoff, el hockey es una locura 😂",
-        "Jugada de tic-tac-toe para el gol, eso fue arte",
-        "Gol shorthanded en contra, la unidad de powerplay debería tener vergüenza",
-        "Hat trick en el 2do periodo, están volando los gorros 🧢",
+        "El portero está volando esta noche 💪",
+        "GOLAZO DE POWERPLAY",
+        "Se puso 3-2 y esto se pone bueno 👀",
+        "Este ritmo en el tercero está BRUTAL",
+        "La defensa dejó solo al portero 😤",
+        "Gol de red vacía y se acabó",
+        "Hat trick en el segundo periodo 🧢",
+        "Los dos goalies siendo murallas 🔥",
+        "Gol shorthanded en contra, vergüenza",
+        "Breakaway y la clavó por el 5-hole",
       ],
     },
     SOCCER: {
       en: [
-        "They've had 70% possession and nothing to show for it",
-        "Counter attack goal out of nowhere, clinical finish 🔥",
-        "VAR checking for offside and everyone is holding their breath",
-        "Keeper pulled off an insane double save, kept them in it",
-        "Red card changes everything, playing with 10 for 30 minutes",
-        "Free kick from 25 yards and he bent it perfectly into the top corner",
-        "Parking the bus with 20 minutes left, classic defensive masterclass",
-        "Stoppage time equalizer, the stadium is going absolutely insane",
-        "3 goals in 5 minutes, this match completely flipped",
-        "Clean sheet through 80 minutes and then it all fell apart 😬",
+        "GOLAZO FROM OUTSIDE THE BOX 🔥",
+        "VAR checking everything tonight",
+        "That cross was surgical 👀",
+        "Keeper had no chance on that one",
+        "Red card and it's OVER",
+        "Counter attack goal, clinical 💪",
+        "70% possession and nothing to show for it",
+        "Stoppage time equalizer 😤",
+        "3 goals in 5 minutes WHAT",
+        "Parking the bus with 20 left",
       ],
       es: [
-        "70% de posesión y nada que mostrar, puro toque sin peligro",
-        "Gol de contragolpe de la nada, definición clínica 🔥",
-        "VAR revisando offside y todos aguantando la respiración",
-        "El portero con doble atajada increíble, los mantuvo vivos",
-        "Roja directa cambia todo, jugando con 10 por 30 minutos",
-        "Tiro libre desde 25 metros y la clavó en el ángulo perfecto",
-        "Estacionando el bus con 20 minutos, clase magistral defensiva",
-        "Gol en tiempo de descuento para empatar, el estadio estalló",
-        "3 goles en 5 minutos, este partido se volteó completamente",
-        "Portería en cero por 80 minutos y después se desmoronó todo 😬",
+        "ESE GOL FUE DE OTRO PLANETA 🔥",
+        "El VAR revisando todo esta noche 😤",
+        "DAME MI AMBOS MARCAN 💪",
+        "El portero se quedó mirando la pelota",
+        "ROJA DIRECTA Y SE ACABÓ",
+        "Gol de contragolpe de la nada 🔥",
+        "70% de posesión y nada que mostrar",
+        "Gol en tiempo de descuento 😤",
+        "3 goles en 5 minutos QUE 👀",
+        "Estacionando el bus con 20 minutos",
       ],
     },
   };
@@ -336,61 +307,58 @@ function getExamples(sport: string, language: string): string {
   const shuffled = [...langPool].sort(() => Math.random() - 0.5);
   const selected = shuffled.slice(0, 4);
 
-  return `EXAMPLES of the tone and style (DO NOT copy these, use them as inspiration):\n${selected.map((e) => `- ${e}`).join("\n")}`;
+  return `GOOD examples (COPY THIS ENERGY, not these exact words):\n${selected.map((e) => `- "${e}"`).join("\n")}`;
 }
 
 /**
- * Commentary angles , gives Claude a specific lens for each comment
+ * Commentary angles — gives Claude a specific lens for each comment
  * to prevent repetitive "this game is close" style messages.
  */
 function getAngles(situation: string, sport: string): string[] {
   const base = [
-    "React to the scoreboard , who's winning and how convincingly",
-    "Focus on the momentum , who has it, who lost it",
-    "Call out one team's performance , are they playing well or terrible?",
-    "Comment on the pace or energy of the game",
+    "React to the scoreboard — who's winning and how",
+    "Who has the momentum right now",
+    "Call out one team — are they cooking or trash?",
+    "React to the energy or pace of the game",
   ];
 
   if (situation.includes("close_game")) {
     base.push(
-      "Talk about the tension of a close game",
-      "Speculate who's going to pull it off (without betting language)",
-      "Point out that neither team can pull away",
+      "The tension of this close game",
+      "Who's going to pull it off",
+      "Neither team can pull away",
     );
   }
   if (situation.includes("high_scoring")) {
     base.push(
       "React to how much scoring is happening",
-      "Comment on the lack of defense",
-      "Express excitement about the offensive fireworks",
+      "Nobody playing defense tonight",
     );
   }
   if (situation.includes("blowout")) {
     base.push(
-      "Roast the losing team a little",
-      "Express disbelief at how bad one team is playing",
-      "Acknowledge the dominant team's performance",
-      "Joke about the garbage time",
+      "Roast the losing team",
+      "The dominant team is on another level",
+      "Garbage time vibes",
     );
   }
   if (situation.includes("late")) {
     base.push(
-      "Talk about clutch time , who steps up?",
-      "Comment on the pressure of the final stretch",
-      "Note that this is where games are won or lost",
+      "Clutch time — who steps up",
+      "This is where games are won or lost",
     );
   }
 
   if (sport === "MLB") {
     base.push(
-      "Comment on the pitching matchup",
-      "React to a specific batting situation",
+      "React to the pitching",
+      "React to a big at-bat or play",
     );
   }
   if (sport === "NBA") {
     base.push(
-      "Talk about who's cooking on offense",
-      "React to a team's run or scoring drought",
+      "Who's cooking on offense",
+      "React to a run or scoring drought",
     );
   }
 

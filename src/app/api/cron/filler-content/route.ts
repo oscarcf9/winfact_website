@@ -56,7 +56,8 @@ export async function GET(req: Request) {
 
   const enabled = await getSiteContent("filler_content_enabled");
   if (enabled !== "true") {
-    return NextResponse.json({ status: "skipped", reason: "filler_disabled" });
+    console.warn(`[filler] Filler content is DISABLED. Current value: "${enabled}". Set site_content key "filler_content_enabled" to "true" to enable.`);
+    return NextResponse.json({ status: "skipped", reason: "filler_disabled", currentValue: enabled || "not set" });
   }
 
   try {

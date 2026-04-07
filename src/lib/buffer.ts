@@ -1,6 +1,7 @@
 /**
  * Buffer GraphQL API client.
- * Uses Buffer's createIdea mutation: https://developers.buffer.com/guides/getting-started.html
+ * Uses Buffer's createPost mutation to publish content to social channels.
+ * Docs: https://developers.buffer.com
  *
  * Channel routing:
  *   - Live commentary → Twitter + Threads ONLY
@@ -9,7 +10,7 @@
  *   - Blog links → Facebook + Telegram ONLY (handled in social-posting.ts)
  */
 
-const BUFFER_API = "https://graph.bufferapp.com/graphql";
+const BUFFER_API = "https://api.buffer.com";
 const BUFFER_ORG_ID = process.env.BUFFER_ORG_ID || "68dde1d4ae0ea4e53700e8cf";
 
 const BUFFER_ACCESS_TOKEN = process.env.BUFFER_ACCESS_TOKEN || "";
@@ -82,10 +83,10 @@ function getChannelsForRoute(route: "all" | "text_only" | "facebook_only"): stri
 }
 
 /**
- * Post an idea to specific Buffer channels using createIdea mutation.
- * This is the core posting function — all public functions delegate here.
+ * Publish a post to a specific Buffer channel using createPost mutation.
+ * This ACTUALLY publishes to social media (unlike createIdea which only saves to backlog).
  */
-async function postIdea(
+async function publishPost(
   text: string,
   channelIds: string[],
   imageUrl?: string,
@@ -100,27 +101,33 @@ async function postIdea(
     return { ok: false, error: "No Buffer channels configured for this route" };
   }
 
-  console.log(`[buffer] Posting to ${channelIds.length} channels${imageUrl ? " with image" : ""}: ${channelIds.join(", ")}`);
+  console.log(`[buffer] Publishing to ${channelIds.length} channels${imageUrl ? " with image" : ""}: ${channelIds.join(", ")}`);
 
   let successCount = 0;
   let lastError = "";
 
   for (const channelId of channelIds) {
     try {
-      // Build the createIdea mutation per Buffer's GraphQL API
+      // Build the createPost mutation — this actually publishes to the channel
+      const assetsBlock = imageUrl
+        ? `assets: { images: [{ url: ${JSON.stringify(imageUrl)} }] }`
+        : "";
+
       const mutation = `
-        mutation CreateIdea {
-          createIdea(input: {
-            organizationId: "${BUFFER_ORG_ID}",
-            content: {
-              text: ${JSON.stringify(text)}
-            }
-            ${imageUrl ? `, media: { images: [{ url: ${JSON.stringify(imageUrl)} }] }` : ""}
-            channels: ["${channelId}"]
+        mutation CreatePost {
+          createPost(input: {
+            text: ${JSON.stringify(text)},
+            channelId: "${channelId}",
+            schedulingType: automatic,
+            mode: addToQueue
+            ${assetsBlock ? `, ${assetsBlock}` : ""}
           }) {
-            ... on Idea {
-              id
-              content { text }
+            ... on PostActionSuccess {
+              post {
+                id
+                text
+                dueAt
+              }
             }
             ... on MutationError {
               message
@@ -137,17 +144,20 @@ async function postIdea(
         continue;
       }
 
-      const payload = result.data?.createIdea as Record<string, unknown> | undefined;
+      const payload = result.data?.createPost as Record<string, unknown> | undefined;
       if (payload?.message) {
         lastError = String(payload.message);
         console.error(`[buffer] Channel ${channelId} mutation error:`, lastError);
         continue;
       }
 
-      if (payload?.id) {
+      const post = payload?.post as Record<string, unknown> | undefined;
+      if (post?.id) {
         successCount++;
-        console.log(`[buffer] Channel ${channelId} → Idea ${payload.id}`);
+        console.log(`[buffer] Channel ${channelId} → Post ${post.id} (dueAt: ${post.dueAt || "immediate"})`);
       } else {
+        // No error but no post ID — log full response for debugging
+        console.warn(`[buffer] Channel ${channelId} — unexpected response:`, JSON.stringify(result.data));
         successCount++; // Assume success if no error
       }
     } catch (err) {
@@ -157,7 +167,7 @@ async function postIdea(
   }
 
   if (successCount > 0) {
-    console.log(`[buffer] Posted to ${successCount}/${channelIds.length} channels`);
+    console.log(`[buffer] Published to ${successCount}/${channelIds.length} channels`);
     return { ok: true };
   }
 
@@ -176,7 +186,7 @@ export async function postToBufferWithMedia(
   token?: string
 ): Promise<{ ok: boolean; error?: string }> {
   const channels = getChannelsForRoute("all");
-  return postIdea(text, channels, imageUrl, token);
+  return publishPost(text, channels, imageUrl, token);
 }
 
 /**
@@ -193,15 +203,18 @@ export async function postToBuffer(text: string): Promise<{ ok: boolean; error?:
 export async function postLiveToBuffer(text: string): Promise<{ ok: boolean; error?: string }> {
   const token = BUFFER_LIVE_TOKEN || BUFFER_ACCESS_TOKEN;
   if (!token) {
-    return { ok: false, error: "Buffer live token not configured" };
+    console.error("[buffer] postLiveToBuffer: No token available. Set BUFFER_LIVE_TOKEN or BUFFER_ACCESS_TOKEN in env vars.");
+    return { ok: false, error: "Buffer live token not configured. Set BUFFER_LIVE_TOKEN or BUFFER_ACCESS_TOKEN." };
   }
 
   const channels = getChannelsForRoute("text_only");
   if (channels.length === 0) {
+    console.error("[buffer] postLiveToBuffer: No channels. Set BUFFER_TWITTER_CHANNEL_ID and/or BUFFER_THREADS_CHANNEL_ID.");
     return { ok: false, error: "No Twitter/Threads channels configured. Set BUFFER_TWITTER_CHANNEL_ID and/or BUFFER_THREADS_CHANNEL_ID." };
   }
 
-  return postIdea(text, channels, undefined, token);
+  console.log(`[buffer] postLiveToBuffer: Publishing to ${channels.length} text channels (Twitter/Threads)`);
+  return publishPost(text, channels, undefined, token);
 }
 
 /**
@@ -210,7 +223,49 @@ export async function postLiveToBuffer(text: string): Promise<{ ok: boolean; err
  */
 export async function postBlogLinkToBuffer(text: string): Promise<{ ok: boolean; error?: string }> {
   const channels = getChannelsForRoute("facebook_only");
-  return postIdea(text, channels);
+  return publishPost(text, channels);
+}
+
+/**
+ * Query Buffer account to verify channel IDs and organization.
+ * Use this for diagnostics — call from admin endpoint.
+ */
+export async function verifyBufferChannels(token?: string): Promise<{
+  ok: boolean;
+  channels?: { id: string; name: string; service: string }[];
+  error?: string;
+}> {
+  const query = `
+    query {
+      account {
+        organizations {
+          id
+          channels {
+            id
+            name
+            service
+          }
+        }
+      }
+    }
+  `;
+
+  const result = await bufferGraphQL(query, undefined, token);
+
+  if (result.errors) {
+    return { ok: false, error: result.errors[0].message };
+  }
+
+  const account = result.data?.account as Record<string, unknown> | undefined;
+  const orgs = account?.organizations as { id: string; channels: { id: string; name: string; service: string }[] }[] | undefined;
+
+  if (!orgs || orgs.length === 0) {
+    return { ok: false, error: "No organizations found" };
+  }
+
+  // Find channels for our org
+  const org = orgs.find(o => o.id === BUFFER_ORG_ID) || orgs[0];
+  return { ok: true, channels: org.channels };
 }
 
 /**

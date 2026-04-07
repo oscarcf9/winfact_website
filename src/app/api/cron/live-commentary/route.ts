@@ -113,11 +113,11 @@ export async function GET(req: Request) {
 
   try {
     // Dual-frequency posting with independent rolls:
-    // - Buffer (Twitter/Threads): ~33% skip = post every ~22 min
+    // - Buffer (Twitter/Threads): ~15% skip = post most runs (~every 17 min)
     // - Telegram: ~50% skip = post every ~30 min
     const bufferRoll = Math.random();
     const telegramRoll = Math.random();
-    const skipBuffer = bufferRoll < 0.33;
+    const skipBuffer = bufferRoll < 0.15;
     const skipTelegram = telegramRoll < 0.50;
 
     // If both channels would be skipped, skip entirely
@@ -195,14 +195,25 @@ export async function GET(req: Request) {
       }
     }
 
-    // 7. Cross-post to Twitter/Threads via Buffer (~1 per 30 min)
+    // 7. Cross-post to Twitter/Threads via Buffer
     if (!skipBuffer) {
-      const bufferResult = await postLiveToBuffer(comment).catch((err) => {
-        console.error("[commentary] Buffer error:", err);
-        return { ok: false, error: String(err) } as const;
-      });
-      bufferSent = bufferResult.ok;
-      console.log(`[commentary] Buffer: ${bufferResult.ok ? "sent" : `failed: ${bufferResult.error}`}`);
+      const hasBufferToken = !!(process.env.BUFFER_LIVE_TOKEN || process.env.BUFFER_ACCESS_TOKEN);
+      if (!hasBufferToken) {
+        console.error("[commentary] Buffer SKIPPED: neither BUFFER_LIVE_TOKEN nor BUFFER_ACCESS_TOKEN is set");
+      } else {
+        const bufferResult = await postLiveToBuffer(comment).catch((err) => {
+          console.error("[commentary] Buffer error:", err);
+          return { ok: false, error: String(err) } as const;
+        });
+        bufferSent = bufferResult.ok;
+        if (!bufferResult.ok) {
+          console.error(`[commentary] Buffer FAILED for Twitter/Threads: ${bufferResult.error}`);
+        } else {
+          console.log(`[commentary] Buffer sent to Twitter/Threads`);
+        }
+      }
+    } else {
+      console.log(`[commentary] Buffer skipped this run (random roll: ${bufferRoll.toFixed(2)} < 0.15)`);
     }
 
     // 8. Log the commentary
@@ -230,7 +241,13 @@ export async function GET(req: Request) {
       status: "posted",
       game: `${selectedGame.team1} vs ${selectedGame.team2}`,
       sport: selectedGame.sport,
-      channels: { telegram: telegramSent, buffer: bufferSent },
+      channels: {
+        telegram: telegramSent,
+        telegramSkipped: skipTelegram,
+        buffer: bufferSent,
+        bufferSkipped: skipBuffer,
+        bufferTokenSet: !!(process.env.BUFFER_LIVE_TOKEN || process.env.BUFFER_ACCESS_TOKEN),
+      },
       comment,
     });
   } catch (error) {

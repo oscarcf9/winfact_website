@@ -237,16 +237,22 @@ export async function notifyBlogDraftReady(params: {
   matchup: string;
   slug: string;
   postId?: string;
+  imageStatus?: string;
 }): Promise<{ ok: boolean; error?: string }> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com";
   const postId = params.postId || params.slug;
   const editUrl = `${siteUrl}/en/admin/blog/${postId}`;
   const previewUrl = `${siteUrl}/en/blog/${params.slug}`;
 
+  const imageLine = params.imageStatus
+    ? `\n🖼 Image: ${params.imageStatus}`
+    : "";
+
   const message =
     `📝 <b>New Blog Draft</b>\n\n` +
     `<b>${params.title}</b>\n` +
-    `🏟 ${params.sport} · ${params.matchup}`;
+    `🏟 ${params.sport} · ${params.matchup}` +
+    imageLine;
 
   return sendContentBotNotification(message, [
     [
