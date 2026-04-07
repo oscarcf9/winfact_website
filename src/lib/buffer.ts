@@ -123,6 +123,12 @@ async function publishPost(
         ? `schedulingType: immediate`
         : `schedulingType: automatic, mode: addToQueue`;
 
+      // Facebook requires metadata with type: post (story/reel also possible)
+      const isFacebook = channelId === CHANNELS.facebook;
+      const metadataBlock = isFacebook
+        ? `, metadata: { facebook: { type: post } }`
+        : "";
+
       const mutation = `
         mutation CreatePost {
           createPost(input: {
@@ -130,6 +136,7 @@ async function publishPost(
             channelId: "${channelId}",
             ${scheduleBlock}
             ${assetsBlock ? `, ${assetsBlock}` : ""}
+            ${metadataBlock}
           }) {
             ... on PostActionSuccess {
               post {
@@ -231,11 +238,7 @@ export async function postLiveToBuffer(text: string): Promise<{ ok: boolean; err
  * Blog URLs with OG tags — Facebook renders the preview automatically.
  */
 export async function postBlogLinkToBuffer(text: string, imageUrl?: string): Promise<{ ok: boolean; error?: string }> {
-  // Blog shares with images go to all channels except Facebook
-  // (Facebook requires a postType field not yet supported in Buffer's GraphQL API)
-  // Text-only blog links still go to Facebook (OG tags render the preview)
-  const route = imageUrl ? "no_facebook" : "facebook_only";
-  const channels = getChannelsForRoute(route);
+  const channels = getChannelsForRoute("facebook_only");
   return publishPost(text, channels, imageUrl);
 }
 
