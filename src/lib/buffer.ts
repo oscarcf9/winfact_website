@@ -90,7 +90,8 @@ async function publishPost(
   text: string,
   channelIds: string[],
   imageUrl?: string,
-  token?: string
+  token?: string,
+  publishNow?: boolean
 ): Promise<{ ok: boolean; error?: string }> {
   const accessToken = token || BUFFER_ACCESS_TOKEN;
   if (!accessToken) {
@@ -113,13 +114,16 @@ async function publishPost(
         ? `assets: { images: [{ url: ${JSON.stringify(imageUrl)} }] }`
         : "";
 
+      const scheduleBlock = publishNow
+        ? `schedulingType: immediate`
+        : `schedulingType: automatic, mode: addToQueue`;
+
       const mutation = `
         mutation CreatePost {
           createPost(input: {
             text: ${JSON.stringify(text)},
             channelId: "${channelId}",
-            schedulingType: automatic,
-            mode: addToQueue
+            ${scheduleBlock}
             ${assetsBlock ? `, ${assetsBlock}` : ""}
           }) {
             ... on PostActionSuccess {
@@ -213,8 +217,8 @@ export async function postLiveToBuffer(text: string): Promise<{ ok: boolean; err
     return { ok: false, error: "No Twitter/Threads channels configured. Set BUFFER_TWITTER_CHANNEL_ID and/or BUFFER_THREADS_CHANNEL_ID." };
   }
 
-  console.log(`[buffer] postLiveToBuffer: Publishing to ${channels.length} text channels (Twitter/Threads)`);
-  return publishPost(text, channels, undefined, token);
+  console.log(`[buffer] postLiveToBuffer: Publishing NOW to ${channels.length} text channels (Twitter/Threads)`);
+  return publishPost(text, channels, undefined, token, true);
 }
 
 /**
