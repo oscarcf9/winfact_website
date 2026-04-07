@@ -61,7 +61,7 @@ async function bufferGraphQL(
 /**
  * Get channel IDs for a specific routing purpose.
  */
-function getChannelsForRoute(route: "all" | "text_only" | "facebook_only"): string[] {
+function getChannelsForRoute(route: "all" | "text_only" | "facebook_only" | "no_facebook"): string[] {
   const ids: string[] = [];
 
   if (route === "text_only") {
@@ -71,6 +71,11 @@ function getChannelsForRoute(route: "all" | "text_only" | "facebook_only"): stri
   } else if (route === "facebook_only") {
     // Facebook only (for blog links)
     if (CHANNELS.facebook) ids.push(CHANNELS.facebook);
+  } else if (route === "no_facebook") {
+    // All except Facebook (blog shares with images — FB requires postType not yet supported)
+    if (CHANNELS.instagram) ids.push(CHANNELS.instagram);
+    if (CHANNELS.twitter) ids.push(CHANNELS.twitter);
+    if (CHANNELS.threads) ids.push(CHANNELS.threads);
   } else {
     // All channels (for filler + victory posts with images)
     if (CHANNELS.instagram) ids.push(CHANNELS.instagram);
@@ -226,7 +231,11 @@ export async function postLiveToBuffer(text: string): Promise<{ ok: boolean; err
  * Blog URLs with OG tags — Facebook renders the preview automatically.
  */
 export async function postBlogLinkToBuffer(text: string, imageUrl?: string): Promise<{ ok: boolean; error?: string }> {
-  const channels = getChannelsForRoute("facebook_only");
+  // Blog shares with images go to all channels except Facebook
+  // (Facebook requires a postType field not yet supported in Buffer's GraphQL API)
+  // Text-only blog links still go to Facebook (OG tags render the preview)
+  const route = imageUrl ? "no_facebook" : "facebook_only";
+  const channels = getChannelsForRoute(route);
   return publishPost(text, channels, imageUrl);
 }
 

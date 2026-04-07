@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
-import { postToBufferWithMedia } from "@/lib/buffer";
+import { postBlogLinkToBuffer } from "@/lib/buffer";
 
 /**
  * POST /api/admin/blog/share-buffer
- * Share a blog post to all Buffer channels (Facebook, Instagram, Twitter, Threads)
- * with excerpt as caption and featured image.
+ * Share a blog post to Buffer channels with excerpt as caption and featured image.
+ * Routes: Instagram + Twitter + Threads (with image), or Facebook (text-only link).
  */
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -18,8 +18,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Caption is required" }, { status: 400 });
     }
 
-    // Post to all channels (same as victory/filler posts — works with images on Facebook)
-    const result = await postToBufferWithMedia(caption, imageUrl || undefined);
+    const result = await postBlogLinkToBuffer(caption, imageUrl || undefined);
 
     if (result.ok) {
       return NextResponse.json({ ok: true });
