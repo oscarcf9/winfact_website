@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { db } from "@/db";
-import { picks, users, gamesToday, siteContent } from "@/db/schema";
+import { picks, users, gamesToday } from "@/db/schema";
 import { eq, desc, and, gte, inArray } from "drizzle-orm";
 import { distributePickOnPublish } from "@/lib/delivery";
 import { logAdminAction } from "@/lib/audit";
@@ -235,12 +235,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Auto-blog generation — fire-and-forget, never blocks pick creation
-    // Controlled by siteContent toggle "blog_auto_generator" OR env var ENABLE_AUTO_BLOG
-    const blogToggleRow = await db.select().from(siteContent).where(eq(siteContent.key, "blog_auto_generator")).limit(1);
-    const blogEnabled = blogToggleRow[0]?.value === "true" || process.env.ENABLE_AUTO_BLOG === "true";
-    if (data.status === "published" && blogEnabled) {
-      // Call runAutoBlog directly — no HTTP fetch, no auth issues
+    // Auto-blog generation — fire-and-forget, never blocks pick creation.
+    // Feature gate is evaluated inside runAutoBlog (env var + site_content).
+    if (data.status === "published") {
       console.log(`[auto-blog] Triggering for pick ${id}: ${data.matchup}`);
       runAutoBlog({
         sport: data.sport,
@@ -253,10 +250,20 @@ export async function POST(req: NextRequest) {
         confidence: data.confidence || data.stars || null,
         tier: data.tier || "vip",
         analysisEn: data.analysisEn || null,
+        pickId: id,
       }).then((result) => {
-        console.log(`[auto-blog] Success: ${result.slug}, image: ${result.featuredImage ? "YES" : "NO"}`);
-      }).catch((err) => {
-        console.error("[auto-blog] Failed:", err);
+        if (result.skipped) {
+          console.log(`[auto-blog] Skipped for pick ${id}: ${result.reason}`);
+        } else {
+          console.log(`[auto-blog] Success: ${result.slug}, image: ${result.featuredImage ? "YES" : "NO"}`);
+        }
+      }).catch(async (err) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("[auto-blog] trigger failed for pick " + id + ":", err);
+        const { sendAdminNotification } = await import("@/lib/telegram");
+        sendAdminNotification(
+          `⚠️ Auto-blog trigger failed for pick ${id}\n${data.sport} · ${data.matchup}\nError: ${msg}`
+        ).catch(() => {});
       });
     }
 

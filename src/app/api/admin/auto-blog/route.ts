@@ -4,9 +4,13 @@ import { runAutoBlog } from "@/lib/auto-blog";
 
 /**
  * POST /api/admin/auto-blog
- * Generates a full blog post + AI image for a pick, saves as draft.
+ * Generates a full blog post + AI image for a pick and AUTO-PUBLISHES it.
  * Enriches the blog with real data from ESPN + The Odds API.
  * Body: { sport, league, matchup, pickText, gameDate, odds, units, confidence, tier, analysisEn }
+ *
+ * Feature gate (ENABLE_AUTO_BLOG env / site_content.blog_auto_generator) is
+ * evaluated inside runAutoBlog(). Admin manual invocations still go through
+ * this route for auth; the gate applies equally.
  */
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -23,6 +27,13 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await runAutoBlog(data);
+
+    if (result.skipped) {
+      return NextResponse.json(
+        { skipped: true, reason: result.reason },
+        { status: 200 }
+      );
+    }
 
     return NextResponse.json({
       postId: result.postId,

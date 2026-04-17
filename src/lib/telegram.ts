@@ -263,6 +263,52 @@ export async function notifyBlogDraftReady(params: {
 }
 
 /**
+ * Notify via content bot that a blog has been auto-published.
+ * Shows inline buttons: View Live (public URL) + Edit (admin URL).
+ * Includes ES link when Spanish translation is present.
+ */
+export async function notifyBlogPublished(params: {
+  title: string;
+  sport: string;
+  matchup: string;
+  slug: string;
+  postId?: string;
+  imageStatus?: string;
+  hasSpanish?: boolean;
+}): Promise<{ ok: boolean; error?: string }> {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com";
+  const postId = params.postId || params.slug;
+  const editUrl = `${siteUrl}/en/admin/blog/${postId}`;
+  const liveEnUrl = `${siteUrl}/en/blog/${params.slug}`;
+  const liveEsUrl = `${siteUrl}/es/blog/${params.slug}`;
+
+  const imageLine = params.imageStatus
+    ? `\n🖼 Image: ${params.imageStatus}`
+    : "";
+  const esLine = params.hasSpanish ? `\n🇪🇸 ES: ${liveEsUrl}` : "";
+
+  const message =
+    `📰 <b>Blog auto-published</b>\n\n` +
+    `<b>${params.title}</b>\n` +
+    `🏟 ${params.sport} · ${params.matchup}\n` +
+    `🔗 ${liveEnUrl}` +
+    esLine +
+    imageLine;
+
+  const buttons: { text: string; url: string }[][] = [
+    [
+      { text: "🌐 View Live", url: liveEnUrl },
+      { text: "✏️ Edit", url: editUrl },
+    ],
+  ];
+  if (params.hasSpanish) {
+    buttons.push([{ text: "🇪🇸 View Spanish", url: liveEsUrl }]);
+  }
+
+  return sendContentBotNotification(message, buttons);
+}
+
+/**
  * Notify that filler posts were published to social media.
  */
 export async function notifyFillerPosted(params: {
