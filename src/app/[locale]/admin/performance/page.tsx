@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { picks, users, performanceCache } from "@/db/schema";
 import { eq, and, ne, sql, inArray } from "drizzle-orm";
-import { TrendingUp, Trophy, BarChart3, Percent, Activity, Clock } from "lucide-react";
+import { TrendingUp, Trophy, BarChart3, Percent, Activity, Clock, AlertTriangle } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { PerformanceCharts } from "@/components/admin/performance-charts";
 import { refreshPerformanceCache } from "@/lib/refresh-performance";
@@ -33,6 +33,11 @@ export default async function AdminPerformancePage() {
   const roiPct = overallCache?.roiPct ?? 0;
   const clvAvg = overallCache?.clvAvg ?? 0;
   const computedAt = overallCache?.computedAt ?? null;
+  const staleMinutes = computedAt
+    ? Math.floor((Date.now() - new Date(computedAt).getTime()) / 60000)
+    : null;
+  // 15-min cron + 5-min grace = 20-min threshold before we warn
+  const isStale = staleMinutes !== null && staleMinutes > 20;
 
   const winRate = wins + losses > 0 ? ((wins / (wins + losses)) * 100).toFixed(1) : "\u2014";
   const roi = roiPct !== 0 ? roiPct.toFixed(1) : "\u2014";
@@ -107,6 +112,15 @@ export default async function AdminPerformancePage() {
           <RefreshCacheButton />
         </div>
       </div>
+
+      {isStale && (
+        <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3 flex items-center gap-2 text-sm text-yellow-800">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          <span>
+            Data last refreshed {staleMinutes} minutes ago. The scheduled recompute runs every 15 minutes — click Refresh to update now.
+          </span>
+        </div>
+      )}
 
       {/* Stat Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">

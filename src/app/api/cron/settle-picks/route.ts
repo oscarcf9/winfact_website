@@ -207,9 +207,16 @@ export async function GET(req: Request) {
     const manualReview = logs.filter((l) => l.result === "manual_review").length;
     const pending = logs.filter((l) => !l.gameFound || l.result === "pending").length;
 
-    // Refresh performance cache if any picks were settled
-    if (settled > 0) {
+    // Always refresh performance cache — covers manual result corrections
+    // that happened since the last cron tick, even when `settled === 0` here.
+    try {
       await refreshPerformanceCache();
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error("[settle-picks] refreshPerformanceCache failed:", err);
+      sendAdminNotification(
+        `⚠️ <b>settle-picks cron: performance cache refresh failed</b>\n\nError: ${errorMsg}`
+      ).catch(() => {});
     }
 
     return NextResponse.json({
