@@ -5,10 +5,20 @@
  *
  * Channel routing:
  *   - Live commentary → Twitter + Threads ONLY
- *   - Filler posts → Facebook + Instagram + Twitter + Threads (+ occasionally Telegram)
+ *   - Filler posts → Facebook + Instagram + Twitter + Threads
  *   - Victory posts → Facebook + Instagram + Twitter + Threads
- *   - Blog links → Facebook + Telegram ONLY (handled in social-posting.ts)
+ *   - Blog links → Facebook ONLY (handled in social-posting.ts)
+ *
+ * Observability: every per-channel attempt writes one row to distribution_log
+ * with status + latency + Buffer post ID (on success) or error (on failure).
+ *
+ * Reliability: missing tokens throw BufferConfigError; all-channel failures
+ * trigger a deduped Telegram admin alert.
  */
+
+import { db } from "@/db";
+import { distributionLog } from "@/db/schema";
+import { sendAdminNotification } from "./telegram";
 
 const BUFFER_API = "https://api.buffer.com";
 const BUFFER_ORG_ID = process.env.BUFFER_ORG_ID || "68dde1d4ae0ea4e53700e8cf";
@@ -16,8 +26,6 @@ const BUFFER_ORG_ID = process.env.BUFFER_ORG_ID || "68dde1d4ae0ea4e53700e8cf";
 const BUFFER_ACCESS_TOKEN = process.env.BUFFER_ACCESS_TOKEN || "";
 const BUFFER_LIVE_TOKEN = process.env.BUFFER_LIVE_TOKEN || "";
 
-// Channel IDs — from publish.buffer.com/channels/{id}/settings
-// Override via env vars if needed
 const CHANNELS = {
   instagram: process.env.BUFFER_INSTAGRAM_CHANNEL_ID || "692a85d829ea336fd63c6413",
   facebook: process.env.BUFFER_FACEBOOK_CHANNEL_ID || "692a863b29ea336fd63c647f",
@@ -26,14 +34,72 @@ const CHANNELS = {
 };
 
 export type ChannelKey = "instagram" | "facebook" | "threads" | "twitter";
-
 const KNOWN_KEYS: ChannelKey[] = ["instagram", "facebook", "threads", "twitter"];
 
 if (!BUFFER_ACCESS_TOKEN) console.warn("[buffer] BUFFER_ACCESS_TOKEN not set — social posting disabled");
 
-/**
- * Reverse lookup: channel ID → channel key.
- */
+// ── Error types ─────────────────────────────────────────────────────────────
+
+export class BufferConfigError extends Error {
+  readonly kind = "BufferConfigError" as const;
+  constructor(message: string) {
+    super(message);
+    this.name = "BufferConfigError";
+  }
+}
+
+// ── Alert dedup (in-memory, per cold start) ─────────────────────────────────
+
+const alertDedup = new Map<string, number>();
+const ALERT_DEDUP_MS = 60 * 60 * 1000; // 1 hour
+
+async function alertOnce(key: string, message: string): Promise<void> {
+  const last = alertDedup.get(key) ?? 0;
+  if (Date.now() - last < ALERT_DEDUP_MS) return;
+  alertDedup.set(key, Date.now());
+  await sendAdminNotification(message).catch(() => {});
+}
+
+export async function alertMissingBufferToken(): Promise<void> {
+  await alertOnce(
+    "buffer:missing-token",
+    "⚠️ <b>Buffer: both BUFFER_LIVE_TOKEN and BUFFER_ACCESS_TOKEN are unset</b>\n\nNo social posts can be published until one is configured in Vercel env."
+  );
+}
+
+// ── Observability: distribution_log writes ──────────────────────────────────
+
+type DistLogRow = {
+  contentType: "commentary" | "filler" | "victory" | "blog" | "test";
+  referenceId?: string | null;
+  channel: string;
+  status: "success" | "failed";
+  bufferPostId?: string | null;
+  error?: string | null;
+  latencyMs: number;
+};
+
+async function writeDistributionLog(row: DistLogRow): Promise<void> {
+  try {
+    await db.insert(distributionLog).values({
+      id: crypto.randomUUID(),
+      contentType: row.contentType,
+      referenceId: row.referenceId ?? null,
+      channel: row.channel,
+      status: row.status,
+      bufferPostId: row.bufferPostId ?? null,
+      error: row.error ?? null,
+      latencyMs: row.latencyMs,
+      createdAt: Math.floor(Date.now() / 1000),
+    });
+  } catch (err) {
+    // Don't let a logging failure break the publish path.
+    console.error("[buffer] distribution_log write failed:", err);
+  }
+}
+
+// ── Channel-key/id helpers ─────────────────────────────────────────────────
+
 function idToKey(channelId: string): ChannelKey | null {
   for (const k of KNOWN_KEYS) {
     if (CHANNELS[k] === channelId) return k;
@@ -41,33 +107,38 @@ function idToKey(channelId: string): ChannelKey | null {
   return null;
 }
 
+function keyToId(key: ChannelKey): string | null {
+  return CHANNELS[key] || null;
+}
+
+// ── Result types ────────────────────────────────────────────────────────────
+
 export type PerChannelResult = {
   key: ChannelKey | null;
   id: string;
   success: boolean;
   error?: string;
   bufferPostId?: string;
+  latencyMs: number;
 };
 
 export type PublishResult = {
-  ok: boolean; // true iff at least one channel succeeded (back-compat)
-  error?: string; // last error, only populated when ok === false
+  ok: boolean; // backwards-compatible: true iff >= 1 channel succeeded
+  error?: string;
   allSucceeded: boolean;
   someSucceeded: boolean;
   channels: PerChannelResult[];
-  failedChannels: ChannelKey[]; // channel KEYS that failed (excludes unknown-id channels)
+  failedChannels: ChannelKey[];
 };
 
-/**
- * Execute a GraphQL query/mutation against Buffer API.
- */
+// ── Buffer GraphQL transport ───────────────────────────────────────────────
+
 async function bufferGraphQL(
   query: string,
-  variables?: Record<string, unknown>,
-  token?: string
+  variables: Record<string, unknown> | undefined,
+  token: string
 ): Promise<{ data?: Record<string, unknown>; errors?: { message: string }[] }> {
-  const accessToken = token || BUFFER_ACCESS_TOKEN;
-  if (!accessToken) {
+  if (!token) {
     return { errors: [{ message: "Buffer access token not configured" }] };
   }
 
@@ -75,7 +146,7 @@ async function bufferGraphQL(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({ query, variables }),
   });
@@ -89,16 +160,10 @@ async function bufferGraphQL(
   return res.json();
 }
 
-/**
- * Resolve a routing string to a set of channel IDs.
- *
- * Accepts either one of the preset routes ("all" / "text_only" / "facebook_only" /
- * "no_facebook") OR a comma-separated list of channel keys
- * (e.g. "instagram,facebook") used by retry rows that target specific channels.
- */
+// ── Routing ────────────────────────────────────────────────────────────────
+
 export function getChannelsForRoute(route: string): string[] {
   const ids: string[] = [];
-
   if (route === "text_only") {
     if (CHANNELS.twitter) ids.push(CHANNELS.twitter);
     if (CHANNELS.threads) ids.push(CHANNELS.threads);
@@ -114,31 +179,67 @@ export function getChannelsForRoute(route: string): string[] {
     if (CHANNELS.twitter) ids.push(CHANNELS.twitter);
     if (CHANNELS.threads) ids.push(CHANNELS.threads);
   } else {
-    // Comma-separated channel keys, e.g. "instagram,facebook"
+    // comma-separated channel keys, e.g. "instagram,facebook"
     const keys = route.split(",").map((k) => k.trim().toLowerCase());
     for (const k of keys) {
       const id = (CHANNELS as Record<string, string>)[k];
       if (id) ids.push(id);
     }
   }
-
   return ids;
 }
 
-/**
- * Publish a post to a specific set of Buffer channels using createPost mutation.
- * This ACTUALLY publishes to social media (unlike createIdea which only saves to backlog).
- *
- * Returns per-channel success/failure so callers can retry only the failed channels.
- */
+// ── Core publish ────────────────────────────────────────────────────────────
+
+function buildMutation(args: {
+  text: string;
+  channelId: string;
+  imageUrl?: string;
+  publishNow?: boolean;
+  facebookId: string;
+}): string {
+  const assetsBlock = args.imageUrl
+    ? `assets: { images: [{ url: ${JSON.stringify(args.imageUrl)} }] }`
+    : "";
+  const scheduleBlock = args.publishNow
+    ? `schedulingType: immediate`
+    : `schedulingType: automatic, mode: addToQueue`;
+  const metadataBlock = args.channelId === args.facebookId
+    ? `, metadata: { facebook: { type: post } }`
+    : "";
+  return `
+    mutation CreatePost {
+      createPost(input: {
+        text: ${JSON.stringify(args.text)},
+        channelId: "${args.channelId}",
+        ${scheduleBlock}
+        ${assetsBlock ? `, ${assetsBlock}` : ""}
+        ${metadataBlock}
+      }) {
+        ... on PostActionSuccess {
+          post { id text dueAt }
+        }
+        ... on MutationError {
+          message
+        }
+      }
+    }
+  `;
+}
+
+type PublishOpts = {
+  token: string;
+  publishNow?: boolean;
+  contentType: "commentary" | "filler" | "victory" | "blog" | "test";
+  referenceId?: string | null;
+};
+
 async function publishPost(
   text: string,
   channelIds: string[],
-  imageUrl?: string,
-  token?: string,
-  publishNow?: boolean
+  imageUrl: string | undefined,
+  opts: PublishOpts
 ): Promise<PublishResult> {
-  const accessToken = token || BUFFER_ACCESS_TOKEN;
   const empty: PublishResult = {
     ok: false,
     allSucceeded: false,
@@ -147,91 +248,69 @@ async function publishPost(
     failedChannels: [],
   };
 
-  if (!accessToken) {
-    return { ...empty, error: "Buffer access token not configured" };
-  }
-
   if (channelIds.length === 0) {
     return { ...empty, error: "No Buffer channels configured for this route" };
   }
 
-  console.log(`[buffer] Publishing to ${channelIds.length} channels${imageUrl ? " with image" : ""}: ${channelIds.join(", ")}`);
+  console.log(
+    `[buffer] Publishing to ${channelIds.length} channels${imageUrl ? " with image" : ""}: ${channelIds.join(", ")}`
+  );
 
   const channels: PerChannelResult[] = [];
 
   for (const channelId of channelIds) {
     const key = idToKey(channelId);
-    const entry: PerChannelResult = { key, id: channelId, success: false };
+    const channelLabel = key ?? channelId;
+    const t0 = Date.now();
+    const entry: PerChannelResult = { key, id: channelId, success: false, latencyMs: 0 };
 
     try {
-      const assetsBlock = imageUrl
-        ? `assets: { images: [{ url: ${JSON.stringify(imageUrl)} }] }`
-        : "";
-
-      const scheduleBlock = publishNow
-        ? `schedulingType: immediate`
-        : `schedulingType: automatic, mode: addToQueue`;
-
-      const isFacebook = channelId === CHANNELS.facebook;
-      const metadataBlock = isFacebook
-        ? `, metadata: { facebook: { type: post } }`
-        : "";
-
-      const mutation = `
-        mutation CreatePost {
-          createPost(input: {
-            text: ${JSON.stringify(text)},
-            channelId: "${channelId}",
-            ${scheduleBlock}
-            ${assetsBlock ? `, ${assetsBlock}` : ""}
-            ${metadataBlock}
-          }) {
-            ... on PostActionSuccess {
-              post {
-                id
-                text
-                dueAt
-              }
-            }
-            ... on MutationError {
-              message
-            }
-          }
-        }
-      `;
-
-      const result = await bufferGraphQL(mutation, undefined, accessToken);
+      const mutation = buildMutation({
+        text, channelId, imageUrl,
+        publishNow: opts.publishNow,
+        facebookId: CHANNELS.facebook,
+      });
+      const result = await bufferGraphQL(mutation, undefined, opts.token);
 
       if (result.errors) {
         entry.error = result.errors[0].message;
-        console.error(`[buffer] Channel ${channelId} (${key ?? "unknown"}) error:`, entry.error);
-        channels.push(entry);
-        continue;
-      }
-
-      const payload = result.data?.createPost as Record<string, unknown> | undefined;
-      if (payload?.message) {
-        entry.error = String(payload.message);
-        console.error(`[buffer] Channel ${channelId} (${key ?? "unknown"}) mutation error:`, entry.error);
-        channels.push(entry);
-        continue;
-      }
-
-      const post = payload?.post as Record<string, unknown> | undefined;
-      if (post?.id) {
-        entry.success = true;
-        entry.bufferPostId = String(post.id);
-        console.log(`[buffer] Channel ${channelId} (${key ?? "unknown"}) → Post ${post.id} (dueAt: ${post.dueAt || "immediate"})`);
       } else {
-        // No error but no post ID — treat as success so we don't retry an
-        // already-posted item, but log full response for debugging.
-        entry.success = true;
-        console.warn(`[buffer] Channel ${channelId} (${key ?? "unknown"}) — unexpected response:`, JSON.stringify(result.data));
+        const payload = result.data?.createPost as Record<string, unknown> | undefined;
+        if (payload?.message) {
+          entry.error = String(payload.message);
+        } else {
+          const post = payload?.post as Record<string, unknown> | undefined;
+          if (post?.id) {
+            entry.success = true;
+            entry.bufferPostId = String(post.id);
+          } else {
+            // No error but no post ID — log full response; treat as success to avoid retry storms.
+            console.warn(`[buffer] Channel ${channelLabel} — unexpected response:`, JSON.stringify(result.data));
+            entry.success = true;
+          }
+        }
       }
     } catch (err) {
       entry.error = err instanceof Error ? err.message : String(err);
-      console.error(`[buffer] Channel ${channelId} (${key ?? "unknown"}) threw:`, entry.error);
     }
+
+    entry.latencyMs = Date.now() - t0;
+    if (entry.success) {
+      console.log(`[buffer] Channel ${channelLabel} → Post ${entry.bufferPostId ?? "(no id)"} in ${entry.latencyMs}ms`);
+    } else {
+      console.error(`[buffer] Channel ${channelLabel} failed (${entry.latencyMs}ms):`, entry.error);
+    }
+
+    // Observability: one row per channel attempt
+    writeDistributionLog({
+      contentType: opts.contentType,
+      referenceId: opts.referenceId ?? null,
+      channel: channelLabel,
+      status: entry.success ? "success" : "failed",
+      bufferPostId: entry.bufferPostId ?? null,
+      error: entry.error ?? null,
+      latencyMs: entry.latencyMs,
+    }).catch(() => {});
 
     channels.push(entry);
   }
@@ -241,132 +320,197 @@ async function publishPost(
     .filter((c) => !c.success)
     .map((c) => c.key)
     .filter((k): k is ChannelKey => k !== null);
-  const lastError = channels.find((c) => !c.success && c.error)?.error;
+  const firstError = channels.find((c) => !c.success && c.error)?.error;
 
   console.log(`[buffer] Published to ${successCount}/${channels.length} channels`);
 
-  return {
+  const result: PublishResult = {
     ok: successCount > 0,
-    error: successCount === 0 ? (lastError || "All channels failed") : undefined,
+    error: successCount === 0 ? (firstError || "All channels failed") : undefined,
     allSucceeded: successCount === channels.length,
     someSucceeded: successCount > 0,
     channels,
     failedChannels,
   };
+
+  // All-channel failure → deduped Telegram alert (1/hour per cold start)
+  if (!result.someSucceeded && channels.length > 0) {
+    alertOnce(
+      `buffer:all-failed:${opts.contentType}`,
+      `⚠️ <b>Buffer: ALL ${channels.length} channels failed</b>\n\nContent type: ${opts.contentType}\nFirst error: ${firstError || "unknown"}\nChannels tried: ${channels.map((c) => c.key ?? c.id).join(", ")}`
+    ).catch(() => {});
+  }
+
+  return result;
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+// ── Public API ─────────────────────────────────────────────────────────────
+
+function requireToken(preferred?: string): string {
+  const t = preferred || BUFFER_ACCESS_TOKEN;
+  if (!t) {
+    alertMissingBufferToken().catch(() => {});
+    throw new BufferConfigError(
+      "Buffer token not configured. Set BUFFER_ACCESS_TOKEN (or BUFFER_LIVE_TOKEN for live commentary)."
+    );
+  }
+  return t;
+}
 
 /**
- * Post to ALL channels (Instagram, Facebook, Twitter, Threads) or to a
- * comma-separated subset (e.g. "instagram,facebook"). Used for filler posts
- * and victory posts (with images), and for retry rows targeting failed channels.
+ * Publish to all channels (or a route preset / comma-separated subset).
+ * Throws BufferConfigError if token is missing.
  */
 export async function postToBufferWithMedia(
   text: string,
   imageUrl?: string,
   token?: string,
-  route: string = "all"
+  route: string = "all",
+  opts?: { contentType?: PublishOpts["contentType"]; referenceId?: string | null }
 ): Promise<PublishResult> {
+  const resolvedToken = requireToken(token);
   const channels = getChannelsForRoute(route);
-  return publishPost(text, channels, imageUrl, token);
+  return publishPost(text, channels, imageUrl, {
+    token: resolvedToken,
+    contentType: opts?.contentType ?? "filler",
+    referenceId: opts?.referenceId ?? null,
+  });
+}
+
+export async function postToBuffer(text: string, opts?: { contentType?: PublishOpts["contentType"]; referenceId?: string | null }): Promise<PublishResult> {
+  return postToBufferWithMedia(text, undefined, undefined, "all", opts);
 }
 
 /**
- * Post text-only to all channels. Alias for postToBufferWithMedia without image.
+ * Post live commentary to Twitter + Threads ONLY, publish immediately.
+ * Uses BUFFER_LIVE_TOKEN if set, else falls back to BUFFER_ACCESS_TOKEN.
+ * Throws BufferConfigError if no token is configured.
  */
-export async function postToBuffer(text: string): Promise<PublishResult> {
-  return postToBufferWithMedia(text);
-}
-
-/**
- * Post live commentary to Twitter + Threads ONLY.
- * Text-only, no images. Uses dedicated live token if available.
- */
-export async function postLiveToBuffer(text: string): Promise<PublishResult> {
-  const token = BUFFER_LIVE_TOKEN || BUFFER_ACCESS_TOKEN;
-  if (!token) {
-    console.error("[buffer] postLiveToBuffer: No token available. Set BUFFER_LIVE_TOKEN or BUFFER_ACCESS_TOKEN in env vars.");
-    return {
-      ok: false,
-      error: "Buffer live token not configured. Set BUFFER_LIVE_TOKEN or BUFFER_ACCESS_TOKEN.",
-      allSucceeded: false,
-      someSucceeded: false,
-      channels: [],
-      failedChannels: [],
-    };
-  }
-
+export async function postLiveToBuffer(
+  text: string,
+  opts?: { referenceId?: string | null }
+): Promise<PublishResult> {
+  const token = requireToken(BUFFER_LIVE_TOKEN || BUFFER_ACCESS_TOKEN);
   const channels = getChannelsForRoute("text_only");
   if (channels.length === 0) {
-    console.error("[buffer] postLiveToBuffer: No channels. Set BUFFER_TWITTER_CHANNEL_ID and/or BUFFER_THREADS_CHANNEL_ID.");
+    alertOnce(
+      "buffer:no-live-channels",
+      "⚠️ <b>Buffer: postLiveToBuffer has no channels</b>\n\nSet BUFFER_TWITTER_CHANNEL_ID and/or BUFFER_THREADS_CHANNEL_ID."
+    ).catch(() => {});
     return {
       ok: false,
-      error: "No Twitter/Threads channels configured. Set BUFFER_TWITTER_CHANNEL_ID and/or BUFFER_THREADS_CHANNEL_ID.",
+      error: "No Twitter/Threads channels configured.",
       allSucceeded: false,
       someSucceeded: false,
       channels: [],
       failedChannels: [],
     };
   }
-
-  console.log(`[buffer] postLiveToBuffer: Publishing NOW to ${channels.length} text channels (Twitter/Threads)`);
-  return publishPost(text, channels, undefined, token, true);
+  console.log(`[buffer] postLiveToBuffer: publishing NOW to ${channels.length} channels (Twitter/Threads)`);
+  return publishPost(text, channels, undefined, {
+    token,
+    publishNow: true,
+    contentType: "commentary",
+    referenceId: opts?.referenceId ?? null,
+  });
 }
 
 /**
  * Post blog link to Facebook ONLY.
- * Blog URLs with OG tags — Facebook renders the preview automatically.
  */
-export async function postBlogLinkToBuffer(text: string, imageUrl?: string): Promise<PublishResult> {
+export async function postBlogLinkToBuffer(
+  text: string,
+  imageUrl?: string,
+  opts?: { referenceId?: string | null }
+): Promise<PublishResult> {
+  const token = requireToken();
   const channels = getChannelsForRoute("facebook_only");
-  return publishPost(text, channels, imageUrl);
+  return publishPost(text, channels, imageUrl, {
+    token,
+    contentType: "blog",
+    referenceId: opts?.referenceId ?? null,
+  });
+}
+
+/**
+ * Publish to exactly ONE channel by key. Used by the admin buffer-test route
+ * and by the retry cron when it's retrying a single failed channel from a
+ * prior multi-channel attempt.
+ */
+export async function publishToChannel(
+  channelKey: ChannelKey,
+  text: string,
+  imageUrl?: string,
+  opts?: {
+    publishNow?: boolean;
+    contentType?: PublishOpts["contentType"];
+    referenceId?: string | null;
+    tokenOverride?: string;
+  }
+): Promise<PerChannelResult> {
+  const id = keyToId(channelKey);
+  if (!id) {
+    return {
+      key: channelKey,
+      id: "",
+      success: false,
+      error: `No channel ID configured for ${channelKey}`,
+      latencyMs: 0,
+    };
+  }
+  // Twitter/Threads prefer the live token; others use access token.
+  const preferred =
+    channelKey === "twitter" || channelKey === "threads"
+      ? opts?.tokenOverride || BUFFER_LIVE_TOKEN || BUFFER_ACCESS_TOKEN
+      : opts?.tokenOverride || BUFFER_ACCESS_TOKEN;
+  const token = requireToken(preferred);
+
+  const result = await publishPost(text, [id], imageUrl, {
+    token,
+    publishNow: opts?.publishNow ?? (channelKey === "twitter" || channelKey === "threads"),
+    contentType: opts?.contentType ?? "test",
+    referenceId: opts?.referenceId ?? null,
+  });
+
+  // One-channel publish → one channel entry
+  return result.channels[0] ?? {
+    key: channelKey,
+    id,
+    success: false,
+    error: "no channel result returned",
+    latencyMs: 0,
+  };
 }
 
 /**
  * Query Buffer account to verify channel IDs and organization.
- * Use this for diagnostics — call from admin endpoint.
  */
 export async function verifyBufferChannels(token?: string): Promise<{
   ok: boolean;
   channels?: { id: string; name: string; service: string }[];
   error?: string;
 }> {
+  const t = token || BUFFER_ACCESS_TOKEN;
+  if (!t) return { ok: false, error: "Buffer token not configured" };
   const query = `
     query {
       account {
         organizations {
           id
-          channels {
-            id
-            name
-            service
-          }
+          channels { id name service }
         }
       }
     }
   `;
-
-  const result = await bufferGraphQL(query, undefined, token);
-
-  if (result.errors) {
-    return { ok: false, error: result.errors[0].message };
-  }
-
+  const result = await bufferGraphQL(query, undefined, t);
+  if (result.errors) return { ok: false, error: result.errors[0].message };
   const account = result.data?.account as Record<string, unknown> | undefined;
   const orgs = account?.organizations as { id: string; channels: { id: string; name: string; service: string }[] }[] | undefined;
-
-  if (!orgs || orgs.length === 0) {
-    return { ok: false, error: "No organizations found" };
-  }
-
-  const org = orgs.find(o => o.id === BUFFER_ORG_ID) || orgs[0];
+  if (!orgs || orgs.length === 0) return { ok: false, error: "No organizations found" };
+  const org = orgs.find((o) => o.id === BUFFER_ORG_ID) || orgs[0];
   return { ok: true, channels: org.channels };
 }
 
-/**
- * Clear the channel IDs cache (unused now that channels are config-based).
- */
 export function clearChannelCache(): void {
-  // No-op — channels are now config-based, no cache to clear
+  // No-op — channels are now config-based, no cache to clear.
 }

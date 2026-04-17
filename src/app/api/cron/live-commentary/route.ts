@@ -5,7 +5,8 @@ import { inArray, lte } from "drizzle-orm";
 import { fetchAllLiveGames } from "@/lib/espn-live";
 import { sendTelegramMessage, sendAdminNotification } from "@/lib/telegram";
 import { getSiteContent } from "@/db/queries/site-content";
-import { postLiveToBuffer } from "@/lib/buffer";
+import { postLiveToBuffer, BufferConfigError } from "@/lib/buffer";
+import { enqueueCommentaryRetry } from "@/lib/commentary-retry";
 import {
   toGameContext,
   computeGameDelta,
@@ -144,10 +145,14 @@ export async function GET(req: Request) {
       });
     }
 
-    // 6. Distribute per CATEGORY_CHANNELS
+    // 6. Pre-generate the commentary_log ID so retry rows can reference it.
+    const logId = crypto.randomUUID();
+
+    // 7. Distribute per CATEGORY_CHANNELS
     const routing = CATEGORY_CHANNELS[pick.category];
     let telegramSent = false;
     let bufferSent = false;
+    const bufferFailedChannels: string[] = [];
 
     if (routing.telegram) {
       const chatId = process.env.TELEGRAM_FREE_CHAT_ID;
@@ -162,27 +167,43 @@ export async function GET(req: Request) {
     }
 
     if (routing.buffer) {
-      const hasBufferToken = !!(process.env.BUFFER_LIVE_TOKEN || process.env.BUFFER_ACCESS_TOKEN);
-      if (!hasBufferToken) {
-        console.error("[commentary] Buffer SKIPPED: neither BUFFER_LIVE_TOKEN nor BUFFER_ACCESS_TOKEN is set");
-      } else {
-        const buf = await postLiveToBuffer(result.message).catch((err) => {
-          console.error("[commentary] Buffer threw:", err);
-          return { ok: false, error: String(err) } as const;
-        });
+      try {
+        const buf = await postLiveToBuffer(result.message, { referenceId: logId });
         bufferSent = buf.ok;
+        // Enqueue per-channel retries for any channels that failed (Fix 5 integration)
+        for (const ch of buf.channels || []) {
+          if (!ch.success && ch.key) {
+            bufferFailedChannels.push(ch.key);
+            enqueueCommentaryRetry({
+              originalLogId: logId,
+              failedChannel: ch.key,
+              messageText: result.message,
+              lastError: ch.error ?? null,
+            }).catch((err) => console.error("[commentary] enqueue retry failed:", err));
+          }
+        }
         if (!buf.ok) {
           console.error(`[commentary] Buffer FAILED (${pick.category}): ${buf.error}`);
+        } else if (bufferFailedChannels.length > 0) {
+          console.warn(`[commentary] Buffer partial failure: ${bufferFailedChannels.join(", ")}`);
+        } else {
+          console.log(`[commentary] Buffer sent to Twitter/Threads`);
+        }
+      } catch (err) {
+        // BufferConfigError self-alerts at the library layer (1/hour dedup)
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error("[commentary] Buffer threw:", err);
+        if (!(err instanceof BufferConfigError)) {
           sendAdminNotification(
-            `⚠️ Live commentary Buffer post failed\nCategory: ${pick.category}\nGame: ${pick.game.team1} vs ${pick.game.team2}\nError: ${buf.error || "unknown"}`
+            `⚠️ Live commentary Buffer post failed\nCategory: ${pick.category}\nGame: ${pick.game.team1} vs ${pick.game.team2}\nError: ${errMsg}`
           ).catch(() => {});
         }
       }
     }
 
-    // 7. Log (always — even if distribution partially failed, the message existed)
+    // 8. Log (always — even if distribution partially failed, the message existed)
     await db.insert(commentaryLog).values({
-      id: crypto.randomUUID(),
+      id: logId,
       gameId: pick.game.gameId,
       sport: pick.game.sport,
       message: result.message,
