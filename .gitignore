@@ -43,9 +43,6 @@ local.db
 /test-picks.csv
 /.playwright-mcp/
 
-# drizzle
-/drizzle/
-
 # uploads
 /public/uploads/
 
@@ -58,3 +55,8 @@ next-env.d.ts
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# Local-only backup from Path B migration switch (2026-04-17)
+/_backup_*/
+
+# NOTE: 0-byte files from malformed bash commands should be deleted manually, not gitignored. Broad glob patterns can exclude legitimate build outputs.
