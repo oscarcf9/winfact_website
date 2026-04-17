@@ -8,6 +8,7 @@ import { distributePickOnPublish } from "@/lib/delivery";
 import { logAdminAction } from "@/lib/audit";
 import { updatePickSchema } from "@/lib/validations";
 import { queueVictoryPost } from "@/lib/victory-post-pipeline";
+import { sendAdminNotification } from "@/lib/telegram";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -95,7 +96,16 @@ export async function PUT(req: NextRequest, context: RouteContext) {
 
     // Refresh performance cache when settling a pick
     if (data.status === "settled") {
-      await refreshPerformanceCache();
+      try {
+        await refreshPerformanceCache();
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        console.error("[admin-picks PUT] refreshPerformanceCache failed:", err);
+        sendAdminNotification(
+          `⚠️ <b>Performance cache refresh failed on manual settle</b>\n\nPick: ${id}\nError: ${errorMsg}`
+        ).catch(() => {});
+        // Don't fail the request — the pick update succeeded; the */15 cron will retry.
+      }
 
       // Queue victory post on manual win settle
       if (data.result === "win") {

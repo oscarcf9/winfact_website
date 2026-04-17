@@ -292,7 +292,12 @@ async function handlePickImport(rows: Record<string, string>[], dryRun: boolean)
       const { refreshPerformanceCache } = await import("@/lib/refresh-performance");
       await refreshPerformanceCache();
     } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
       console.error("Performance refresh after import failed:", err);
+      const { sendAdminNotification } = await import("@/lib/telegram");
+      sendAdminNotification(
+        `⚠️ <b>Performance cache refresh failed after bulk import</b>\n\nImported: ${results.successful}\nError: ${errorMsg}`
+      ).catch(() => {});
     }
   }
 
