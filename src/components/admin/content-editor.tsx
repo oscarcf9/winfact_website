@@ -41,7 +41,7 @@ type FeatureConfig = {
 };
 
 const FEATURE_KEYS: FeatureConfig[] = [
-  { key: "blog_auto_generator", label: "Blog Auto-Generator", description: "Auto-generate blog posts when picks are published", type: "toggle", default: "false", icon: FileText },
+  { key: "blog_auto_generator", label: "Auto-Publish Blog Posts", description: "When enabled, every published pick triggers an AI-generated blog post that auto-publishes immediately.", type: "toggle", default: "false", icon: FileText },
   { key: "victory_posts_enabled", label: "Victory Post Generator", description: "Generate celebration graphics when picks win", type: "toggle", default: "false", icon: Trophy },
   { key: "live_commentary_enabled", label: "Live Commentary Bot", description: "Post live game commentary to Telegram", type: "toggle", default: "false", icon: Bot },
   { key: "filler_content_enabled", label: "Filler Content Bot", description: "Daily matchup graphics for social media", type: "toggle", default: "false", icon: Sparkles },
