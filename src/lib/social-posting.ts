@@ -1,70 +1,102 @@
-import { postToBufferWithMedia, postBlogLinkToBuffer } from "./buffer";
+import { postToBufferWithMedia, postBlogLinkToBuffer, type PublishResult, type ChannelKey } from "./buffer";
 import { sendTelegramPhoto, sendTelegramMessage } from "./telegram";
 
 const TELEGRAM_FREE_CHAT_ID = process.env.TELEGRAM_FREE_CHAT_ID || "";
 
+export type SocialResult = {
+  ok: boolean;
+  error?: string;
+  allSucceeded: boolean;
+  someSucceeded: boolean;
+  failedChannels: ChannelKey[]; // channel keys that failed (for retry enqueue)
+  buffer?: PublishResult; // raw Buffer result for callers that want detail
+};
+
+function bufferToSocial(result: PublishResult): SocialResult {
+  return {
+    ok: result.ok,
+    error: result.error,
+    allSucceeded: result.allSucceeded,
+    someSucceeded: result.someSucceeded,
+    failedChannels: result.failedChannels,
+    buffer: result,
+  };
+}
+
 /**
  * Post a victory celebration to social media.
  * Route: Facebook + Instagram + Twitter + Threads (all channels, with image)
+ * `route` lets retry rows target only a subset (e.g. "instagram,facebook").
  */
 export async function postVictoryToSocial(post: {
   captionEn: string;
   captionEs: string;
   imageUrl: string;
   hashtags: string;
-}): Promise<{ ok: boolean; error?: string }> {
+  route?: string;
+}): Promise<SocialResult> {
   // Use Spanish caption ~60% of the time to match audience
   const caption = Math.random() < 0.6 ? post.captionEs : post.captionEn;
   const fullCaption = `${caption}\n\n${post.hashtags}`;
 
   try {
-    return await postToBufferWithMedia(fullCaption, post.imageUrl);
+    const result = await postToBufferWithMedia(fullCaption, post.imageUrl, undefined, post.route || "all");
+    return bufferToSocial(result);
   } catch (error) {
-    return { ok: false, error: String(error) };
+    return {
+      ok: false,
+      error: String(error),
+      allSucceeded: false,
+      someSucceeded: false,
+      failedChannels: [],
+    };
   }
 }
 
 /**
  * Post a filler matchup graphic to social media.
  * Route: Facebook + Instagram + Twitter + Threads (all channels, with image)
- * + occasionally Telegram
+ * + occasionally Telegram.
+ * `route` lets retry rows target only a subset.
  */
 export async function postFillerToSocial(post: {
   captionEn: string;
   captionEs: string;
   imageUrl: string;
   hashtags: string;
-}): Promise<{ ok: boolean; error?: string }> {
+  route?: string;
+}): Promise<SocialResult> {
   const caption = Math.random() < 0.5 ? post.captionEs : post.captionEn;
   const fullCaption = `${caption}\n\n${post.hashtags}`;
 
-  let bufferOk = false;
-  let bufferError = "";
-
-  // Post to Buffer (all channels)
+  let bufferResult: PublishResult;
   try {
-    const result = await postToBufferWithMedia(fullCaption, post.imageUrl);
-    bufferOk = result.ok;
-    if (!result.ok) bufferError = result.error || "Buffer failed";
+    bufferResult = await postToBufferWithMedia(fullCaption, post.imageUrl, undefined, post.route || "all");
   } catch (error) {
-    bufferError = String(error);
+    return {
+      ok: false,
+      error: String(error),
+      allSucceeded: false,
+      someSucceeded: false,
+      failedChannels: [],
+    };
   }
 
-  // Occasionally also post to Telegram (~40% chance)
+  // Occasionally also post to Telegram (~40% chance). Not tracked per-channel —
+  // Telegram is a fire-and-forget extra, not part of the retry surface.
   if (TELEGRAM_FREE_CHAT_ID && Math.random() < 0.4) {
-    try {
-      await sendTelegramPhoto(TELEGRAM_FREE_CHAT_ID, post.imageUrl, fullCaption);
-    } catch (err) {
-      console.error("[social] Filler Telegram post failed:", err);
-    }
+    sendTelegramPhoto(TELEGRAM_FREE_CHAT_ID, post.imageUrl, fullCaption).catch((err) =>
+      console.error("[social] Filler Telegram post failed:", err)
+    );
   }
 
-  return bufferOk ? { ok: true } : { ok: false, error: bufferError };
+  return bufferToSocial(bufferResult);
 }
 
 /**
  * Post a blog link to social media.
- * Route: Facebook (via Buffer) + Telegram ONLY
+ * Route: Facebook (via Buffer) + Telegram ONLY.
+ * No retry surface for blog since it's a small fan-out and Telegram isn't a Buffer channel.
  */
 export async function postBlogToSocial(post: {
   title: string;
@@ -74,7 +106,6 @@ export async function postBlogToSocial(post: {
   const caption = `📝 ${post.title}\n\n${post.url}`;
   let anyOk = false;
 
-  // Facebook via Buffer
   try {
     const result = await postBlogLinkToBuffer(caption);
     if (result.ok) anyOk = true;
@@ -83,7 +114,6 @@ export async function postBlogToSocial(post: {
     console.error("[social] Blog Buffer error:", error);
   }
 
-  // Telegram
   if (TELEGRAM_FREE_CHAT_ID) {
     try {
       const result = await sendTelegramMessage(TELEGRAM_FREE_CHAT_ID, caption, { parseMode: "none" });
