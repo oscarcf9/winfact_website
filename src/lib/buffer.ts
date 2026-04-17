@@ -25,7 +25,38 @@ const CHANNELS = {
   twitter: process.env.BUFFER_TWITTER_CHANNEL_ID || "69d014acaf47dacb6986f73f",
 };
 
+export type ChannelKey = "instagram" | "facebook" | "threads" | "twitter";
+
+const KNOWN_KEYS: ChannelKey[] = ["instagram", "facebook", "threads", "twitter"];
+
 if (!BUFFER_ACCESS_TOKEN) console.warn("[buffer] BUFFER_ACCESS_TOKEN not set — social posting disabled");
+
+/**
+ * Reverse lookup: channel ID → channel key.
+ */
+function idToKey(channelId: string): ChannelKey | null {
+  for (const k of KNOWN_KEYS) {
+    if (CHANNELS[k] === channelId) return k;
+  }
+  return null;
+}
+
+export type PerChannelResult = {
+  key: ChannelKey | null;
+  id: string;
+  success: boolean;
+  error?: string;
+  bufferPostId?: string;
+};
+
+export type PublishResult = {
+  ok: boolean; // true iff at least one channel succeeded (back-compat)
+  error?: string; // last error, only populated when ok === false
+  allSucceeded: boolean;
+  someSucceeded: boolean;
+  channels: PerChannelResult[];
+  failedChannels: ChannelKey[]; // channel KEYS that failed (excludes unknown-id channels)
+};
 
 /**
  * Execute a GraphQL query/mutation against Buffer API.
@@ -59,37 +90,46 @@ async function bufferGraphQL(
 }
 
 /**
- * Get channel IDs for a specific routing purpose.
+ * Resolve a routing string to a set of channel IDs.
+ *
+ * Accepts either one of the preset routes ("all" / "text_only" / "facebook_only" /
+ * "no_facebook") OR a comma-separated list of channel keys
+ * (e.g. "instagram,facebook") used by retry rows that target specific channels.
  */
-function getChannelsForRoute(route: "all" | "text_only" | "facebook_only" | "no_facebook"): string[] {
+export function getChannelsForRoute(route: string): string[] {
   const ids: string[] = [];
 
   if (route === "text_only") {
-    // Twitter + Threads only (for live commentary)
     if (CHANNELS.twitter) ids.push(CHANNELS.twitter);
     if (CHANNELS.threads) ids.push(CHANNELS.threads);
   } else if (route === "facebook_only") {
-    // Facebook only (for blog links)
     if (CHANNELS.facebook) ids.push(CHANNELS.facebook);
   } else if (route === "no_facebook") {
-    // All except Facebook (blog shares with images — FB requires postType not yet supported)
     if (CHANNELS.instagram) ids.push(CHANNELS.instagram);
+    if (CHANNELS.twitter) ids.push(CHANNELS.twitter);
+    if (CHANNELS.threads) ids.push(CHANNELS.threads);
+  } else if (route === "all" || !route) {
+    if (CHANNELS.instagram) ids.push(CHANNELS.instagram);
+    if (CHANNELS.facebook) ids.push(CHANNELS.facebook);
     if (CHANNELS.twitter) ids.push(CHANNELS.twitter);
     if (CHANNELS.threads) ids.push(CHANNELS.threads);
   } else {
-    // All channels (for filler + victory posts with images)
-    if (CHANNELS.instagram) ids.push(CHANNELS.instagram);
-    if (CHANNELS.facebook) ids.push(CHANNELS.facebook);
-    if (CHANNELS.twitter) ids.push(CHANNELS.twitter);
-    if (CHANNELS.threads) ids.push(CHANNELS.threads);
+    // Comma-separated channel keys, e.g. "instagram,facebook"
+    const keys = route.split(",").map((k) => k.trim().toLowerCase());
+    for (const k of keys) {
+      const id = (CHANNELS as Record<string, string>)[k];
+      if (id) ids.push(id);
+    }
   }
 
   return ids;
 }
 
 /**
- * Publish a post to a specific Buffer channel using createPost mutation.
+ * Publish a post to a specific set of Buffer channels using createPost mutation.
  * This ACTUALLY publishes to social media (unlike createIdea which only saves to backlog).
+ *
+ * Returns per-channel success/failure so callers can retry only the failed channels.
  */
 async function publishPost(
   text: string,
@@ -97,24 +137,33 @@ async function publishPost(
   imageUrl?: string,
   token?: string,
   publishNow?: boolean
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<PublishResult> {
   const accessToken = token || BUFFER_ACCESS_TOKEN;
+  const empty: PublishResult = {
+    ok: false,
+    allSucceeded: false,
+    someSucceeded: false,
+    channels: [],
+    failedChannels: [],
+  };
+
   if (!accessToken) {
-    return { ok: false, error: "Buffer access token not configured" };
+    return { ...empty, error: "Buffer access token not configured" };
   }
 
   if (channelIds.length === 0) {
-    return { ok: false, error: "No Buffer channels configured for this route" };
+    return { ...empty, error: "No Buffer channels configured for this route" };
   }
 
   console.log(`[buffer] Publishing to ${channelIds.length} channels${imageUrl ? " with image" : ""}: ${channelIds.join(", ")}`);
 
-  let successCount = 0;
-  let lastError = "";
+  const channels: PerChannelResult[] = [];
 
   for (const channelId of channelIds) {
+    const key = idToKey(channelId);
+    const entry: PerChannelResult = { key, id: channelId, success: false };
+
     try {
-      // Build the createPost mutation — this actually publishes to the channel
       const assetsBlock = imageUrl
         ? `assets: { images: [{ url: ${JSON.stringify(imageUrl)} }] }`
         : "";
@@ -123,7 +172,6 @@ async function publishPost(
         ? `schedulingType: immediate`
         : `schedulingType: automatic, mode: addToQueue`;
 
-      // Facebook requires metadata with type: post (story/reel also possible)
       const isFacebook = channelId === CHANNELS.facebook;
       const metadataBlock = isFacebook
         ? `, metadata: { facebook: { type: post } }`
@@ -155,60 +203,79 @@ async function publishPost(
       const result = await bufferGraphQL(mutation, undefined, accessToken);
 
       if (result.errors) {
-        lastError = result.errors[0].message;
-        console.error(`[buffer] Channel ${channelId} error:`, lastError);
+        entry.error = result.errors[0].message;
+        console.error(`[buffer] Channel ${channelId} (${key ?? "unknown"}) error:`, entry.error);
+        channels.push(entry);
         continue;
       }
 
       const payload = result.data?.createPost as Record<string, unknown> | undefined;
       if (payload?.message) {
-        lastError = String(payload.message);
-        console.error(`[buffer] Channel ${channelId} mutation error:`, lastError);
+        entry.error = String(payload.message);
+        console.error(`[buffer] Channel ${channelId} (${key ?? "unknown"}) mutation error:`, entry.error);
+        channels.push(entry);
         continue;
       }
 
       const post = payload?.post as Record<string, unknown> | undefined;
       if (post?.id) {
-        successCount++;
-        console.log(`[buffer] Channel ${channelId} → Post ${post.id} (dueAt: ${post.dueAt || "immediate"})`);
+        entry.success = true;
+        entry.bufferPostId = String(post.id);
+        console.log(`[buffer] Channel ${channelId} (${key ?? "unknown"}) → Post ${post.id} (dueAt: ${post.dueAt || "immediate"})`);
       } else {
-        // No error but no post ID — log full response for debugging
-        console.warn(`[buffer] Channel ${channelId} — unexpected response:`, JSON.stringify(result.data));
-        successCount++; // Assume success if no error
+        // No error but no post ID — treat as success so we don't retry an
+        // already-posted item, but log full response for debugging.
+        entry.success = true;
+        console.warn(`[buffer] Channel ${channelId} (${key ?? "unknown"}) — unexpected response:`, JSON.stringify(result.data));
       }
     } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err);
-      console.error(`[buffer] Channel ${channelId} failed:`, lastError);
+      entry.error = err instanceof Error ? err.message : String(err);
+      console.error(`[buffer] Channel ${channelId} (${key ?? "unknown"}) threw:`, entry.error);
     }
+
+    channels.push(entry);
   }
 
-  if (successCount > 0) {
-    console.log(`[buffer] Published to ${successCount}/${channelIds.length} channels`);
-    return { ok: true };
-  }
+  const successCount = channels.filter((c) => c.success).length;
+  const failedChannels = channels
+    .filter((c) => !c.success)
+    .map((c) => c.key)
+    .filter((k): k is ChannelKey => k !== null);
+  const lastError = channels.find((c) => !c.success && c.error)?.error;
 
-  return { ok: false, error: lastError || "All channels failed" };
+  console.log(`[buffer] Published to ${successCount}/${channels.length} channels`);
+
+  return {
+    ok: successCount > 0,
+    error: successCount === 0 ? (lastError || "All channels failed") : undefined,
+    allSucceeded: successCount === channels.length,
+    someSucceeded: successCount > 0,
+    channels,
+    failedChannels,
+  };
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
- * Post to ALL channels (Instagram, Facebook, Twitter, Threads).
- * Used for filler posts and victory posts (with images).
+ * Post to ALL channels (Instagram, Facebook, Twitter, Threads) or to a
+ * comma-separated subset (e.g. "instagram,facebook"). Used for filler posts
+ * and victory posts (with images), and for retry rows targeting failed channels.
  */
 export async function postToBufferWithMedia(
   text: string,
   imageUrl?: string,
-  token?: string
-): Promise<{ ok: boolean; error?: string }> {
-  const channels = getChannelsForRoute("all");
+  token?: string,
+  route: string = "all"
+): Promise<PublishResult> {
+  const channels = getChannelsForRoute(route);
   return publishPost(text, channels, imageUrl, token);
 }
 
 /**
  * Post text-only to all channels. Alias for postToBufferWithMedia without image.
  */
-export async function postToBuffer(text: string): Promise<{ ok: boolean; error?: string }> {
+export async function postToBuffer(text: string): Promise<PublishResult> {
   return postToBufferWithMedia(text);
 }
 
@@ -216,17 +283,31 @@ export async function postToBuffer(text: string): Promise<{ ok: boolean; error?:
  * Post live commentary to Twitter + Threads ONLY.
  * Text-only, no images. Uses dedicated live token if available.
  */
-export async function postLiveToBuffer(text: string): Promise<{ ok: boolean; error?: string }> {
+export async function postLiveToBuffer(text: string): Promise<PublishResult> {
   const token = BUFFER_LIVE_TOKEN || BUFFER_ACCESS_TOKEN;
   if (!token) {
     console.error("[buffer] postLiveToBuffer: No token available. Set BUFFER_LIVE_TOKEN or BUFFER_ACCESS_TOKEN in env vars.");
-    return { ok: false, error: "Buffer live token not configured. Set BUFFER_LIVE_TOKEN or BUFFER_ACCESS_TOKEN." };
+    return {
+      ok: false,
+      error: "Buffer live token not configured. Set BUFFER_LIVE_TOKEN or BUFFER_ACCESS_TOKEN.",
+      allSucceeded: false,
+      someSucceeded: false,
+      channels: [],
+      failedChannels: [],
+    };
   }
 
   const channels = getChannelsForRoute("text_only");
   if (channels.length === 0) {
     console.error("[buffer] postLiveToBuffer: No channels. Set BUFFER_TWITTER_CHANNEL_ID and/or BUFFER_THREADS_CHANNEL_ID.");
-    return { ok: false, error: "No Twitter/Threads channels configured. Set BUFFER_TWITTER_CHANNEL_ID and/or BUFFER_THREADS_CHANNEL_ID." };
+    return {
+      ok: false,
+      error: "No Twitter/Threads channels configured. Set BUFFER_TWITTER_CHANNEL_ID and/or BUFFER_THREADS_CHANNEL_ID.",
+      allSucceeded: false,
+      someSucceeded: false,
+      channels: [],
+      failedChannels: [],
+    };
   }
 
   console.log(`[buffer] postLiveToBuffer: Publishing NOW to ${channels.length} text channels (Twitter/Threads)`);
@@ -237,7 +318,7 @@ export async function postLiveToBuffer(text: string): Promise<{ ok: boolean; err
  * Post blog link to Facebook ONLY.
  * Blog URLs with OG tags — Facebook renders the preview automatically.
  */
-export async function postBlogLinkToBuffer(text: string, imageUrl?: string): Promise<{ ok: boolean; error?: string }> {
+export async function postBlogLinkToBuffer(text: string, imageUrl?: string): Promise<PublishResult> {
   const channels = getChannelsForRoute("facebook_only");
   return publishPost(text, channels, imageUrl);
 }
@@ -279,7 +360,6 @@ export async function verifyBufferChannels(token?: string): Promise<{
     return { ok: false, error: "No organizations found" };
   }
 
-  // Find channels for our org
   const org = orgs.find(o => o.id === BUFFER_ORG_ID) || orgs[0];
   return { ok: true, channels: org.channels };
 }

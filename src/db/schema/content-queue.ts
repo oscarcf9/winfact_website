@@ -1,4 +1,4 @@
-import { sqliteTable, text, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const contentQueue = sqliteTable("content_queue", {
@@ -11,9 +11,15 @@ export const contentQueue = sqliteTable("content_queue", {
   captionEn: text("caption_en"),
   captionEs: text("caption_es"),
   hashtags: text("hashtags"),
-  platform: text("platform").default("all"), // all, instagram, twitter, etc.
-  status: text("status", { enum: ["draft", "scheduled", "posted", "failed"] }).default("draft"),
+  platform: text("platform").default("all"), // "all" | preset route | comma-separated channel keys (e.g. "instagram,facebook")
+  status: text("status", { enum: ["draft", "scheduled", "processing", "posted", "failed"] }).default("draft"),
   scheduledAt: text("scheduled_at"),
+  // ISO timestamp set the moment the queue processor claims this row.
+  // Used by the stale-reclaim step to recover from crashed/timed-out processor runs.
+  processingStartedAt: text("processing_started_at"),
+  // Retry counter for rows that partially succeeded. Incremented each time
+  // a new retry row is enqueued for failed channels. Hard-capped at 2.
+  retryCount: integer("retry_count").default(0),
   postedAt: text("posted_at"),
   error: text("error"),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
@@ -21,4 +27,5 @@ export const contentQueue = sqliteTable("content_queue", {
   index("idx_content_queue_status").on(table.status),
   index("idx_content_queue_scheduled").on(table.scheduledAt),
   index("idx_content_queue_type").on(table.type),
+  index("idx_content_queue_status_scheduled").on(table.status, table.scheduledAt),
 ]));
