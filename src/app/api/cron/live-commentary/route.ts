@@ -126,10 +126,15 @@ export async function GET(req: Request) {
     });
     const pick = candidates[0];
 
-    // 4. Choose language for Telegram. Buffer is always English.
-    //    Telegram: 90% Spanish (pure Spanish + Spanglish via prompt guidance)
+    // 4. Choose language per channel.
+    //    Telegram: 90% Spanish (pure Spanish + Spanglish via prompt guidance; prompts
+    //              land a 50/40/10 ES/Spanglish/EN mix inside the "es" branch).
     //              10% English (for contexts where English is more natural)
+    //    Buffer:   80% English, 20% Spanglish flavor. When "es" flips we pass
+    //              language="es" to the prompt so the Buffer voice guide can
+    //              weave in Spanish team names / mid-sentence community words.
     const telegramLanguage: Language = Math.random() < 0.9 ? "es" : "en";
+    const bufferLanguage: Language = Math.random() < 0.2 ? "es" : "en";
 
     // 5. Generate per-channel. Fix 7: two separate Claude calls — one for
     //    Telegram (Miami community voice) and one for Buffer (professional
@@ -149,7 +154,7 @@ export async function GET(req: Request) {
       const args: GenArgs = {
         category: pick.category,
         game: ctx,
-        language: channel === "telegram" ? telegramLanguage : "en",
+        language: channel === "telegram" ? telegramLanguage : bufferLanguage,
         channel,
       };
       if (pick.category === "big_play") {

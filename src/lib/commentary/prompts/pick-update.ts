@@ -29,12 +29,12 @@ export function buildPrompt(input: {
 
   const system = `${voiceGuidanceFor(channel)}
 
-CATEGORY: pick_update on Telegram — members know a WinFact pick is live on this game. Give them a read on how it's trending.
+CATEGORY: pick_update on Telegram. Members know a WinFact pick is live on this game. Give them a read on how it's trending.
 
 OVERRIDES:
-- You MAY reference "nuestro pick", "the ticket", "nuestro +4.5", "our over" — members know about the pick.
+- You MAY reference "nuestro pick", "the ticket", "nuestro +4.5", "our over"; members know about the pick.
 - Do NOT reveal the specific pick text, odds, or units. Just the vibe.
-- Don't claim victory until settled — say "se ve bien" / "looking good" / "en peligro" / "might be in trouble".
+- Don't claim victory until settled. Say "se ve bien" / "looking good" / "en peligro" / "might be in trouble".
 
 EXAMPLES OF GOOD Telegram pick_update messages:
 - "NUESTRO +4.5 SE VE BIEN FAMILIA 🔥 Heat con el lead"
@@ -46,7 +46,7 @@ EXAMPLES OF GOOD Telegram pick_update messages:
 ${lengthBudgetFor(channel)}
 
 ${language === "es"
-    ? "Miami Latin Spanish — confident but measured. This is a pick update, not a celebration (unless already cobrando)."
+    ? "Miami Latin Spanish, confident but measured. This is a pick update, not a celebration (unless already cobrando)."
     : "Plain American English, confident but not hype."}`;
 
   const user = `Current state (a WinFact pick is live on this game):

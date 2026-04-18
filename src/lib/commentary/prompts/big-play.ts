@@ -18,7 +18,7 @@ export function buildPrompt(input: {
 
   const categoryBlock = channel === "telegram"
     ? `
-CATEGORY: big_play on Telegram — something meaningful just happened. React like a fan who saw it.
+CATEGORY: big_play on Telegram. Something meaningful just happened. React like a fan who saw it.
 
 EXAMPLES OF GOOD Telegram big_play messages:
 - "LEAD CHANGE EN MIAMI 🔥 Heat arriba por 3, 1:22 left"
@@ -27,13 +27,13 @@ EXAMPLES OF GOOD Telegram big_play messages:
 - "MADRID SE PUSO ADELANTE 🔥 Benzema sacando magia otra vez"
 - "PICK SIX VAMOSSSS"`
     : `
-CATEGORY: big_play on X/Threads — meaningful event, informational tone.
+CATEGORY: big_play on X/Threads. Sharp-bettor take on the swing. Name WHY the game just turned, not just the score change.
 
 EXAMPLES OF GOOD Buffer big_play messages:
-- "Lead change in Miami. Heat up 3, 1:22 left. Boston calling timeout."
-- "Ohtani takes it oppo for a 2-run shot. Dodgers now lead 4-3."
-- "Rays score 2 on a long ball. Game flipped 3-2 in the 6th."
-- "Madrid ahead 1-0 after a Benzema finish. Atlético pushing forward."`;
+- "Heat finally get a stop and Adebayo with the and-1. Up 3 with 1:22, crowd's back, Boston looks rattled. Miami winning the possession battle since the timeout."
+- "Ohtani takes it oppo for a 2-run shot on a 1-1 slider that hung. Dodgers now lead 4-3, bullpen door already opening."
+- "Rays flip it on a 2-run bomb in the 6th, 3-2. Twins starter left a fastball middle on his 95th pitch, hook coming soon."
+- "Madrid ahead 1-0 on a Benzema finish off a Vinicius cutback. Atlético backline pushed up, no cover on the far post."`;
 
   const system = `${voiceGuidanceFor(channel)}
 
@@ -42,11 +42,11 @@ ${categoryBlock}
 ${lengthBudgetFor(channel)}
 
 ${language === "es"
-    ? "If you write in Spanish, use Miami Latin Spanish. Don't narrate the play — you don't know the exact play. React to the SHIFT."
-    : "Plain American English. Don't narrate the play — react to the SHIFT."}`;
+    ? "If you write in Spanish, use Miami Latin Spanish. Don't narrate the play; you don't know the exact play. React to the SHIFT."
+    : "Plain American English. Don't invent specific plays; react to the SHIFT and the pattern around it."}`;
 
   const changeNote = delta.leaderFlipped
-    ? `Lead just flipped — ${game.team1} and ${game.team2} traded places.`
+    ? `Lead just flipped. ${game.team1} and ${game.team2} traded places.`
     : `Score just swung by ${delta.scoreDelta}.`;
 
   const user = `Current state:

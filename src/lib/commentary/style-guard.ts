@@ -49,11 +49,12 @@ export const TELEGRAM_CONFIG: StyleGuardConfig = {
   bannedPatterns: BANNED_PATTERNS_UNIVERSAL,
 };
 
-// Buffer (X + Threads): professional observer voice. Strict on hype markers.
+// Buffer (X + Threads): sharp-bettor voice with sazón. English-heavy, some Spanglish allowed.
+// Relaxed caps (0.50) so proper-noun bursts ("LEAD CHANGE", "MIAMI") read clean.
 export const BUFFER_CONFIG: StyleGuardConfig = {
   emojiDensityMax: 0.30,
   emojiCountMax: 2,
-  capsRatioMax: 0.40,
+  capsRatioMax: 0.50,
   capsRatioMinLength: 30,
   terminalEmojiRejectRate: 0.40,
   jaccardSimilarityMax: 0.5,
@@ -121,6 +122,14 @@ export function validateStyle(
   if (!msg) return { ok: false, reason: "empty" };
 
   const config = getConfigForChannel(channel);
+
+  // Rule 0: em-dash hard ban on both channels.
+  // GPT-ism tell. Prompts explicitly forbid it. Reject with no retry-repair
+  // path — the generator re-prompts once; if Claude keeps emitting em dashes
+  // the tick is skipped entirely.
+  if (/\u2014/.test(msg)) {
+    return { ok: false, reason: `em_dash_banned(${channel})` };
+  }
 
   // Rule 1: emoji count + density
   // Density check only applies when the message has enough words for the

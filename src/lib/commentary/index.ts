@@ -41,7 +41,8 @@ function getClient(): Anthropic {
 }
 
 const MODEL = "claude-sonnet-4-20250514";
-const MAX_TOKENS = 80;
+// Buffer voice is takes-driven (10-40 words). Bumped from 80 so Claude has room.
+const MAX_TOKENS = 140;
 
 // Sentinel returned by pick_update's buffer-channel branch (defensive only;
 // the cron never calls pick_update on buffer because CATEGORY_CHANNELS blocks it).
@@ -72,10 +73,10 @@ function cleanup(raw: string): string {
     .replace(/\n/g, " ")
     .trim();
 
-  // Hard length cap at 220 chars (per-channel max; style-guard prompts use
-  // channel-specific soft budgets).
-  if (out.length > 220) {
-    const truncated = out.substring(0, 220);
+  // Hard length cap at 300 chars (above Buffer's 280 soft budget so a
+  // last-word trim rarely clips mid-thought; Telegram prompts cap at 120).
+  if (out.length > 300) {
+    const truncated = out.substring(0, 300);
     const lastSpace = truncated.lastIndexOf(" ");
     out = lastSpace > 80 ? truncated.substring(0, lastSpace) : truncated;
   }
