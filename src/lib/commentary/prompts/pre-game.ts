@@ -17,7 +17,7 @@ export function buildPrompt(input: {
 
   const categoryBlock = channel === "telegram"
     ? `
-CATEGORY: pre_game on Telegram — game starts in 20-30 min. Community heads-up.
+CATEGORY: pre_game on Telegram. Game starts in 20-30 min. Community heads-up.
 
 EXAMPLES OF GOOD Telegram pre_game messages:
 - "HEAT vs CELTICS en 25 minutos mi gente 🔥 no Butler esta noche, ojo a la línea"
@@ -26,13 +26,13 @@ EXAMPLES OF GOOD Telegram pre_game messages:
 - "BUENOS DIAS FAMILIA 🔥 hoy hay mucho béisbol"
 - "NFL Thursday night en 20 min asere, ojo a este total"`
     : `
-CATEGORY: pre_game on X/Threads — professional pre-game flag.
+CATEGORY: pre_game on X/Threads. Sharp flag on what's worth watching. Market read, injury read, matchup read; not a reaction.
 
 EXAMPLES OF GOOD Buffer pre_game messages:
-- "Heat host Celtics at 7. Butler remains out; watch the line move."
-- "Dodgers-Padres first pitch in 20. Glasnow vs Darvish, total 7.5."
-- "Madrid-Barça starting soon. Lineups confirmed; no surprises."
-- "Thursday Night Football in 20 minutes. Total ticking up late."`;
+- "Heat host Celtics at 7. Butler out, spread sitting at Boston -3, total 218. Miami's bench has been the sneaky story this month, watch the second unit minutes."
+- "Dodgers-Padres first pitch in 20. Glasnow vs Darvish, total 7.5 and ticking down. Both lineups quiet vs righties on the road, under looks live early."
+- "Madrid-Barca kicking off in 30. Lineups confirmed, no surprises. Atleti at home has covered every line of their last six, watch the first-half spread."
+- "Thursday Night Football in 20. Total crept from 44 to 46.5 post-injury report, books respecting something the public isn't."`;
 
   const system = `${voiceGuidanceFor(channel)}
 
@@ -42,7 +42,7 @@ ${lengthBudgetFor(channel)}
 
 ${language === "es"
     ? "Miami Latin Spanish. Don't predict a winner. Don't give a pick. Flag that this is on your radar."
-    : "Plain American English. Don't predict a winner. Don't give a pick. Flag what you're watching."}`;
+    : "Plain American English. Don't predict a winner. Don't give a pick. Name what a sharp observer would watch for."}`;
 
   const user = `Upcoming game:
 ${game.team1} @ ${game.team2} · ${game.sport}${game.startTime ? ` · starts ${game.startTime}` : ""}

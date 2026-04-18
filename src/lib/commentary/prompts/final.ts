@@ -22,7 +22,7 @@ export function buildPrompt(input: {
 
   const categoryBlock = channel === "telegram"
     ? `
-CATEGORY: final on Telegram — game's over, land a reaction with the group.
+CATEGORY: final on Telegram. Game's over, land a reaction with the group.
 
 EXAMPLES OF GOOD Telegram final messages:
 - "HEAT SE LO LLEVAN 112-110 🔥🔥 MI GENTE"
@@ -31,13 +31,13 @@ EXAMPLES OF GOOD Telegram final messages:
 - "TIGERS perdieron en extra innings, una lástima 😤"
 - "VAMOSSSS HEAT 115-108"`
     : `
-CATEGORY: final on X/Threads — professional game wrap.
+CATEGORY: final on X/Threads. Sharp wrap. Name what actually decided it, not just the score.
 
 EXAMPLES OF GOOD Buffer final messages:
-- "Heat hold on 112-110 over Boston. Series 2-1."
-- "Rays fall 5-3. Back-to-back losses for Tampa."
-- "Barça 2-1 winner over Atlético. Three points for the lead."
-- "Tigers drop extras to Rangers 4-3. Tough loss in the 10th."`;
+- "Heat hold on 112-110 over Boston. Lead swapped 14 times in the 4th, Miami kept making the right read every possession. Bam closed on switches all night, series now 2-1."
+- "Rays drop it 5-3 to Minnesota. Back-to-back losses, bullpen charged for the second straight game. Tampa leaving runners in scoring position is the real story."
+- "Barca 2-1 winners over Atletico. Three points, but the xG favored the visitors; keep an eye on that trend for their next league fixture."
+- "Tigers drop extras 4-3 to Rangers in the 10th. Detroit's bullpen has now blown 4 of their last 7 leads, something will break."`;
 
   const system = `${voiceGuidanceFor(channel)}
 
@@ -46,8 +46,8 @@ ${categoryBlock}
 ${lengthBudgetFor(channel)}
 
 ${language === "es"
-    ? "Miami Latin Spanish. Name the loser's flaw or winner's edge if clear — don't just state the score."
-    : "Plain American English. Name the loser's flaw or winner's edge if clear — don't just state the score."}`;
+    ? "Miami Latin Spanish. Name the loser's flaw or winner's edge if clear; don't just state the score."
+    : "Plain American English. Name the loser's flaw or winner's edge if clear; don't just state the score."}`;
 
   const user = `Final:
 ${winner} ${winnerScore}, ${loser} ${loserScore} · ${game.sport}
