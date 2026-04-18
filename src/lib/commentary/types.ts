@@ -1,4 +1,5 @@
 import type { LiveGame } from "@/lib/espn-live";
+import type { Channel } from "./style-guard";
 
 export type MessageCategory =
   | "game_reaction"
@@ -52,11 +53,12 @@ export type GenerationInput = {
   game: GameContext;
   delta?: GameDelta;
   language: Language;
-  recentMessages: string[]; // pre-fetched via dedup.ts
+  channel: Channel; // Fix 7 — "telegram" | "buffer", controls voice + style-guard
+  recentMessages: string[]; // pre-fetched via dedup.ts (per-channel)
 };
 
 export type GenerationResult =
-  | { ok: true; message: string; language: Language; category: MessageCategory; bucket: GameStateBucket | null }
+  | { ok: true; message: string; language: Language; category: MessageCategory; bucket: GameStateBucket | null; channel: Channel }
   | { ok: false; reason: string };
 
 /**

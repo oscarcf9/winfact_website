@@ -57,6 +57,13 @@
       "when": 1776453309599,
       "tag": "0007_flawless_sunspot",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1776470913130,
+      "tag": "0008_flowery_the_santerians",
+      "breakpoints": true
     }
   ]
 }

@@ -13,7 +13,11 @@ export const commentaryLog = sqliteTable("commentary_log", {
   bucket: text("bucket"),
   // "en" | "es" — null on pre-Fix-4 rows
   language: text("language"),
+  // "telegram" | "buffer" — null on pre-Fix-7 rows. Controls per-channel
+  // dedup so Telegram's Miami voice doesn't crowd Buffer's professional voice.
+  channel: text("channel"),
 }, (table) => ([
   index("idx_commentary_game_posted").on(table.gameId, table.postedAt),
   index("idx_commentary_sport_category_posted").on(table.sport, table.category, table.postedAt),
+  index("idx_commentary_channel_sport_category_posted").on(table.channel, table.sport, table.category, table.postedAt),
 ]));

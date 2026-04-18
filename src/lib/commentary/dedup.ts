@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { commentaryLog } from "@/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 import type { MessageCategory, GameStateBucket } from "./types";
+import type { Channel } from "./style-guard";
 
 /**
  * Scope by category — how many prior messages to feed the generator
@@ -20,25 +21,31 @@ const DEDUP_LIMIT: Record<MessageCategory, number> = {
  * as "do NOT repeat these."
  *
  * Scope:
- *   - game_reaction: same sport + same bucket (the intuition: two close late-game
- *     messages about different games should still avoid sounding alike)
- *   - big_play / pick_update / final: same sport
- *   - pre_game: same sport
+ *   - game_reaction: same sport + same bucket + same channel
+ *   - big_play / pick_update / final / pre_game: same sport + same channel
  *
- * Falls back to messages with null category/bucket (older rows) so the dedup
- * surface degrades gracefully post-migration.
+ * The channel filter is Fix 7 — Telegram's Miami voice shouldn't dedup
+ * against Buffer's professional voice (different phrasing surfaces entirely).
+ *
+ * Falls back to messages with null category/bucket/channel (older rows)
+ * because those columns are nullable on pre-Fix-4/Fix-7 rows. Drizzle `eq`
+ * on a non-null arg won't match NULL values, so old rows just get excluded
+ * from the dedup context — acceptable degradation.
  */
 export async function getRecentMessagesForDedup(input: {
   category: MessageCategory;
   sport: string;
   bucket?: GameStateBucket | null;
+  channel?: Channel; // Fix 7 — per-channel dedup
 }): Promise<string[]> {
   const limit = DEDUP_LIMIT[input.category];
 
-  // game_reaction uses a sport+bucket filter; others use sport only.
   const conditions = [eq(commentaryLog.sport, input.sport)];
   if (input.category === "game_reaction" && input.bucket) {
     conditions.push(eq(commentaryLog.bucket, input.bucket));
+  }
+  if (input.channel) {
+    conditions.push(eq(commentaryLog.channel, input.channel));
   }
 
   const rows = await db
@@ -78,6 +85,9 @@ export async function getLastSnapshotForGame(gameId: string): Promise<{
  * Has this category fired for this game within `windowSeconds`?
  * Used by frequency caps so a single game doesn't get spammed with
  * the same category of message.
+ *
+ * Not scoped by channel — frequency caps apply per-game regardless of
+ * which channel was selected.
  */
 export async function hasCategoryFiredRecently(input: {
   category: MessageCategory;
@@ -86,7 +96,7 @@ export async function hasCategoryFiredRecently(input: {
 }): Promise<boolean> {
   const cutoff = Math.floor(Date.now() / 1000) - input.windowSeconds;
   const [row] = await db
-    .select({ id: commentaryLog.id })
+    .select({ id: commentaryLog.id, postedAt: commentaryLog.postedAt })
     .from(commentaryLog)
     .where(
       and(
@@ -98,12 +108,5 @@ export async function hasCategoryFiredRecently(input: {
     .limit(1);
 
   if (!row) return false;
-
-  const [row2] = await db
-    .select({ postedAt: commentaryLog.postedAt })
-    .from(commentaryLog)
-    .where(eq(commentaryLog.id, row.id))
-    .limit(1);
-
-  return (row2?.postedAt ?? 0) > cutoff;
+  return row.postedAt > cutoff;
 }
