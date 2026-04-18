@@ -8,6 +8,7 @@ import type {
 } from "./types";
 import { bucketizeGameState } from "./types";
 import { validateStyle } from "./style-guard";
+import type { Channel } from "./style-guard";
 import * as GameReactionPrompt from "./prompts/game-reaction";
 import * as BigPlayPrompt from "./prompts/big-play";
 import * as PickUpdatePrompt from "./prompts/pick-update";
@@ -18,13 +19,12 @@ import { computeGameDelta, detectCategory, toGameContext } from "./detector";
 
 export * from "./types";
 export { validateStyle } from "./style-guard";
+export type { Channel } from "./style-guard";
 export { detectCategory, computeGameDelta, toGameContext, FREQ_CAP_SECONDS } from "./detector";
 export { getRecentMessagesForDedup, getLastSnapshotForGame } from "./dedup";
 
 /**
  * Routing rule: which channels each category should ship to.
- * Actual distribution is the cron's responsibility; this is the declarative
- * truth the cron reads to decide.
  */
 export const CATEGORY_CHANNELS: Record<MessageCategory, { telegram: boolean; buffer: boolean }> = {
   game_reaction: { telegram: true, buffer: true },
@@ -41,11 +41,12 @@ function getClient(): Anthropic {
 }
 
 const MODEL = "claude-sonnet-4-20250514";
-const MAX_TOKENS = 60;
+const MAX_TOKENS = 80;
 
-/**
- * Drive Claude with a category-specific prompt and return the raw text.
- */
+// Sentinel returned by pick_update's buffer-channel branch (defensive only;
+// the cron never calls pick_update on buffer because CATEGORY_CHANNELS blocks it).
+const SKIP_SENTINEL = "__SKIP__";
+
 async function callClaude(
   system: string,
   user: string,
@@ -63,9 +64,6 @@ async function callClaude(
   return cleanup(text);
 }
 
-/**
- * Strip wrapping quotes, hashtags, and common LLM preamble. Collapse to one line.
- */
 function cleanup(raw: string): string {
   let out = raw
     .replace(/^["']|["']$/g, "")
@@ -74,9 +72,10 @@ function cleanup(raw: string): string {
     .replace(/\n/g, " ")
     .trim();
 
-  // Hard length cap at 150 chars, truncated to a word boundary.
-  if (out.length > 150) {
-    const truncated = out.substring(0, 150);
+  // Hard length cap at 220 chars (per-channel max; style-guard prompts use
+  // channel-specific soft budgets).
+  if (out.length > 220) {
+    const truncated = out.substring(0, 220);
     const lastSpace = truncated.lastIndexOf(" ");
     out = lastSpace > 80 ? truncated.substring(0, lastSpace) : truncated;
   }
@@ -84,73 +83,88 @@ function cleanup(raw: string): string {
 }
 
 /**
- * Build the category-specific prompt and resolve temperature.
+ * Build the category-specific, channel-specific prompt and resolve temperature.
  */
 function promptFor(input: GenerationInput): { system: string; user: string; temperature: number } {
-  switch (input.category) {
+  const { category, channel } = input;
+  switch (category) {
     case "game_reaction": {
       const p = GameReactionPrompt.buildPrompt({
         game: input.game,
         bucket: input.game.bucket,
         language: input.language,
+        channel,
         recentMessages: input.recentMessages,
       });
-      return { ...p, temperature: GameReactionPrompt.TEMPERATURE };
+      return { ...p, temperature: GameReactionPrompt.TEMPERATURE[channel] };
     }
     case "big_play": {
       const p = BigPlayPrompt.buildPrompt({
         game: input.game,
         delta: input.delta || { scoreDelta: 0, leaderFlipped: false, periodAdvanced: false, snapshotAgeSeconds: 0 },
         language: input.language,
+        channel,
         recentMessages: input.recentMessages,
       });
-      return { ...p, temperature: BigPlayPrompt.TEMPERATURE };
+      return { ...p, temperature: BigPlayPrompt.TEMPERATURE[channel] };
     }
     case "pick_update": {
       const p = PickUpdatePrompt.buildPrompt({
         game: input.game,
         language: input.language,
+        channel,
         recentMessages: input.recentMessages,
       });
-      return { ...p, temperature: PickUpdatePrompt.TEMPERATURE };
+      return { ...p, temperature: PickUpdatePrompt.TEMPERATURE[channel] };
     }
     case "pre_game": {
       const p = PreGamePrompt.buildPrompt({
         game: input.game,
         language: input.language,
+        channel,
         recentMessages: input.recentMessages,
       });
-      return { ...p, temperature: PreGamePrompt.TEMPERATURE };
+      return { ...p, temperature: PreGamePrompt.TEMPERATURE[channel] };
     }
     case "final": {
       const p = FinalPrompt.buildPrompt({
         game: input.game,
         language: input.language,
+        channel,
         recentMessages: input.recentMessages,
       });
-      return { ...p, temperature: FinalPrompt.TEMPERATURE };
+      return { ...p, temperature: FinalPrompt.TEMPERATURE[channel] };
     }
   }
 }
 
 /**
- * Public entry point. Builds the prompt for the selected category, calls
- * Claude, runs style-guard, retries ONCE on style failure (with the rejected
- * text added to the dedup context), and returns the final message.
+ * Generate a commentary message for a specific (category, channel) pair.
  *
- * If the second attempt also fails, returns ok: false — callers SKIP the
- * tick rather than ship sloppy content.
+ * Dedup is fetched per channel — Telegram's Miami voice and Buffer's
+ * professional voice each see their own recent messages.
+ *
+ * Style-guard rules come from the channel's config (Telegram permissive,
+ * Buffer strict). One retry on style failure; skip tick if second attempt
+ * also fails.
  */
 export async function generateMessage(
   input: Omit<GenerationInput, "recentMessages">
 ): Promise<GenerationResult> {
-  const language: Language = input.language;
+  const { language, channel, category } = input;
 
-  // Fetch dedup context tailored to the category
+  // Defensive: pick_update routes Telegram-only. If a caller asks for buffer,
+  // return a clean skip result immediately.
+  if (category === "pick_update" && channel === "buffer") {
+    return { ok: false, reason: "pick_update_not_on_buffer" };
+  }
+
+  // Fetch per-channel dedup context
   const recentMessages = await getRecentMessagesForDedup({
-    category: input.category,
+    category,
     sport: input.game.sport,
-    bucket: input.category === "game_reaction" ? input.game.bucket : null,
+    bucket: category === "game_reaction" ? input.game.bucket : null,
+    channel,
   });
 
   const attemptInput: GenerationInput = { ...input, recentMessages };
@@ -162,29 +176,29 @@ export async function generateMessage(
     try {
       text = await callClaude(system, user, temperature);
     } catch (err) {
-      console.error(`[commentary] Claude error (attempt ${attempt}):`, err);
+      console.error(`[commentary] Claude error (attempt ${attempt}, ${channel}):`, err);
       return { ok: false, reason: "claude_error" };
     }
 
-    if (!text) {
-      return { ok: false, reason: "empty_response" };
+    if (!text || text === SKIP_SENTINEL) {
+      return { ok: false, reason: text === SKIP_SENTINEL ? "skip_sentinel" : "empty_response" };
     }
 
-    const verdict = validateStyle(text, attemptInput.recentMessages);
+    const verdict = validateStyle(text, attemptInput.recentMessages, channel);
     if (verdict.ok) {
       return {
         ok: true,
         message: text,
         language,
-        category: input.category,
-        bucket: input.category === "game_reaction" ? input.game.bucket : null,
+        category,
+        bucket: category === "game_reaction" ? input.game.bucket : null,
+        channel,
       };
     }
 
-    console.log(`[commentary] style-guard rejected attempt ${attempt}: ${verdict.reason} | msg="${text}"`);
+    console.log(`[commentary] style-guard rejected attempt ${attempt} (${channel}): ${verdict.reason} | msg="${text}"`);
 
-    // Add the rejected text to the dedup list so the retry has to actually
-    // produce something different (not just different style).
+    // Add rejected text to dedup list so retry must produce different content
     attemptInput.recentMessages = [text, ...attemptInput.recentMessages].slice(0, 12);
   }
 
@@ -192,20 +206,29 @@ export async function generateMessage(
 }
 
 /**
- * Convenience: convert a LiveGame to a GameContext, then generate.
- * Prefer calling generateMessage directly from the cron so the cron owns
- * category detection and frequency-cap enforcement.
+ * Convenience: convert a LiveGame to a GameContext, then generate for one channel.
  */
 export async function generateForLiveGame(
   game: LiveGame,
-  opts: { category: MessageCategory; language: Language }
+  opts: { category: MessageCategory; language: Language; channel: Channel }
 ): Promise<GenerationResult> {
   const ctx = toGameContext(game);
   if (opts.category === "big_play") {
     const delta = await computeGameDelta(game);
-    return generateMessage({ category: opts.category, game: ctx, delta, language: opts.language });
+    return generateMessage({
+      category: opts.category,
+      game: ctx,
+      delta,
+      language: opts.language,
+      channel: opts.channel,
+    });
   }
-  return generateMessage({ category: opts.category, game: ctx, language: opts.language });
+  return generateMessage({
+    category: opts.category,
+    game: ctx,
+    language: opts.language,
+    channel: opts.channel,
+  });
 }
 
 export { bucketizeGameState };

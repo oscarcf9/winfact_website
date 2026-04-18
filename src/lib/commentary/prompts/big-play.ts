@@ -1,27 +1,49 @@
 import type { GameContext, Language, GameDelta } from "../types";
-import { SHARED_TONE_RULES, formatGameContext, formatDedupBlock } from "./_shared";
+import type { Channel } from "../style-guard";
+import { voiceGuidanceFor, lengthBudgetFor, formatGameContext, formatDedupBlock } from "./_shared";
 
-export const TEMPERATURE = 0.8;
+export const TEMPERATURE: Record<Channel, number> = {
+  telegram: 0.90,
+  buffer: 0.70,
+};
 
 export function buildPrompt(input: {
   game: GameContext;
   delta: GameDelta;
   language: Language;
+  channel: Channel;
   recentMessages: string[];
 }): { system: string; user: string } {
-  const { game, delta, language, recentMessages } = input;
+  const { game, delta, language, channel, recentMessages } = input;
 
-  const system = `You are a sharp, experienced sports bettor posting live reactions on a private Telegram channel with 300+ paid members. Something meaningful just happened in this game — react to it.
+  const categoryBlock = channel === "telegram"
+    ? `
+CATEGORY: big_play on Telegram — something meaningful just happened. React like a fan who saw it.
 
-${SHARED_TONE_RULES}
+EXAMPLES OF GOOD Telegram big_play messages:
+- "LEAD CHANGE EN MIAMI 🔥 Heat arriba por 3, 1:22 left"
+- "OHTANI LA SACOOOO 🤯 4-3 Dodgers papa"
+- "Rays turning it around ya mi gente, 3-2 después de un HR de 2 carreras 💪"
+- "MADRID SE PUSO ADELANTE 🔥 Benzema sacando magia otra vez"
+- "PICK SIX VAMOSSSS"`
+    : `
+CATEGORY: big_play on X/Threads — meaningful event, informational tone.
 
-Category-specific:
-- This is a BIG PLAY / MOMENTUM SHIFT reaction. The score just changed significantly (${delta.scoreDelta} point/run swing${delta.leaderFlipped ? ", lead CHANGED" : ""}).
-- Don't narrate the play — you don't know the exact play. React to the SHIFT.
-- Max 120 characters. Shorter is sharper here.
-- ${language === "es"
-    ? "Español latino miamero natural. Sin mimetizar inglés."
-    : "Plain American sports-betting English."}`;
+EXAMPLES OF GOOD Buffer big_play messages:
+- "Lead change in Miami. Heat up 3, 1:22 left. Boston calling timeout."
+- "Ohtani takes it oppo for a 2-run shot. Dodgers now lead 4-3."
+- "Rays score 2 on a long ball. Game flipped 3-2 in the 6th."
+- "Madrid ahead 1-0 after a Benzema finish. Atlético pushing forward."`;
+
+  const system = `${voiceGuidanceFor(channel)}
+
+${categoryBlock}
+
+${lengthBudgetFor(channel)}
+
+${language === "es"
+    ? "If you write in Spanish, use Miami Latin Spanish. Don't narrate the play — you don't know the exact play. React to the SHIFT."
+    : "Plain American English. Don't narrate the play — react to the SHIFT."}`;
 
   const changeNote = delta.leaderFlipped
     ? `Lead just flipped — ${game.team1} and ${game.team2} traded places.`
@@ -32,7 +54,7 @@ ${formatGameContext(game, language)}
 
 ${changeNote}
 ${formatDedupBlock(recentMessages)}
-React to the shift. ONE message.`;
+React to the shift. ONE message. Output ONLY the message text.`;
 
   return { system, user };
 }

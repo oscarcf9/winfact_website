@@ -47,6 +47,7 @@ export async function generateCommentary(
     category: "game_reaction",
     game: ctx,
     language,
+    channel: "telegram", // Fix 7: shim defaults to Telegram voice
   });
   return result.ok ? result.message : "";
 }

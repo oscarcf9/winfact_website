@@ -126,58 +126,104 @@ export async function GET(req: Request) {
     });
     const pick = candidates[0];
 
-    // 4. Choose language (~60% Spanish to match audience)
-    const language: Language = Math.random() < 0.6 ? "es" : "en";
+    // 4. Choose language for Telegram. Buffer is always English.
+    //    Telegram: 90% Spanish (pure Spanish + Spanglish via prompt guidance)
+    //              10% English (for contexts where English is more natural)
+    const telegramLanguage: Language = Math.random() < 0.9 ? "es" : "en";
 
-    // 5. Generate — retries once internally on style-guard failure
+    // 5. Generate per-channel. Fix 7: two separate Claude calls — one for
+    //    Telegram (Miami community voice) and one for Buffer (professional
+    //    observer voice) — ONLY when the category routes to both channels.
+    //    pick_update is Telegram-only per CATEGORY_CHANNELS.
     const ctx = toGameContext(pick.game);
-    const result =
-      pick.category === "big_play"
-        ? await generateMessage({ category: pick.category, game: ctx, delta: pick.delta, language })
-        : await generateMessage({ category: pick.category, game: ctx, language });
+    const routing = CATEGORY_CHANNELS[pick.category];
 
-    if (!result.ok) {
+    const gameStateJson = JSON.stringify({
+      score: `${pick.game.score1}-${pick.game.score2}`,
+      period: pick.game.period,
+      clock: pick.game.clock,
+    });
+
+    type GenArgs = Parameters<typeof generateMessage>[0];
+    const baseArgs = (channel: "telegram" | "buffer"): GenArgs => {
+      const args: GenArgs = {
+        category: pick.category,
+        game: ctx,
+        language: channel === "telegram" ? telegramLanguage : "en",
+        channel,
+      };
+      if (pick.category === "big_play") {
+        args.delta = pick.delta;
+      }
+      return args;
+    };
+
+    const [telegramResult, bufferResult] = await Promise.all([
+      routing.telegram ? generateMessage(baseArgs("telegram")) : Promise.resolve(null),
+      routing.buffer ? generateMessage(baseArgs("buffer")) : Promise.resolve(null),
+    ]);
+
+    if (
+      (routing.telegram && (!telegramResult || !telegramResult.ok)) &&
+      (routing.buffer && (!bufferResult || !bufferResult.ok))
+    ) {
       return NextResponse.json({
         status: "skipped",
-        reason: result.reason,
+        reason: "both_channels_failed_generation",
+        telegramReason: telegramResult && !telegramResult.ok ? telegramResult.reason : null,
+        bufferReason: bufferResult && !bufferResult.ok ? bufferResult.reason : null,
         category: pick.category,
         game: `${pick.game.team1} vs ${pick.game.team2}`,
       });
     }
 
-    // 6. Pre-generate the commentary_log ID so retry rows can reference it.
-    const logId = crypto.randomUUID();
-
-    // 7. Distribute per CATEGORY_CHANNELS
-    const routing = CATEGORY_CHANNELS[pick.category];
     let telegramSent = false;
     let bufferSent = false;
     const bufferFailedChannels: string[] = [];
+    let telegramLogId: string | null = null;
+    let bufferLogId: string | null = null;
 
-    if (routing.telegram) {
+    // ── Telegram path ──────────────────────────────────────────────
+    if (telegramResult && telegramResult.ok) {
+      telegramLogId = crypto.randomUUID();
       const chatId = process.env.TELEGRAM_FREE_CHAT_ID;
       if (chatId) {
-        const tg = await sendTelegramMessage(chatId, result.message, { parseMode: "none" }).catch((err) => {
+        const tg = await sendTelegramMessage(chatId, telegramResult.message, { parseMode: "none" }).catch((err) => {
           console.error("[commentary] Telegram threw:", err);
           return { ok: false, error: String(err) };
         });
         telegramSent = tg.ok;
         if (!tg.ok) console.error("[commentary] Telegram failed:", tg.error);
       }
+
+      // Log Telegram row (with channel='telegram')
+      await db.insert(commentaryLog).values({
+        id: telegramLogId,
+        gameId: pick.game.gameId,
+        sport: pick.game.sport,
+        message: telegramResult.message,
+        postedAt: Math.floor(Date.now() / 1000),
+        gameState: gameStateJson,
+        category: pick.category,
+        bucket: telegramResult.bucket,
+        language: telegramResult.language,
+        channel: "telegram",
+      });
     }
 
-    if (routing.buffer) {
+    // ── Buffer path ────────────────────────────────────────────────
+    if (bufferResult && bufferResult.ok) {
+      bufferLogId = crypto.randomUUID();
       try {
-        const buf = await postLiveToBuffer(result.message, { referenceId: logId });
+        const buf = await postLiveToBuffer(bufferResult.message, { referenceId: bufferLogId });
         bufferSent = buf.ok;
-        // Enqueue per-channel retries for any channels that failed (Fix 5 integration)
         for (const ch of buf.channels || []) {
           if (!ch.success && ch.key) {
             bufferFailedChannels.push(ch.key);
             enqueueCommentaryRetry({
-              originalLogId: logId,
+              originalLogId: bufferLogId,
               failedChannel: ch.key,
-              messageText: result.message,
+              messageText: bufferResult.message,
               lastError: ch.error ?? null,
             }).catch((err) => console.error("[commentary] enqueue retry failed:", err));
           }
@@ -190,7 +236,6 @@ export async function GET(req: Request) {
           console.log(`[commentary] Buffer sent to Twitter/Threads`);
         }
       } catch (err) {
-        // BufferConfigError self-alerts at the library layer (1/hour dedup)
         const errMsg = err instanceof Error ? err.message : String(err);
         console.error("[commentary] Buffer threw:", err);
         if (!(err instanceof BufferConfigError)) {
@@ -199,24 +244,21 @@ export async function GET(req: Request) {
           ).catch(() => {});
         }
       }
-    }
 
-    // 8. Log (always — even if distribution partially failed, the message existed)
-    await db.insert(commentaryLog).values({
-      id: logId,
-      gameId: pick.game.gameId,
-      sport: pick.game.sport,
-      message: result.message,
-      postedAt: Math.floor(Date.now() / 1000),
-      gameState: JSON.stringify({
-        score: `${pick.game.score1}-${pick.game.score2}`,
-        period: pick.game.period,
-        clock: pick.game.clock,
-      }),
-      category: pick.category,
-      bucket: result.bucket,
-      language: result.language,
-    });
+      // Log Buffer row (with channel='buffer')
+      await db.insert(commentaryLog).values({
+        id: bufferLogId,
+        gameId: pick.game.gameId,
+        sport: pick.game.sport,
+        message: bufferResult.message,
+        postedAt: Math.floor(Date.now() / 1000),
+        gameState: gameStateJson,
+        category: pick.category,
+        bucket: bufferResult.bucket,
+        language: bufferResult.language,
+        channel: "buffer",
+      });
+    }
 
     // 8. Cleanup: delete rows older than 7 days
     const sevenDaysAgo = Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60;
@@ -230,16 +272,17 @@ export async function GET(req: Request) {
       categoryReason: pick.reason,
       game: `${pick.game.team1} vs ${pick.game.team2}`,
       sport: pick.game.sport,
-      language: result.language,
-      bucket: result.bucket,
       channels: {
         telegram: telegramSent,
         telegramRoutedTo: routing.telegram,
+        telegramLanguage: telegramResult?.ok ? telegramResult.language : null,
+        telegramMessage: telegramResult?.ok ? telegramResult.message : null,
         buffer: bufferSent,
         bufferRoutedTo: routing.buffer,
+        bufferMessage: bufferResult?.ok ? bufferResult.message : null,
+        bufferFailedChannels,
         bufferTokenSet: !!(process.env.BUFFER_LIVE_TOKEN || process.env.BUFFER_ACCESS_TOKEN),
       },
-      message: result.message,
       candidatesConsidered: candidates.length,
     });
   } catch (error) {
