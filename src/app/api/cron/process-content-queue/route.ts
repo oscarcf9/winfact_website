@@ -239,11 +239,13 @@ export async function GET(req: Request) {
 
         // Telegram (always, not random — randomness is in social-posting for Buffer).
         // Hashtags are stripped (noise on chat feeds, don't drive discovery
-        // there). Uses the 1080x1080 square variant when available — a 4:5
-        // portrait crops awkwardly in Telegram's message bubble.
+        // there). The LLM bakes a hashtag block into captionEn itself (per the
+        // filler-content prompt), so removing item.hashtags isn't enough — we
+        // also strip inline #tokens. Uses the 1080x1080 square variant when
+        // available; a 4:5 portrait crops awkwardly in Telegram's bubble.
         if (TELEGRAM_FREE_CHAT_ID && item.imageUrl) {
           try {
-            let caption = item.captionEn || item.title;
+            let caption = stripHashtagsForTelegram(item.captionEn || item.title);
             if (caption.length > 1024) caption = caption.substring(0, 1021) + "...";
 
             const telegramPhotoUrl = item.telegramImageUrl || item.imageUrl;
@@ -356,4 +358,12 @@ export async function GET(req: Request) {
     console.error("Content queue cron error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
+}
+
+function stripHashtagsForTelegram(caption: string): string {
+  return caption
+    .replace(/#[\p{L}\p{N}_]+/gu, "")
+    .replace(/[ \t]+$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
