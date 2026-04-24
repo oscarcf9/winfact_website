@@ -28,7 +28,7 @@ import {
  *
  * Dry mode skips real posting but runs Claude generation.
  */
-export async function POST(req: Request) {
+async function handle(req: Request): Promise<Response> {
   const admin = await requireAdmin();
   if (admin.error) return admin.error;
 
@@ -46,6 +46,11 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ error: `Unknown job: ${job}. Valid: commentary, filler` }, { status: 400 });
 }
+
+// Accept both GET and POST so the admin can hit the endpoint from the browser
+// URL bar without needing to craft a POST. Both forms behave identically.
+export const GET = handle;
+export const POST = handle;
 
 /**
  * Trigger the filler-content cron by making an internal fetch with the

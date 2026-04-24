@@ -201,9 +201,15 @@ function buildMutation(args: {
   const assetsBlock = args.imageUrl
     ? `assets: { images: [{ url: ${JSON.stringify(args.imageUrl)} }] }`
     : "";
+  // Buffer's CreatePostInput requires `mode: ShareMode!` on ALL posts.
+  //   - shareNow: publish immediately (commentary / win celebrations)
+  //   - addToQueue: append to account queue (filler / victory / blog)
+  // Earlier the immediate branch only set `schedulingType: immediate`, which
+  // made Buffer reject every live-commentary post with a GraphQL validation
+  // error and left X/Threads silent for weeks.
   const scheduleBlock = args.publishNow
-    ? `schedulingType: immediate`
-    : `schedulingType: automatic, mode: addToQueue`;
+    ? `mode: shareNow`
+    : `mode: addToQueue`;
   const metadataBlock = args.channelId === args.facebookId
     ? `, metadata: { facebook: { type: post } }`
     : "";

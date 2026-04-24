@@ -27,6 +27,8 @@ export async function GET() {
     postsWithImages,
     postsWithoutImages,
     lastSuccessPerChannel,
+    instagramFailures,
+    facebookFailures,
   ] = await Promise.all([
     // Per-channel × per-status counts (last 7 days)
     db
@@ -105,6 +107,34 @@ export async function GET() {
       .from(distributionLog)
       .where(eq(distributionLog.status, "success"))
       .groupBy(distributionLog.channel),
+
+    // Last 10 Instagram failures with full error (these hide behind commentary spam)
+    db
+      .select({
+        id: distributionLog.id,
+        channel: distributionLog.channel,
+        contentType: distributionLog.contentType,
+        error: distributionLog.error,
+        createdAt: distributionLog.createdAt,
+      })
+      .from(distributionLog)
+      .where(and(eq(distributionLog.status, "failed"), eq(distributionLog.channel, "instagram")))
+      .orderBy(desc(distributionLog.createdAt))
+      .limit(10),
+
+    // Last 10 Facebook failures
+    db
+      .select({
+        id: distributionLog.id,
+        channel: distributionLog.channel,
+        contentType: distributionLog.contentType,
+        error: distributionLog.error,
+        createdAt: distributionLog.createdAt,
+      })
+      .from(distributionLog)
+      .where(and(eq(distributionLog.status, "failed"), eq(distributionLog.channel, "facebook")))
+      .orderBy(desc(distributionLog.createdAt))
+      .limit(10),
   ]);
 
   // Reshape perChannelTotals into { channel: { success: N, failed: N, byContentType: {...} } }
@@ -145,6 +175,16 @@ export async function GET() {
       createdAtIso: r.createdAt ? new Date(r.createdAt * 1000).toISOString() : null,
     })),
     recentQueueFailures,
+    failuresByChannel: {
+      instagram: instagramFailures.map((r) => ({
+        ...r,
+        createdAtIso: r.createdAt ? new Date(r.createdAt * 1000).toISOString() : null,
+      })),
+      facebook: facebookFailures.map((r) => ({
+        ...r,
+        createdAtIso: r.createdAt ? new Date(r.createdAt * 1000).toISOString() : null,
+      })),
+    },
     blogImageCoverage: {
       withImage: Number(postsWithImages[0]?.count ?? 0),
       withoutImage: Number(postsWithoutImages[0]?.count ?? 0),
