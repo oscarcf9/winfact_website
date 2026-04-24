@@ -64,6 +64,13 @@
       "when": 1776470913130,
       "tag": "0008_flowery_the_santerians",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1777651200000,
+      "tag": "0009_parlay_support",
+      "breakpoints": true
     }
   ]
 }

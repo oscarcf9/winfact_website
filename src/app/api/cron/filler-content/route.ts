@@ -6,6 +6,7 @@ import { getSiteContent } from "@/db/queries/site-content";
 import { fetchScoreboard, toESPNDate } from "@/lib/espn";
 import { generateMatchupImage } from "@/lib/ai-image";
 import { notifyAdmin } from "@/lib/notifications";
+import { sendAdminNotification } from "@/lib/telegram";
 import Anthropic from "@anthropic-ai/sdk";
 
 let _anthropic: Anthropic | null = null;
@@ -172,6 +173,7 @@ export async function GET(req: Request) {
     // 6. Generate content for each game
     let generated = 0;
     let skipped = 0;
+    const imageGenFailures: string[] = [];
 
     for (const game of selected) {
       try {
@@ -188,6 +190,8 @@ export async function GET(req: Request) {
 
         if (imageResult.error || !imageResult.url) {
           console.error(`[filler] Image failed for ${title}:`, imageResult.error);
+          // Alert admin so silent image-gen breakage stops looking like "filler disabled"
+          imageGenFailures.push(`${title} — ${imageResult.error || "no url returned"}`);
           skipped++;
           continue;
         }
@@ -252,10 +256,23 @@ export async function GET(req: Request) {
       });
     }
 
+    // If EVERY candidate failed image generation, alert admin loudly — this usually
+    // means the OpenAI key/quota is broken or R2 is misconfigured, which silently
+    // starves Instagram + other channels of visual content.
+    if (imageGenFailures.length > 0 && generated === 0 && selected.length > 0) {
+      sendAdminNotification(
+        `⚠️ <b>Filler cron: ALL ${imageGenFailures.length} images failed</b>\n\n` +
+          `No filler posts were generated this tick. This starves Instagram + Facebook/X/Threads of visual content.\n\n` +
+          `Failures:\n${imageGenFailures.slice(0, 5).join("\n")}\n\n` +
+          `Check OPENAI_API_KEY, OpenAI quota, and R2 config.`
+      ).catch(() => {});
+    }
+
     return NextResponse.json({
       status: "done",
       generated,
       skipped,
+      imageGenFailures: imageGenFailures.length,
       duplicatesSkipped: existingIds.size,
       total: selected.length,
     });

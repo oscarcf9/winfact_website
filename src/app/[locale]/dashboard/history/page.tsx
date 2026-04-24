@@ -38,6 +38,16 @@ export default async function PickHistoryPage() {
     publishedAt: p.publishedAt,
     settledAt: p.settledAt,
     createdAt: p.createdAt,
+    pickType: p.pickType as "single" | "parlay" | null,
+    legCount: p.legCount,
+    legs: p.legs?.map((l) => ({
+      legIndex: l.legIndex,
+      sport: l.sport,
+      matchup: l.matchup,
+      pickText: l.pickText,
+      odds: l.odds,
+      result: l.result as "win" | "loss" | "push" | "void" | null,
+    })),
   }));
 
   return <PickHistory picks={serializedPicks} locale={locale} isVip={isVip} />;

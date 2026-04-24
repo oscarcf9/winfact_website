@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Lock, Crown, X, Zap, Check } from "lucide-react";
+import { Lock, Crown, X, Zap, Check, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StarRating, confidenceToStars } from "@/components/ui/star-rating";
 
@@ -13,6 +13,15 @@ const SPORT_COLORS: Record<string, string> = {
   NHL: "#000000",
   Soccer: "#326b3f",
   NCAA: "#ff6b00",
+};
+
+type PickLeg = {
+  legIndex: number;
+  sport: string;
+  matchup: string;
+  pickText: string;
+  odds?: number | null;
+  result?: "win" | "loss" | "push" | "void" | null;
 };
 
 type PickCardProps = {
@@ -37,6 +46,9 @@ type PickCardProps = {
     clv?: number | null;
     publishedAt?: string | null;
     settledAt?: string | null;
+    pickType?: "single" | "parlay" | null;
+    legCount?: number | null;
+    legs?: PickLeg[] | null;
   };
   locale?: string;
   isVipMember?: boolean;
@@ -231,6 +243,7 @@ export function PickCard({ pick, locale = "en", isVipMember = true, showAnalysis
   const isLocked = pick.tier === "vip" && !isVipMember;
   const analysis = locale === "es" && pick.analysisEs ? pick.analysisEs : pick.analysisEn;
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const isParlay = pick.pickType === "parlay" && Array.isArray(pick.legs) && pick.legs.length >= 2;
 
   return (
     <>
@@ -269,6 +282,12 @@ export function PickCard({ pick, locale = "en", isVipMember = true, showAnalysis
             <Badge variant="sport" sportColor={SPORT_COLORS[pick.sport] || "#666"}>
               {pick.sport}
             </Badge>
+            {isParlay && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1168D9]/10 text-[#1168D9]">
+                <Layers className="h-3 w-3" />
+                {pick.legs!.length}-LEG PARLAY
+              </span>
+            )}
             {(pick.stars || pick.confidence) && (
               <StarRating
                 value={pick.stars ?? confidenceToStars(pick.confidence ?? null)}
@@ -293,18 +312,75 @@ export function PickCard({ pick, locale = "en", isVipMember = true, showAnalysis
             {pick.matchup}
           </h3>
 
-          {/* Pick details */}
-          <div className="flex items-center gap-4 text-sm text-gray-600 mb-3 flex-wrap">
-            <span className="font-mono font-semibold text-[#0B1F3B]">{pick.pickText}</span>
-            {pick.odds != null && <span className="font-mono">{formatOdds(pick.odds)}</span>}
-            {pick.units != null && <span>{pick.units}u</span>}
-            {pick.modelEdge != null && (
-              <span className="text-[#0BC4D9]">
-                {pick.modelEdge > 0 ? "+" : ""}
-                {pick.modelEdge.toFixed(1)}% edge
-              </span>
-            )}
-          </div>
+          {/* Parlay legs list (renders in place of pickText for parlays) */}
+          {isParlay ? (
+            <>
+              <ul className="mt-2 mb-3 space-y-1.5">
+                {pick.legs!.map((leg) => (
+                  <li
+                    key={leg.legIndex}
+                    className="flex items-start gap-2 text-sm"
+                  >
+                    <span className="shrink-0 mt-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-[10px] font-bold text-gray-500">
+                      {leg.legIndex + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                          {leg.sport}
+                        </span>
+                        <span className="text-xs text-gray-500 truncate">{leg.matchup}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="font-mono font-semibold text-[#0B1F3B] text-sm">
+                          {leg.pickText}
+                        </span>
+                        {leg.odds != null && (
+                          <span className="font-mono text-xs text-gray-500">
+                            {formatOdds(leg.odds)}
+                          </span>
+                        )}
+                        {leg.result && (
+                          <span
+                            className={cn(
+                              "px-1.5 py-0.5 rounded text-[9px] font-bold",
+                              leg.result === "win" && "bg-[#22C55E]/10 text-[#22C55E]",
+                              leg.result === "loss" && "bg-[#EF4444]/10 text-[#EF4444]",
+                              leg.result === "push" && "bg-[#F59E0B]/10 text-[#F59E0B]",
+                              leg.result === "void" && "bg-gray-100 text-gray-500"
+                            )}
+                          >
+                            {leg.result.toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex items-center gap-4 text-xs text-gray-500 mb-3 flex-wrap border-t border-gray-100 pt-2">
+                {pick.odds != null && (
+                  <span className="font-mono font-semibold text-[#0B1F3B]">
+                    Parlay {formatOdds(pick.odds)}
+                  </span>
+                )}
+                {pick.units != null && <span>{pick.units}u</span>}
+              </div>
+            </>
+          ) : (
+            /* Pick details — single pick */
+            <div className="flex items-center gap-4 text-sm text-gray-600 mb-3 flex-wrap">
+              <span className="font-mono font-semibold text-[#0B1F3B]">{pick.pickText}</span>
+              {pick.odds != null && <span className="font-mono">{formatOdds(pick.odds)}</span>}
+              {pick.units != null && <span>{pick.units}u</span>}
+              {pick.modelEdge != null && (
+                <span className="text-[#0BC4D9]">
+                  {pick.modelEdge > 0 ? "+" : ""}
+                  {pick.modelEdge.toFixed(1)}% edge
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Analysis */}
           {showAnalysis && analysis && !isLocked && (

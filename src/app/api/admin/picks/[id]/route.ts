@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { db } from "@/db";
-import { picks } from "@/db/schema";
+import { picks, parlayLegs } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { refreshPerformanceCache } from "@/lib/refresh-performance";
 import { distributePickOnPublish } from "@/lib/delivery";
@@ -204,6 +204,9 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
 
   try {
     const { id } = await context.params;
+    // Remove any parlay legs first so we don't leave orphans
+    // (SQLite schema has no ON DELETE CASCADE here).
+    await db.delete(parlayLegs).where(eq(parlayLegs.pickId, id));
     await db.delete(picks).where(eq(picks.id, id));
 
     await logAdminAction({

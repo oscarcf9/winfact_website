@@ -2,15 +2,29 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { picks } from "@/db/schema";
 import { eq, isNull, and } from "drizzle-orm";
-import { fetchScoreboard, toESPNDate } from "@/lib/espn";
+import { fetchScoreboard } from "@/lib/espn";
 import { evaluatePick } from "@/lib/pick-settler";
 import { teamsMatch } from "@/lib/team-normalizer";
 import type { ESPNGame } from "@/lib/espn";
 import { refreshPerformanceCache } from "@/lib/refresh-performance";
 import { sendAdminNotification, sendTelegramMessage } from "@/lib/telegram";
 import { formatWinCelebrationMessage } from "@/lib/telegram-templates";
-import { postToBuffer } from "@/lib/buffer";
+import { postToBufferWithMedia } from "@/lib/buffer";
+
+/**
+ * Text-only win celebration → Twitter + Threads ONLY (via Buffer).
+ * Instagram rejects text-only posts and burns Buffer API quota.
+ * Facebook's text-only wall posts look awkward without context.
+ * Until we have a victory graphic attached, route to text_only.
+ */
+function postWinCelebrationToBuffer(message: string, pickId: string) {
+  return postToBufferWithMedia(message, undefined, undefined, "text_only", {
+    contentType: "victory",
+    referenceId: pickId,
+  });
+}
 import { queueVictoryPost } from "@/lib/victory-post-pipeline";
+import { settleParlay } from "@/lib/parlay-settler";
 
 const TELEGRAM_FREE_CHAT_ID = process.env.TELEGRAM_FREE_CHAT_ID || "";
 
@@ -63,10 +77,65 @@ export async function GET(req: Request) {
       return NextResponse.json({ message: "No picks to settle", logs: [] });
     }
 
-    // 2. Group picks by sport + date for efficient ESPN fetching
-    const picksBySportDate = new Map<string, typeof unsettledPicks>();
+    const scoreboardCache = new Map<string, ESPNGame[]>();
 
-    for (const pick of unsettledPicks) {
+    // --- Handle parlays first (per-leg evaluation, multi-sport possible) ---
+    const parlayPicks = unsettledPicks.filter((p) => p.pickType === "parlay");
+    const singlePicks = unsettledPicks.filter((p) => p.pickType !== "parlay");
+
+    for (const pick of parlayPicks) {
+      const log: SettlementLog = {
+        pickId: pick.id,
+        sport: pick.sport,
+        matchup: pick.matchup,
+        pickText: pick.pickText,
+        gameFound: false,
+        autoSettled: false,
+      };
+
+      try {
+        const verdict = await settleParlay(pick.id, scoreboardCache);
+        log.result = verdict.overall;
+        log.reason = verdict.reason;
+        log.confidence = "high";
+
+        if (verdict.overall === "win" || verdict.overall === "loss" || verdict.overall === "push") {
+          await db
+            .update(picks)
+            .set({
+              result: verdict.overall,
+              status: "settled",
+              settledAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            })
+            .where(eq(picks.id, pick.id));
+          log.autoSettled = true;
+
+          if (verdict.overall === "win") {
+            const message = formatWinCelebrationMessage({
+              sport: pick.sport,
+              matchup: pick.matchup,
+              pickText: pick.pickText,
+            });
+            sendTelegramPlain(message).catch((err) =>
+              console.error("[settle-picks] Parlay win celebration failed:", err)
+            );
+            postWinCelebrationToBuffer(message, pick.id).catch((err) =>
+              console.error("[settle-picks] Parlay Buffer celebration failed:", err)
+            );
+          }
+        }
+      } catch (err) {
+        log.reason = `Parlay settler error: ${err instanceof Error ? err.message : String(err)}`;
+      }
+
+      logs.push(log);
+    }
+
+    // 2. Group singles by sport + date for efficient ESPN fetching
+    const picksBySportDate = new Map<string, typeof singlePicks>();
+
+    for (const pick of singlePicks) {
       // Determine game date from pick
       const gameDate = pick.gameDate || pick.publishedAt?.split("T")[0] || pick.createdAt?.split("T")[0];
       if (!gameDate) continue;
@@ -80,8 +149,7 @@ export async function GET(req: Request) {
       picksBySportDate.get(key)!.push(pick);
     }
 
-    // 3. Fetch scores and evaluate each pick
-    const scoreboardCache = new Map<string, ESPNGame[]>();
+    // 3. Fetch scores and evaluate each single pick (shares scoreboardCache with parlays)
 
     for (const [key, sportPicks] of picksBySportDate) {
       const [sport, date] = key.split("|");
@@ -177,7 +245,7 @@ export async function GET(req: Request) {
               console.error("[settle-picks] Win celebration failed:", err)
             );
 
-            postToBuffer(message).catch((err) =>
+            postWinCelebrationToBuffer(message, pick.id).catch((err) =>
               console.error("[settle-picks] Buffer win celebration failed:", err)
             );
 

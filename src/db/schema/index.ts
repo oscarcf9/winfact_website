@@ -1,6 +1,7 @@
 export { users } from "./users";
 export { subscriptions } from "./subscriptions";
 export { picks } from "./picks";
+export { parlayLegs } from "./parlay-legs";
 export { posts, postTags } from "./posts";
 export { media } from "./media";
 export { referrals } from "./referrals";

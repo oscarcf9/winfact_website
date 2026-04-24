@@ -18,6 +18,8 @@ export const picks = sqliteTable("picks", {
   analysisEn: text("analysis_en"),
   analysisEs: text("analysis_es"),
   tier: text("tier", { enum: ["free", "vip"] }).default("vip"),
+  pickType: text("pick_type", { enum: ["single", "parlay"] }).default("single"),
+  legCount: integer("leg_count"),
   status: text("status", {
     enum: ["draft", "published", "settled"],
   }).default("draft"),
@@ -39,4 +41,5 @@ export const picks = sqliteTable("picks", {
   index("idx_picks_sport_status").on(table.sport, table.status),
   index("idx_picks_status_published").on(table.status, table.publishedAt),
   index("idx_picks_status_result").on(table.status, table.result),
+  index("idx_picks_pick_type").on(table.pickType),
 ]));

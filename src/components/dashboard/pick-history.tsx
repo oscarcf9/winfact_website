@@ -16,6 +16,15 @@ import {
   Crown,
 } from "lucide-react";
 
+type PickLeg = {
+  legIndex: number;
+  sport: string;
+  matchup: string;
+  pickText: string;
+  odds?: number | null;
+  result?: "win" | "loss" | "push" | "void" | null;
+};
+
 type Pick = {
   id: string;
   sport: string;
@@ -37,6 +46,9 @@ type Pick = {
   publishedAt?: string | null;
   settledAt?: string | null;
   createdAt?: string | null;
+  pickType?: "single" | "parlay" | null;
+  legCount?: number | null;
+  legs?: PickLeg[] | null;
 };
 
 type Props = {
@@ -295,6 +307,10 @@ export function PickHistory({ picks, locale, isVip }: Props) {
                   <div className="border-t border-gray-100 divide-y divide-gray-50">
                     {groupPicks.map((pick) => {
                       const isLocked = pick.tier === "vip" && !isVip;
+                      const isParlay =
+                        pick.pickType === "parlay" &&
+                        Array.isArray(pick.legs) &&
+                        pick.legs.length >= 2;
 
                       return (
                         <div key={pick.id} className="relative px-4 py-3">
@@ -306,7 +322,9 @@ export function PickHistory({ picks, locale, isVip }: Props) {
                                 <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
                                   {pick.sport}
                                 </span>
-                                <span className="text-xs text-gray-400">VIP Pick</span>
+                                <span className="text-xs text-gray-400">
+                                  {isParlay ? `${pick.legs!.length}-Leg Parlay` : "VIP Pick"}
+                                </span>
                               </div>
                               <span className="flex items-center gap-1 text-xs font-medium text-[#1168D9]">
                                 <Crown className="h-3 w-3 text-amber-500" />
@@ -315,10 +333,10 @@ export function PickHistory({ picks, locale, isVip }: Props) {
                             </div>
                           )}
 
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-start gap-3">
                             {/* Result dot */}
                             <div
-                              className="w-2 h-2 rounded-full shrink-0"
+                              className="w-2 h-2 rounded-full shrink-0 mt-2"
                               style={{
                                 backgroundColor:
                                   pick.result === "win"
@@ -330,33 +348,65 @@ export function PickHistory({ picks, locale, isVip }: Props) {
                             />
 
                             {/* Sport badge */}
-                            <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider w-10 shrink-0">
+                            <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider w-10 shrink-0 mt-1">
                               {pick.sport}
                             </span>
 
                             {/* Matchup + Pick */}
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm text-[#0B1F3B] font-medium truncate">
-                                {pick.matchup}
-                              </p>
-                              <div className="flex items-center gap-2 text-xs text-gray-500">
-                                <span className="font-mono font-semibold text-[#0B1F3B]">
-                                  {pick.pickText}
-                                </span>
-                                {pick.odds != null && (
-                                  <span className="font-mono">
-                                    {pick.odds > 0 ? `+${pick.odds}` : pick.odds}
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm text-[#0B1F3B] font-medium truncate">
+                                  {pick.matchup}
+                                </p>
+                                {isParlay && (
+                                  <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#1168D9]/10 text-[#1168D9]">
+                                    {pick.legs!.length}-LEG
                                   </span>
                                 )}
-                                {pick.units != null && (
-                                  <span>{pick.units}u</span>
-                                )}
                               </div>
+                              {isParlay ? (
+                                <ul className="mt-1 space-y-0.5">
+                                  {pick.legs!.map((leg) => (
+                                    <li
+                                      key={leg.legIndex}
+                                      className="flex items-center gap-2 text-xs"
+                                    >
+                                      <span className="text-gray-300">·</span>
+                                      <span className="text-gray-500 truncate">{leg.pickText}</span>
+                                      {leg.result && (
+                                        <span
+                                          className={`shrink-0 font-mono font-bold ${
+                                            leg.result === "win"
+                                              ? "text-[#22C55E]"
+                                              : leg.result === "loss"
+                                                ? "text-[#EF4444]"
+                                                : "text-[#F59E0B]"
+                                          }`}
+                                        >
+                                          {leg.result === "win" ? "✓" : leg.result === "loss" ? "✗" : "—"}
+                                        </span>
+                                      )}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                  <span className="font-mono font-semibold text-[#0B1F3B]">
+                                    {pick.pickText}
+                                  </span>
+                                  {pick.odds != null && (
+                                    <span className="font-mono">
+                                      {pick.odds > 0 ? `+${pick.odds}` : pick.odds}
+                                    </span>
+                                  )}
+                                  {pick.units != null && <span>{pick.units}u</span>}
+                                </div>
+                              )}
                             </div>
 
                             {/* Result badge */}
                             <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 mt-1 ${
                                 pick.result === "win"
                                   ? "bg-[#22C55E]/10 text-[#22C55E]"
                                   : pick.result === "loss"
@@ -369,7 +419,7 @@ export function PickHistory({ picks, locale, isVip }: Props) {
 
                             {/* Units +/- */}
                             <span
-                              className={`font-mono text-xs font-bold shrink-0 w-14 text-right ${
+                              className={`font-mono text-xs font-bold shrink-0 w-14 text-right mt-1 ${
                                 pick.result === "win"
                                   ? "text-[#22C55E]"
                                   : pick.result === "loss"

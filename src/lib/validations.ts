@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+export const parlayLegSchema = z.object({
+  sport: z.string().min(1).max(50),
+  league: z.string().max(100).optional().nullable(),
+  matchup: z.string().min(3).max(200),
+  pickText: z.string().min(2).max(200),
+  gameDate: z.string().max(20).optional().nullable(),
+  odds: z.number().int().min(-10000).max(10000).optional().nullable(),
+});
+
 export const createPickSchema = z.object({
   sport: z.string().min(1).max(50),
   league: z.string().max(100).optional().nullable(),
@@ -18,9 +27,16 @@ export const createPickSchema = z.object({
   result: z.enum(["win", "loss", "push", "void"]).optional().nullable(),
   closingOdds: z.number().int().min(-10000).max(10000).optional().nullable(),
   distribute: z.boolean().optional(),
+  pickType: z.enum(["single", "parlay"]).optional(),
+  legs: z.array(parlayLegSchema).min(2).max(10).optional(),
 });
 
 export const updatePickSchema = createPickSchema.partial();
+
+export const createPicksBatchSchema = z.object({
+  picks: z.array(createPickSchema).min(1).max(10),
+  distribute: z.boolean().optional(),
+});
 
 export const createPostSchema = z.object({
   titleEn: z.string().min(3).max(300),

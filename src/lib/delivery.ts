@@ -1,6 +1,6 @@
 import { db } from "@/db";
-import { deliveryQueue, deliveryLogs, picks } from "@/db/schema";
-import { eq, and, lt, isNull } from "drizzle-orm";
+import { deliveryQueue, deliveryLogs, picks, parlayLegs } from "@/db/schema";
+import { eq, and, lt, isNull, asc } from "drizzle-orm";
 import { sendPickToTelegram, sendVipTeaserToTelegram, sendAdminNotification } from "./telegram";
 import { sendPickEmail } from "./mailerlite";
 import { withRetry } from "./retry";
@@ -90,7 +90,7 @@ export async function processDeliveryQueue(): Promise<{
   for (const item of due) {
     processed++;
 
-    // Get the pick
+    // Get the pick (with legs if parlay)
     const pick = item.pickId
       ? await db.select().from(picks).where(eq(picks.id, item.pickId)).then((r) => r[0])
       : null;
@@ -105,6 +105,15 @@ export async function processDeliveryQueue(): Promise<{
       continue;
     }
 
+    const pickLegs = pick.pickType === "parlay"
+      ? await db
+          .select()
+          .from(parlayLegs)
+          .where(eq(parlayLegs.pickId, pick.id))
+          .orderBy(asc(parlayLegs.legIndex))
+      : [];
+    const pickWithLegs = { ...pick, legs: pickLegs };
+
     const channels: ChannelType[] = JSON.parse(item.channels || "[]");
     const channelResults: { channel: string; ok: boolean; error?: string }[] = [];
 
@@ -116,11 +125,11 @@ export async function processDeliveryQueue(): Promise<{
 
       try {
         if (channel === "telegram_free" && pick.tier === "vip") {
-          result = await sendVipTeaserToTelegram(pick);
+          result = await sendVipTeaserToTelegram(pickWithLegs);
         } else if (channel === "telegram_free" || channel === "telegram_vip") {
-          result = await sendPickToTelegram(pick, channel);
+          result = await sendPickToTelegram(pickWithLegs, channel);
         } else if (channel === "email") {
-          result = await sendPickEmail(pick, item.tier as "free" | "vip");
+          result = await sendPickEmail(pickWithLegs, item.tier as "free" | "vip");
         }
       } catch (err) {
         result = { ok: false, error: err instanceof Error ? err.message : String(err) };
@@ -223,6 +232,8 @@ export async function distributePickOnPublish(
     analysisEs?: string | null;
     tier?: string | null;
     modelEdge?: number | null;
+    pickType?: string | null;
+    legs?: Array<{ sport: string; matchup: string; pickText: string; odds?: number | null }>;
   }
 ): Promise<void> {
   const tier = (pickData.tier as "free" | "vip") || "vip";
@@ -284,25 +295,33 @@ export async function distributePickOnPublish(
     await deliverChannel("email", () => sendPickEmail(pickData, tier));
 
     // 3. Push notifications
+    const isParlay = pickData.pickType === "parlay" && !!pickData.legs && pickData.legs.length >= 2;
+    const pushTitleBase = isParlay
+      ? `${pickData.legs!.length}-Leg ${pickData.sport} Parlay`
+      : `${pickData.sport} Pick`;
+    const pushBody = isParlay
+      ? `${pickData.legs!.length}-leg parlay${pickData.odds ? ` (${pickData.odds > 0 ? '+' : ''}${pickData.odds})` : ''}`
+      : `${pickData.matchup} — ${pickData.pickText}${pickData.odds ? ` (${pickData.odds > 0 ? '+' : ''}${pickData.odds})` : ''}`;
+
     await deliverChannel("push", async () => {
       try {
         if (tier === "free") {
           await sendPushToAll({
-            title: `New ${pickData.sport} Pick`,
-            body: `${pickData.matchup} — ${pickData.pickText}${pickData.odds ? ` (${pickData.odds > 0 ? '+' : ''}${pickData.odds})` : ''}`,
+            title: `New ${pushTitleBase}`,
+            body: pushBody,
             data: { pickId, screen: 'pick' },
           });
         } else {
           // Full notification to VIP users
           await sendPushToTier('vip', {
-            title: `New VIP ${pickData.sport} Pick`,
-            body: `${pickData.matchup} — ${pickData.pickText}${pickData.odds ? ` (${pickData.odds > 0 ? '+' : ''}${pickData.odds})` : ''}`,
+            title: `New VIP ${pushTitleBase}`,
+            body: pushBody,
             data: { pickId, screen: 'pick' },
           });
           // Teaser to free users
           await sendPushToTier('free', {
-            title: `VIP Pick Available`,
-            body: `A new ${pickData.sport} VIP pick just dropped. Upgrade to unlock it.`,
+            title: `VIP ${isParlay ? 'Parlay' : 'Pick'} Available`,
+            body: `A new ${pickData.sport} VIP ${isParlay ? 'parlay' : 'pick'} just dropped. Upgrade to unlock it.`,
             data: { screen: 'upgrade' },
           });
         }

@@ -151,7 +151,7 @@ export async function GET(req: Request) {
           .where(eq(posts.id, item.referenceId));
 
         const [post] = await db
-          .select({ slug: posts.slug, titleEn: posts.titleEn, titleEs: posts.titleEs })
+          .select({ slug: posts.slug, titleEn: posts.titleEn, titleEs: posts.titleEs, featuredImage: posts.featuredImage })
           .from(posts)
           .where(eq(posts.id, item.referenceId))
           .limit(1);
@@ -159,8 +159,10 @@ export async function GET(req: Request) {
         if (post?.slug) {
           const blogUrl = `${SITE_URL}/en/blog/${post.slug}`;
           const title = post.titleEs || post.titleEn || item.title;
+          // Prefer the post row's featuredImage; fall back to the queue row's snapshot.
+          const imageUrl = post.featuredImage || item.imageUrl || null;
           try {
-            const result = await postBlogToSocial({ title, url: blogUrl });
+            const result = await postBlogToSocial({ title, url: blogUrl, imageUrl });
             bufferOk = result.ok;
             if (!result.ok) bufferError = result.error || "Blog social share failed";
           } catch (err) {

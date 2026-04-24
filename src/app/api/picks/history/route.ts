@@ -7,13 +7,31 @@ import { requireVip } from "@/lib/vip-auth";
 const PUBLIC_PICK_FIELDS = [
   "id", "sport", "league", "matchup", "pickText", "gameDate", "odds", "units",
   "confidence", "analysisEn", "analysisEs", "tier", "status", "result",
-  "publishedAt", "settledAt",
+  "publishedAt", "settledAt", "pickType", "legCount",
 ] as const;
+
+const PUBLIC_LEG_FIELDS = [
+  "legIndex", "sport", "matchup", "pickText", "odds", "result",
+] as const;
+
+function sanitizeLegs(legs: unknown): Record<string, unknown>[] | null {
+  if (!Array.isArray(legs)) return null;
+  return legs.map((leg: Record<string, unknown>) => {
+    const clean: Record<string, unknown> = {};
+    for (const key of PUBLIC_LEG_FIELDS) {
+      if (key in leg) clean[key] = leg[key];
+    }
+    return clean;
+  });
+}
 
 function sanitizePick(pick: Record<string, unknown>) {
   const clean: Record<string, unknown> = {};
   for (const key of PUBLIC_PICK_FIELDS) {
     if (key in pick) clean[key] = pick[key];
+  }
+  if (pick.pickType === "parlay") {
+    clean.legs = sanitizeLegs(pick.legs);
   }
   return clean;
 }

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { db } from "@/db";
-import { picks, users, gamesToday } from "@/db/schema";
+import { picks, users, gamesToday, parlayLegs } from "@/db/schema";
 import { eq, desc, and, gte, inArray } from "drizzle-orm";
 import { distributePickOnPublish } from "@/lib/delivery";
 import { logAdminAction } from "@/lib/audit";
 import { createPickSchema } from "@/lib/validations";
 import { runAutoBlog } from "@/lib/auto-blog";
+import { calculateParlayOdds } from "@/lib/parlay-odds";
 
 /**
  * Calculate the start of the current 4 AM ET visibility window.
@@ -157,14 +158,35 @@ export async function POST(req: NextRequest) {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
+    const isParlay = data.pickType === "parlay" && data.legs && data.legs.length >= 2;
+    const legs = isParlay ? data.legs! : [];
+
+    // For parlays, compute combined odds from legs if admin didn't provide one.
+    const computedOdds = isParlay
+      ? (data.odds ?? calculateParlayOdds(legs.map((l) => l.odds ?? null)))
+      : (data.odds ?? null);
+
+    // Parlay display fields — auto-generate sensible defaults.
+    const sportDisplay = isParlay
+      ? (Array.from(new Set(legs.map((l) => l.sport))).length === 1
+          ? legs[0].sport
+          : "Multi")
+      : data.sport;
+    const matchupDisplay = isParlay
+      ? `${legs.length}-Leg Parlay`
+      : data.matchup;
+    const pickTextDisplay = isParlay
+      ? legs.map((l) => `${l.pickText}${l.odds != null ? ` (${l.odds > 0 ? "+" : ""}${l.odds})` : ""}`).join(" + ")
+      : data.pickText;
+
     await db.insert(picks).values({
       id,
-      sport: data.sport,
+      sport: sportDisplay,
       league: data.league || null,
-      matchup: data.matchup,
-      pickText: data.pickText,
+      matchup: matchupDisplay,
+      pickText: pickTextDisplay.slice(0, 500),
       gameDate: data.gameDate || now.split("T")[0],
-      odds: data.odds || null,
+      odds: computedOdds,
       units: data.units || null,
       modelEdge: data.modelEdge || null,
       confidence: data.confidence || null,
@@ -172,6 +194,8 @@ export async function POST(req: NextRequest) {
       analysisEn: data.analysisEn || null,
       analysisEs: data.analysisEs || null,
       tier: data.tier || "vip",
+      pickType: isParlay ? "parlay" : "single",
+      legCount: isParlay ? legs.length : null,
       status: data.status || "draft",
       publishedAt: data.status === "published" ? now : null,
       settledAt: data.status === "settled" ? now : null,
@@ -180,33 +204,59 @@ export async function POST(req: NextRequest) {
       capperId: admin.userId,
     });
 
+    if (isParlay) {
+      await db.insert(parlayLegs).values(
+        legs.map((leg, idx) => ({
+          id: crypto.randomUUID(),
+          pickId: id,
+          legIndex: idx,
+          sport: leg.sport,
+          league: leg.league || null,
+          matchup: leg.matchup,
+          pickText: leg.pickText,
+          gameDate: leg.gameDate || data.gameDate || now.split("T")[0],
+          odds: leg.odds ?? null,
+          result: null,
+        }))
+      );
+    }
+
     await logAdminAction({
       adminUserId: admin.userId,
       action: "pick_created",
       targetType: "pick",
       targetId: id,
-      details: { sport: data.sport, matchup: data.matchup, tier: data.tier, status: data.status },
+      details: {
+        sport: sportDisplay,
+        matchup: matchupDisplay,
+        tier: data.tier,
+        status: data.status,
+        pickType: isParlay ? "parlay" : "single",
+        legCount: isParlay ? legs.length : undefined,
+      },
       request: req,
     });
 
-    // Backlink to gamesToday record if this pick matches a game
-    try {
-      const allGames = await db.select().from(gamesToday).where(eq(gamesToday.sport, data.sport));
-      const matchupLower = data.matchup.toLowerCase();
-      const matchingGame = allGames.find((g) => {
-        const gameMatchup = `${g.awayTeam} vs ${g.homeTeam}`.toLowerCase();
-        const gameMatchupAlt = `${g.homeTeam} vs ${g.awayTeam}`.toLowerCase();
-        return (
-          (matchupLower.includes(g.homeTeam.toLowerCase()) && matchupLower.includes(g.awayTeam.toLowerCase()))
-          || matchupLower === gameMatchup
-          || matchupLower === gameMatchupAlt
-        );
-      });
-      if (matchingGame) {
-        await db.update(gamesToday).set({ pickStatus: "posted", pickId: id }).where(eq(gamesToday.id, matchingGame.id));
+    // Backlink to gamesToday record — only for singles (parlays don't map 1:1 to a game)
+    if (!isParlay) {
+      try {
+        const allGames = await db.select().from(gamesToday).where(eq(gamesToday.sport, data.sport));
+        const matchupLower = data.matchup.toLowerCase();
+        const matchingGame = allGames.find((g) => {
+          const gameMatchup = `${g.awayTeam} vs ${g.homeTeam}`.toLowerCase();
+          const gameMatchupAlt = `${g.homeTeam} vs ${g.awayTeam}`.toLowerCase();
+          return (
+            (matchupLower.includes(g.homeTeam.toLowerCase()) && matchupLower.includes(g.awayTeam.toLowerCase()))
+            || matchupLower === gameMatchup
+            || matchupLower === gameMatchupAlt
+          );
+        });
+        if (matchingGame) {
+          await db.update(gamesToday).set({ pickStatus: "posted", pickId: id }).where(eq(gamesToday.id, matchingGame.id));
+        }
+      } catch (e) {
+        console.error("Failed to update gamesToday backlink:", e);
       }
-    } catch (e) {
-      console.error("Failed to update gamesToday backlink:", e);
     }
 
     // Distribute if requested — await so we can report status, but never block save
@@ -216,10 +266,10 @@ export async function POST(req: NextRequest) {
     if (data.status === "published" && data.distribute) {
       try {
         await distributePickOnPublish(id, {
-          sport: data.sport,
-          matchup: data.matchup,
-          pickText: data.pickText,
-          odds: data.odds || null,
+          sport: sportDisplay,
+          matchup: matchupDisplay,
+          pickText: pickTextDisplay,
+          odds: computedOdds,
           units: data.units || null,
           confidence: data.confidence || null,
           stars: data.stars || null,
@@ -227,6 +277,13 @@ export async function POST(req: NextRequest) {
           analysisEs: data.analysisEs || null,
           tier: data.tier || "vip",
           modelEdge: data.modelEdge || null,
+          pickType: isParlay ? "parlay" : "single",
+          legs: isParlay ? legs.map((l) => ({
+            sport: l.sport,
+            matchup: l.matchup,
+            pickText: l.pickText,
+            odds: l.odds ?? null,
+          })) : undefined,
         });
         distributed = true;
       } catch (err) {
@@ -237,7 +294,8 @@ export async function POST(req: NextRequest) {
 
     // Auto-blog generation — fire-and-forget, never blocks pick creation.
     // Feature gate is evaluated inside runAutoBlog (env var + site_content).
-    if (data.status === "published") {
+    // Skip auto-blog for parlays — the blog template is built around a single matchup.
+    if (data.status === "published" && !isParlay) {
       console.log(`[auto-blog] Triggering for pick ${id}: ${data.matchup}`);
       runAutoBlog({
         sport: data.sport,

@@ -17,11 +17,12 @@ export async function GET() {
   ];
 
   const [latestPost, latestVictory, latestCommentary, toggleRows, recentQueue] = await Promise.all([
+    // Fall back to publishedAt when createdAt is null — matches what the blog list shows.
     db
-      .select({ createdAt: posts.createdAt })
+      .select({ createdAt: posts.createdAt, publishedAt: posts.publishedAt })
       .from(posts)
       .where(or(eq(posts.status, "draft"), eq(posts.status, "published")))
-      .orderBy(desc(posts.createdAt))
+      .orderBy(desc(posts.publishedAt))
       .limit(1),
     db
       .select({ createdAt: victoryPosts.createdAt })
@@ -58,8 +59,27 @@ export async function GET() {
     return [k, row?.value ?? "NOT SET"];
   }));
 
+  // Effective state: env var overrides the admin toggle.
+  // Currently only blog_auto_generator has an env var override (ENABLE_AUTO_BLOG).
+  const envAutoBlog = process.env.ENABLE_AUTO_BLOG;
+  const effectiveState = {
+    blog_auto_generator:
+      envAutoBlog === "true" || envAutoBlog === "false"
+        ? { value: envAutoBlog, source: "env:ENABLE_AUTO_BLOG" as const }
+        : { value: toggles.blog_auto_generator, source: "site_content" as const },
+    live_commentary_enabled: {
+      value: toggles.live_commentary_enabled,
+      source: "site_content" as const,
+    },
+    filler_content_enabled: {
+      value: toggles.filler_content_enabled,
+      source: "site_content" as const,
+    },
+  };
+
   return NextResponse.json({
     toggles,
+    effectiveState,
     envCheck: {
       OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
       ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
@@ -72,7 +92,7 @@ export async function GET() {
       ENABLE_AUTO_BLOG: process.env.ENABLE_AUTO_BLOG || "not set",
     },
     lastActivity: {
-      lastBlog: latestPost[0]?.createdAt ?? null,
+      lastBlog: latestPost[0]?.publishedAt ?? latestPost[0]?.createdAt ?? null,
       lastVictoryPost: latestVictory[0]?.createdAt ?? null,
       lastCommentary: latestCommentary[0]
         ? new Date(latestCommentary[0].postedAt * 1000).toISOString()

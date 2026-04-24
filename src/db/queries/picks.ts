@@ -1,12 +1,41 @@
 import { db } from "@/db";
-import { picks } from "@/db/schema";
-import { eq, desc, and, gte } from "drizzle-orm";
+import { picks, parlayLegs } from "@/db/schema";
+import { eq, desc, and, gte, inArray, asc } from "drizzle-orm";
+
+type PickRow = typeof picks.$inferSelect;
+type LegRow = typeof parlayLegs.$inferSelect;
+export type PickWithLegs = PickRow & { legs?: LegRow[] };
+
+/**
+ * Enrich a list of picks with their parlay legs (for pickType='parlay' only).
+ * Single query by pick IDs, then grouped and attached.
+ */
+export async function attachParlayLegs<T extends PickRow>(
+  rows: T[]
+): Promise<(T & { legs?: LegRow[] })[]> {
+  const parlayIds = rows.filter((r) => r.pickType === "parlay").map((r) => r.id);
+  if (parlayIds.length === 0) return rows.map((r) => ({ ...r }));
+  const legs = await db
+    .select()
+    .from(parlayLegs)
+    .where(inArray(parlayLegs.pickId, parlayIds))
+    .orderBy(asc(parlayLegs.legIndex));
+  const byPick = new Map<string, LegRow[]>();
+  for (const leg of legs) {
+    if (!byPick.has(leg.pickId)) byPick.set(leg.pickId, []);
+    byPick.get(leg.pickId)!.push(leg);
+  }
+  return rows.map((r) => ({
+    ...r,
+    ...(r.pickType === "parlay" ? { legs: byPick.get(r.id) || [] } : {}),
+  }));
+}
 
 export async function getPublishedPicks(options?: {
   sport?: string;
   tier?: "free" | "vip";
   limit?: number;
-}) {
+}): Promise<PickWithLegs[]> {
   const conditions = [eq(picks.status, "published")];
 
   if (options?.sport) {
@@ -16,30 +45,32 @@ export async function getPublishedPicks(options?: {
     conditions.push(eq(picks.tier, options.tier));
   }
 
-  return db
+  const rows = await db
     .select()
     .from(picks)
     .where(and(...conditions))
     .orderBy(desc(picks.publishedAt))
     .limit(options?.limit ?? 50);
+  return attachParlayLegs(rows);
 }
 
 export async function getSettledPicks(options?: {
   sport?: string;
   limit?: number;
-}) {
+}): Promise<PickWithLegs[]> {
   const conditions = [eq(picks.status, "settled")];
 
   if (options?.sport) {
     conditions.push(eq(picks.sport, options.sport));
   }
 
-  return db
+  const rows = await db
     .select()
     .from(picks)
     .where(and(...conditions))
     .orderBy(desc(picks.settledAt))
     .limit(options?.limit ?? 100);
+  return attachParlayLegs(rows);
 }
 
 export async function getPickById(id: string) {
@@ -119,9 +150,9 @@ function getWindowStart(): string {
   return windowStartUTC.toISOString();
 }
 
-export async function getTodayPicks() {
+export async function getTodayPicks(): Promise<PickWithLegs[]> {
   const windowStart = getWindowStart();
-  return db
+  const rows = await db
     .select()
     .from(picks)
     .where(
@@ -131,11 +162,12 @@ export async function getTodayPicks() {
       )
     )
     .orderBy(desc(picks.publishedAt));
+  return attachParlayLegs(rows);
 }
 
-export async function getActivePicks() {
+export async function getActivePicks(): Promise<PickWithLegs[]> {
   const windowStart = getWindowStart();
-  return db
+  const rows = await db
     .select()
     .from(picks)
     .where(
@@ -145,13 +177,18 @@ export async function getActivePicks() {
       )
     )
     .orderBy(desc(picks.publishedAt));
+  return attachParlayLegs(rows);
 }
 
-export async function getRecentSettledBySport(sport: string, limit = 5) {
-  return db
+export async function getRecentSettledBySport(
+  sport: string,
+  limit = 5
+): Promise<PickWithLegs[]> {
+  const rows = await db
     .select()
     .from(picks)
     .where(and(eq(picks.status, "settled"), eq(picks.sport, sport)))
     .orderBy(desc(picks.settledAt))
     .limit(limit);
+  return attachParlayLegs(rows);
 }

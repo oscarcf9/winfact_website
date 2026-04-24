@@ -8,6 +8,13 @@ if (!MAILERLITE_API_KEY) console.warn("[mailerlite] MAILERLITE_API_KEY not set �
 if (!MAILERLITE_FREE_GROUP_ID) console.warn("[mailerlite] MAILERLITE_FREE_GROUP_ID not set — free email delivery disabled");
 if (!MAILERLITE_VIP_GROUP_ID) console.warn("[mailerlite] MAILERLITE_VIP_GROUP_ID not set — VIP email delivery disabled");
 
+type ParlayLegLite = {
+  sport: string;
+  matchup: string;
+  pickText: string;
+  odds?: number | null;
+};
+
 type Pick = {
   sport: string;
   matchup: string;
@@ -20,6 +27,8 @@ type Pick = {
   analysisEs?: string | null;
   tier?: string | null;
   modelEdge?: number | null;
+  pickType?: string | null;
+  legs?: ParlayLegLite[] | null;
 };
 
 async function mailerliteFetch(endpoint: string, options: RequestInit = {}) {
@@ -46,17 +55,56 @@ async function mailerliteFetch(endpoint: string, options: RequestInit = {}) {
   return res.json();
 }
 
+function formatOddsStr(odds: number | null | undefined): string {
+  if (odds == null) return "—";
+  return odds > 0 ? `+${odds}` : String(odds);
+}
+
+function buildParlayLegsHtml(legs: ParlayLegLite[]): string {
+  return legs
+    .map(
+      (leg, idx) => `
+      <div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px;">
+        <div style="flex-shrink: 0; width: 24px; height: 24px; border-radius: 12px; background: #1168D9; color: #ffffff; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;">${idx + 1}</div>
+        <div style="flex: 1;">
+          <p style="margin: 0 0 2px; color: #6b7280; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;">${leg.sport} — ${leg.matchup}</p>
+          <p style="margin: 0; color: #0B1F3B; font-size: 15px; font-weight: 600;">${leg.pickText}${
+            leg.odds != null ? ` <span style="color: #6b7280; font-family: monospace; font-size: 13px; font-weight: 400;">${formatOddsStr(leg.odds)}</span>` : ""
+          }</p>
+        </div>
+      </div>`
+    )
+    .join("");
+}
+
 function buildPickEmailHtml(pick: Pick): string {
-  const oddsStr = pick.odds != null ? (pick.odds > 0 ? `+${pick.odds}` : String(pick.odds)) : "—";
+  const oddsStr = formatOddsStr(pick.odds);
   const starCount = pick.stars || (pick.confidence === "top" ? 5 : pick.confidence === "strong" ? 3 : 2);
   const starDisplay = "⭐".repeat(starCount);
+  const isParlay = pick.pickType === "parlay" && Array.isArray(pick.legs) && pick.legs.length >= 2;
 
-  return `
-    <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-      <div style="background: linear-gradient(135deg, #0B1F3B, #1168D9); padding: 24px 32px; border-radius: 12px 12px 0 0;">
-        <h1 style="color: #ffffff; margin: 0; font-size: 20px;">🎯 New ${pick.tier === "vip" ? "VIP" : "Free"} Pick</h1>
-      </div>
-      <div style="padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+  const detailsBlock = isParlay
+    ? `
+        <div style="background: #f8fafc; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+          <p style="margin: 0 0 4px; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">${pick.legs!.length}-Leg Parlay</p>
+          <p style="margin: 0 0 16px; color: #0B1F3B; font-size: 16px; font-weight: 600;">${pick.sport}</p>
+          ${buildParlayLegsHtml(pick.legs!)}
+          <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
+            <div>
+              <p style="margin: 0; color: #6b7280; font-size: 11px;">PARLAY ODDS</p>
+              <p style="margin: 0; color: #1168D9; font-size: 18px; font-family: monospace; font-weight: 700;">${oddsStr}</p>
+            </div>
+            <div>
+              <p style="margin: 0; color: #6b7280; font-size: 11px;">UNITS</p>
+              <p style="margin: 0; color: #0B1F3B; font-size: 18px; font-family: monospace;">${pick.units ?? "—"}</p>
+            </div>
+            <div>
+              <p style="margin: 0; color: #6b7280; font-size: 11px;">RATING</p>
+              <p style="margin: 0; color: #0B1F3B; font-size: 18px;">${starDisplay} ${starCount}/5</p>
+            </div>
+          </div>
+        </div>`
+    : `
         <div style="background: #f8fafc; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
           <p style="margin: 0 0 4px; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">${pick.sport}</p>
           <p style="margin: 0 0 16px; color: #0B1F3B; font-size: 16px; font-weight: 600;">${pick.matchup}</p>
@@ -78,7 +126,19 @@ function buildPickEmailHtml(pick: Pick): string {
               <p style="margin: 0; color: #0B1F3B; font-size: 18px;">${starDisplay} ${starCount}/5</p>
             </div>
           </div>
-        </div>
+        </div>`;
+
+  const heading = isParlay
+    ? `🎯 New ${pick.tier === "vip" ? "VIP" : "Free"} ${pick.legs!.length}-Leg Parlay`
+    : `🎯 New ${pick.tier === "vip" ? "VIP" : "Free"} Pick`;
+
+  return `
+    <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+      <div style="background: linear-gradient(135deg, #0B1F3B, #1168D9); padding: 24px 32px; border-radius: 12px 12px 0 0;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 20px;">${heading}</h1>
+      </div>
+      <div style="padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+        ${detailsBlock}
         ${pick.analysisEn ? `<p style="color: #374151; font-size: 14px; line-height: 1.6;">${pick.analysisEn}</p>` : ""}
         ${pick.modelEdge ? `<p style="color: #6b7280; font-size: 13px;">📈 Model Edge: ${pick.modelEdge.toFixed(1)}%</p>` : ""}
         <div style="margin-top: 24px; text-align: center;">
@@ -103,15 +163,23 @@ export async function sendPickEmail(
   }
 
   try {
+    const isParlay = pick.pickType === "parlay" && Array.isArray(pick.legs) && pick.legs.length >= 2;
+    const subject = isParlay
+      ? `🎯 ${pick.legs!.length}-Leg ${pick.sport} Parlay${pick.odds != null ? ` (${pick.odds > 0 ? "+" : ""}${pick.odds})` : ""}`
+      : `🎯 ${pick.sport}: ${pick.pickText}${pick.odds != null ? ` (${pick.odds > 0 ? "+" : ""}${pick.odds})` : ""}`;
+    const campaignName = isParlay
+      ? `Parlay: ${pick.legs!.length}-Leg ${pick.sport} (${new Date().toISOString().split("T")[0]})`
+      : `Pick: ${pick.sport} - ${pick.matchup} (${new Date().toISOString().split("T")[0]})`;
+
     // Create campaign
     const campaign = await mailerliteFetch("/campaigns", {
       method: "POST",
       body: JSON.stringify({
-        name: `Pick: ${pick.sport} - ${pick.matchup} (${new Date().toISOString().split("T")[0]})`,
+        name: campaignName,
         type: "regular",
         emails: [
           {
-            subject: `🎯 ${pick.sport}: ${pick.pickText}${pick.odds != null ? ` (${pick.odds > 0 ? "+" : ""}${pick.odds})` : ""}`,
+            subject,
             from_name: "WinFact Picks",
             from: process.env.MAILERLITE_FROM_EMAIL || "picks@winfactpicks.com",
             content: buildPickEmailHtml(pick),

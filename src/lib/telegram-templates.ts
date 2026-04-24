@@ -356,3 +356,66 @@ export function formatWinCelebrationMessage(pick: {
     .replace(/\{matchup\}/g, pick.matchup)
     .replace(/\{sport\}/g, pick.sport);
 }
+
+function formatOddsInline(odds: number | null | undefined): string {
+  if (odds == null) return "";
+  return odds > 0 ? `+${odds}` : `${odds}`;
+}
+
+/**
+ * Format a free parlay message for Telegram — lists each leg with its odds,
+ * then the combined parlay price. Bilingual.
+ */
+export function formatFreeParlayMessage(pick: {
+  legs: Array<{ sport: string; matchup: string; pickText: string; odds?: number | null }>;
+  odds?: number | null;
+  units?: number | null;
+}): string {
+  const legLines = pick.legs
+    .map((leg, idx) => {
+      const oddsStr = leg.odds != null ? ` (${formatOddsInline(leg.odds)})` : "";
+      return `${idx + 1}. ${leg.sport} — ${leg.matchup}\n   ${leg.pickText}${oddsStr}`;
+    })
+    .join("\n");
+
+  const combined = pick.odds != null ? formatOddsInline(pick.odds) : "";
+  const units = pick.units != null ? `${pick.units}u` : "";
+
+  const en =
+    `Free ${pick.legs.length}-Leg Parlay!\n\n${legLines}\n\n` +
+    (combined ? `Parlay odds: ${combined}\n` : "") +
+    (units ? `Units: ${units}\n` : "") +
+    `\nLet's ride!`;
+
+  const es =
+    `Parlay gratis de ${pick.legs.length} patas!\n\n${legLines}\n\n` +
+    (combined ? `Cuota parlay: ${combined}\n` : "") +
+    (units ? `Unidades: ${units}\n` : "") +
+    `\nA darle!`;
+
+  return `${en}\n\n---\n\n${es}`;
+}
+
+/**
+ * Format a VIP parlay teaser — no leg details, just the sport count + leg count.
+ * Drives traffic to dashboard/pricing.
+ */
+export function formatVipParlayTeaserMessage(pick: {
+  legs: Array<{ sport: string }>;
+}): string {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com";
+  const sports = Array.from(new Set(pick.legs.map((l) => l.sport)));
+  const sportLabel = sports.length === 1 ? sports[0] : "multi-sport";
+
+  const en =
+    `New VIP ${pick.legs.length}-leg parlay just dropped (${sportLabel}).\n\n` +
+    `VIP members, full breakdown is on your dashboard.\n${siteUrl}/dashboard\n\n` +
+    `Not a member? ${siteUrl}/pricing`;
+
+  const es =
+    `Nuevo parlay VIP de ${pick.legs.length} patas (${sportLabel}).\n\n` +
+    `Miembros VIP, analisis completo en su dashboard.\n${siteUrl}/dashboard\n\n` +
+    `No eres miembro? ${siteUrl}/pricing`;
+
+  return `${en}\n\n---\n\n${es}`;
+}

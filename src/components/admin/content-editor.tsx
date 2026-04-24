@@ -11,6 +11,11 @@ type AutomationStatus = {
   lastBlog: string | null;
   lastVictoryPost: string | null;
   lastCommentary: string | null;
+  effectiveState?: Record<
+    string,
+    { value: string; source: "env:ENABLE_AUTO_BLOG" | "site_content" }
+  >;
+  envCheck?: Record<string, boolean | string>;
 };
 
 type Props = { initialContent: ContentItem[] };
@@ -323,6 +328,13 @@ export function ContentEditor({ initialContent }: Props) {
               <span>Victory Post: <strong className="text-navy">{formatTimeAgo(automationStatus.lastVictoryPost)}</strong></span>
               <span>Commentary: <strong className="text-navy">{formatTimeAgo(automationStatus.lastCommentary)}</strong></span>
             </div>
+            {/* Env override warning: ENABLE_AUTO_BLOG wins over site_content toggle */}
+            {automationStatus.effectiveState?.blog_auto_generator?.source === "env:ENABLE_AUTO_BLOG" && (
+              <div className="mt-2 text-[11px] text-warning bg-warning/5 border border-warning/20 rounded-lg px-2 py-1">
+                ⚠️ Blog Auto-Publish is <strong>overridden by env var</strong> ENABLE_AUTO_BLOG={automationStatus.effectiveState.blog_auto_generator.value}.
+                The toggle above has no effect until the env var is unset.
+              </div>
+            )}
           </div>
         )}
       </div>

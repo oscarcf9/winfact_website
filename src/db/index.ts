@@ -42,3 +42,43 @@ const _migratedCommentaryLog = client.execute(`
 const _migratedCommentaryIdx = client.execute(
   `CREATE INDEX IF NOT EXISTS idx_commentary_game_posted ON commentary_log(game_id, posted_at)`
 ).catch(() => {});
+
+// Parlay support — auto-applies on startup, idempotent.
+const _migratedPickType = client.execute(
+  "ALTER TABLE picks ADD COLUMN pick_type TEXT DEFAULT 'single'"
+).catch(() => {});
+const _migratedLegCount = client.execute(
+  "ALTER TABLE picks ADD COLUMN leg_count INTEGER"
+).catch(() => {});
+const _migratedPickTypeIdx = client.execute(
+  "CREATE INDEX IF NOT EXISTS idx_picks_pick_type ON picks(pick_type)"
+).catch(() => {});
+const _migratedParlayLegs = client.execute(`
+  CREATE TABLE IF NOT EXISTS parlay_legs (
+    id TEXT PRIMARY KEY NOT NULL,
+    pick_id TEXT NOT NULL,
+    leg_index INTEGER NOT NULL,
+    sport TEXT NOT NULL,
+    league TEXT,
+    matchup TEXT NOT NULL,
+    pick_text TEXT NOT NULL,
+    game_date TEXT,
+    odds INTEGER,
+    result TEXT,
+    settled_at TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  )
+`).catch(() => {});
+const _migratedParlayLegsIdx1 = client.execute(
+  "CREATE INDEX IF NOT EXISTS idx_parlay_legs_pick_id ON parlay_legs(pick_id)"
+).catch(() => {});
+const _migratedParlayLegsIdx2 = client.execute(
+  "CREATE INDEX IF NOT EXISTS idx_parlay_legs_pick_index ON parlay_legs(pick_id, leg_index)"
+).catch(() => {});
+const _migratedParlayLegsIdx3 = client.execute(
+  "CREATE INDEX IF NOT EXISTS idx_parlay_legs_sport ON parlay_legs(sport)"
+).catch(() => {});
+const _migratedParlayLegsIdx4 = client.execute(
+  "CREATE INDEX IF NOT EXISTS idx_parlay_legs_result ON parlay_legs(result)"
+).catch(() => {});

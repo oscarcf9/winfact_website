@@ -2,6 +2,8 @@ import {
   formatFreePickMessage as formatFreePickFromTemplates,
   formatVipTeaserMessage as formatVipTeaserFromTemplates,
   formatWinCelebrationMessage,
+  formatFreeParlayMessage,
+  formatVipParlayTeaserMessage,
 } from "./telegram-templates";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
@@ -16,6 +18,13 @@ if (!TELEGRAM_ADMIN_CHAT_ID) console.warn("[telegram] TELEGRAM_ADMIN_CHAT_ID not
 
 const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 
+type ParlayLegLite = {
+  sport: string;
+  matchup: string;
+  pickText: string;
+  odds?: number | null;
+};
+
 type Pick = {
   sport: string;
   matchup: string;
@@ -27,9 +36,18 @@ type Pick = {
   analysisEn?: string | null;
   tier?: string | null;
   modelEdge?: number | null;
+  pickType?: string | null;
+  legs?: ParlayLegLite[];
 };
 
 function formatPickMessage(pick: Pick): string {
+  if (pick.pickType === "parlay" && pick.legs && pick.legs.length >= 2) {
+    return formatFreeParlayMessage({
+      legs: pick.legs,
+      odds: pick.odds,
+      units: pick.units,
+    });
+  }
   return formatFreePickFromTemplates(pick);
 }
 
@@ -115,6 +133,9 @@ export async function sendTelegramPhoto(
 }
 
 function formatVipTeaserMessage(pick: Pick): string {
+  if (pick.pickType === "parlay" && pick.legs && pick.legs.length >= 2) {
+    return formatVipParlayTeaserMessage({ legs: pick.legs });
+  }
   return formatVipTeaserFromTemplates(pick);
 }
 

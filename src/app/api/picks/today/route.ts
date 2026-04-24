@@ -4,8 +4,28 @@ import { getTodayPicks } from "@/db/queries/picks";
 import { getActiveSubscription } from "@/db/queries/subscriptions";
 import { isVipTier } from "@/lib/constants";
 
+type PickLegLite = {
+  legIndex: number;
+  sport: string;
+  matchup: string;
+  pickText: string;
+  odds: number | null;
+  result: string | null;
+};
+
 /** Public-safe fields included in subscriber-facing pick responses. */
 function sanitizePick(pick: Record<string, unknown>) {
+  const rawLegs = Array.isArray(pick.legs) ? (pick.legs as Record<string, unknown>[]) : null;
+  const legs: PickLegLite[] | null = rawLegs
+    ? rawLegs.map((l) => ({
+        legIndex: Number(l.legIndex ?? 0),
+        sport: String(l.sport ?? ""),
+        matchup: String(l.matchup ?? ""),
+        pickText: String(l.pickText ?? ""),
+        odds: (l.odds as number | null) ?? null,
+        result: (l.result as string | null) ?? null,
+      }))
+    : null;
   return {
     id: pick.id,
     sport: pick.sport,
@@ -23,6 +43,9 @@ function sanitizePick(pick: Record<string, unknown>) {
     result: pick.result,
     publishedAt: pick.publishedAt,
     settledAt: pick.settledAt,
+    pickType: pick.pickType,
+    legCount: pick.legCount,
+    legs,
   };
 }
 
@@ -43,6 +66,7 @@ export async function GET() {
     // Filter VIP picks for non-VIP users, sanitize all responses
     const visiblePicks = picks.map((pick) => {
       if (pick.tier === "vip" && !isVip) {
+        // For locked parlays, reveal only leg count + sport so upsell UI can say "3-leg NBA parlay"
         return {
           id: pick.id,
           sport: pick.sport,
@@ -50,6 +74,8 @@ export async function GET() {
           tier: pick.tier,
           confidence: pick.confidence,
           publishedAt: pick.publishedAt,
+          pickType: pick.pickType,
+          legCount: pick.legCount,
           locked: true,
         };
       }
