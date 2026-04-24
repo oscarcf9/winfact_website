@@ -232,17 +232,23 @@ function buildMutation(args: {
   const assetsBlock = args.imageUrl
     ? `assets: { images: [{ url: ${JSON.stringify(args.imageUrl)} }] }`
     : "";
-  // Buffer enum constraints (confirmed via GraphQL error messages):
-  //   - SchedulingType enum: only `automatic` is valid. No `custom`, no `immediate`.
-  //   - ShareMode enum: `shareNow` | `addToQueue`. No `custom`.
-  // There is no `scheduledAt` field on CreatePostInput; time-scheduling is
-  // driven entirely by Buffer's account-level posting schedule. On the
-  // Essentials plan `shareNow` with media may route through the next queue
-  // slot instead of publishing instantly; configure posting slots in Buffer
-  // per channel to control wall-clock timing.
-  const scheduleBlock = args.publishNow
-    ? `schedulingType: automatic, mode: shareNow`
-    : `schedulingType: automatic, mode: addToQueue`;
+  // Buffer GraphQL schema (per Buffer's official docs):
+  //   - SchedulingType enum:   automatic | notification
+  //   - mode (ShareMode) enum: shareNow | addToQueue | customScheduled
+  //   - Time field is `dueAt` (ISO 8601), NOT `scheduledAt`.
+  //
+  // On the Essentials plan, `mode: shareNow` with media may still route
+  // through the account's posting schedule (posts get parked until the next
+  // configured slot). `mode: customScheduled` with a `dueAt` ~30s in the
+  // future forces Buffer to publish at that wall-clock time regardless of
+  // plan or slot configuration.
+  let scheduleBlock: string;
+  if (args.publishNow) {
+    const dueAt = new Date(Date.now() + 30 * 1000).toISOString();
+    scheduleBlock = `schedulingType: automatic, mode: customScheduled, dueAt: ${JSON.stringify(dueAt)}`;
+  } else {
+    scheduleBlock = `schedulingType: automatic, mode: addToQueue`;
+  }
   // Per-channel metadata. Buffer requires Facebook/Instagram posts to declare
   // a `type` (post/story/reel/status). Instagram additionally requires
   // `shouldShareToFeed: true` for feed posts (or else GraphQL rejects with
