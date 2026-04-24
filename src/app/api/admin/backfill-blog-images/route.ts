@@ -29,8 +29,11 @@ async function handle(req: Request) {
 
   const url = new URL(req.url);
   const dry = url.searchParams.get("dry") === "1";
-  const limitRaw = parseInt(url.searchParams.get("limit") || "5", 10);
-  const limit = Math.max(1, Math.min(15, Number.isFinite(limitRaw) ? limitRaw : 5));
+  // Default 3 to keep the call under typical HTTP response timeouts (~60s).
+  // Each image is ~25s sequential; we run them in parallel below so 3 finish
+  // in roughly the time of 1.
+  const limitRaw = parseInt(url.searchParams.get("limit") || "3", 10);
+  const limit = Math.max(1, Math.min(10, Number.isFinite(limitRaw) ? limitRaw : 3));
 
   // Find posts with no featured image. Covers both null and empty string.
   const candidates = await db
@@ -82,54 +85,54 @@ async function handle(req: Request) {
     return title.slice(0, 80);
   }
 
-  const results: Array<{
-    id: string;
-    slug: string;
-    ok: boolean;
-    url?: string;
-    error?: string;
-  }> = [];
+  // Process all candidates IN PARALLEL so the HTTP call returns before any
+  // proxy layer times out. Each image saves to DB independently — even if
+  // the response is cut short, the DB writes already happened.
+  const results = await Promise.all(
+    candidates.map(async (post) => {
+      const matchup = deriveMatchup(post.titleEn || post.slug);
+      const sport = "Sports"; // generic for strategy posts; most are matchups anyway
 
-  for (const post of candidates) {
-    const matchup = deriveMatchup(post.titleEn || post.slug);
-    const sport = post.category === "strategy" ? "Sports" : "Sports"; // generic
+      try {
+        const img = await generateBlogHeroImage(matchup, sport);
+        if (!img.url) {
+          return {
+            id: post.id,
+            slug: post.slug,
+            ok: false as const,
+            error: img.error || "no url returned",
+          };
+        }
 
-    try {
-      const img = await generateBlogHeroImage(matchup, sport);
-      if (!img.url) {
-        results.push({ id: post.id, slug: post.slug, ok: false, error: img.error || "no url returned" });
-        continue;
-      }
-
-      // Persist to posts + media
-      await db
-        .update(posts)
-        .set({ featuredImage: img.url, ogImage: img.url, updatedAt: new Date().toISOString() })
-        .where(eq(posts.id, post.id));
-
-      if (img.filename) {
         await db
-          .insert(media)
-          .values({
-            id: crypto.randomUUID(),
-            filename: img.filename,
-            url: img.url,
-            mimeType: "image/png",
-            altText: `${matchup} preview (backfilled)`,
-          })
-          .catch((err) => console.error("[backfill] media insert failed:", err));
-      }
+          .update(posts)
+          .set({ featuredImage: img.url, ogImage: img.url, updatedAt: new Date().toISOString() })
+          .where(eq(posts.id, post.id));
 
-      results.push({ id: post.id, slug: post.slug, ok: true, url: img.url });
-    } catch (err) {
-      results.push({
-        id: post.id,
-        slug: post.slug,
-        ok: false,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
+        if (img.filename) {
+          await db
+            .insert(media)
+            .values({
+              id: crypto.randomUUID(),
+              filename: img.filename,
+              url: img.url,
+              mimeType: "image/png",
+              altText: `${matchup} preview (backfilled)`,
+            })
+            .catch((err) => console.error("[backfill] media insert failed:", err));
+        }
+
+        return { id: post.id, slug: post.slug, ok: true as const, url: img.url };
+      } catch (err) {
+        return {
+          id: post.id,
+          slug: post.slug,
+          ok: false as const,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    })
+  );
 
   return NextResponse.json({
     status: "done",
