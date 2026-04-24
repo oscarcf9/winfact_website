@@ -88,3 +88,8 @@ const _migratedParlayLegsIdx4 = client.execute(
 const _migratedThreadsImageUrl = client.execute(
   "ALTER TABLE content_queue ADD COLUMN threads_image_url TEXT"
 ).catch(() => {});
+// content_queue.telegram_image_url holds the 1080x1080 square render for
+// Telegram chat bubbles.
+const _migratedTelegramImageUrl = client.execute(
+  "ALTER TABLE content_queue ADD COLUMN telegram_image_url TEXT"
+).catch(() => {});

@@ -16,6 +16,11 @@ const FEED_HEIGHT = 1350;
 const THREADS_WIDTH = 1440;
 const THREADS_HEIGHT = 1800;
 
+// Telegram chat feed renders images square — a portrait 4:5 shows up looking
+// awkwardly tall in the message bubble. Dedicated 1:1 render avoids the crop.
+const TELEGRAM_WIDTH = 1080;
+const TELEGRAM_HEIGHT = 1080;
+
 // Story version: 9:16 vertical (IG Stories / FB Stories).
 const STORY_WIDTH = 1080;
 const STORY_HEIGHT = 1920;
@@ -40,6 +45,9 @@ type ImageResult = {
   /** 1440x1800 (4:5) higher-res render used when posting to Threads. */
   threadsUrl?: string;
   threadsFilename?: string;
+  /** 1080x1080 (1:1) square render for Telegram chat bubbles. */
+  telegramUrl?: string;
+  telegramFilename?: string;
   /** 1080x1920 (9:16) — IG/FB Stories. */
   storyUrl?: string;
   storyFilename?: string;
@@ -71,17 +79,20 @@ export async function generateMatchupImage(
 
     const filename = `matchup-${randomUUID()}.png`;
     const threadsFilename = filename.replace(".png", "-threads.png");
+    const telegramFilename = filename.replace(".png", "-telegram.png");
     const storyFilename = filename.replace(".png", "-story.png");
     const rawBuffer = Buffer.from(imageData.b64_json, "base64");
 
-    // Generate THREE variants from the single OpenAI render:
-    //   feed    = 1080x1350  → IG (optimal), Facebook, X/Twitter
-    //   threads = 1440x1800  → Threads (higher-res for its sharper feed)
-    //   story   = 1080x1920  → IG/FB Stories
-    // All three share the same source so the image content is identical.
-    const [feedBuffer, threadsBuffer, storyBuffer] = await Promise.all([
+    // Generate FOUR variants from the single OpenAI render:
+    //   feed     = 1080x1350  → IG (optimal), Facebook, X/Twitter
+    //   threads  = 1440x1800  → Threads (higher-res for its sharper feed)
+    //   telegram = 1080x1080  → Telegram chat bubbles (square fits the UI)
+    //   story    = 1080x1920  → IG/FB Stories
+    // All four share the same source so the image content is identical.
+    const [feedBuffer, threadsBuffer, telegramBuffer, storyBuffer] = await Promise.all([
       sharp(rawBuffer).resize(FEED_WIDTH, FEED_HEIGHT, { fit: "cover", position: "center" }).png({ quality: 90 }).toBuffer(),
       sharp(rawBuffer).resize(THREADS_WIDTH, THREADS_HEIGHT, { fit: "cover", position: "center" }).png({ quality: 90 }).toBuffer(),
+      sharp(rawBuffer).resize(TELEGRAM_WIDTH, TELEGRAM_HEIGHT, { fit: "cover", position: "center" }).png({ quality: 90 }).toBuffer(),
       sharp(rawBuffer).resize(STORY_WIDTH, STORY_HEIGHT, { fit: "cover", position: "center" }).png({ quality: 90 }).toBuffer(),
     ]);
 
@@ -97,14 +108,24 @@ export async function generateMatchupImage(
       return `/uploads/${name}`;
     }
 
-    // Upload all three variants in parallel so total latency = slowest upload.
-    const [url, threadsUrl, storyUrl] = await Promise.all([
+    // Upload all four variants in parallel so total latency = slowest upload.
+    const [url, threadsUrl, telegramUrl, storyUrl] = await Promise.all([
       saveVariant(filename, feedBuffer),
       saveVariant(threadsFilename, threadsBuffer),
+      saveVariant(telegramFilename, telegramBuffer),
       saveVariant(storyFilename, storyBuffer),
     ]);
 
-    return { url, filename, threadsUrl, threadsFilename, storyUrl, storyFilename };
+    return {
+      url,
+      filename,
+      threadsUrl,
+      threadsFilename,
+      telegramUrl,
+      telegramFilename,
+      storyUrl,
+      storyFilename,
+    };
   } catch (error) {
     console.error("Image generation error:", error);
     return { url: "", filename: "", error: String(error) };

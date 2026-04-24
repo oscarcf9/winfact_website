@@ -218,6 +218,7 @@ export async function GET(req: Request) {
             preview: `${game.sport} — ${time} ET`,
             imageUrl: imageResult.url,
             threadsImageUrl: imageResult.threadsUrl || null,
+            telegramImageUrl: imageResult.telegramUrl || null,
             captionEn: captionEn || "",
             captionEs: captionEs || "",
             hashtags: generateHashtags(game),

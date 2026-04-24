@@ -12,6 +12,9 @@ export const contentQueue = sqliteTable("content_queue", {
   // Falls back to imageUrl if null. Generated alongside imageUrl by
   // generateMatchupImage and persisted so retries use the same assets.
   threadsImageUrl: text("threads_image_url"),
+  // 1080x1080 (1:1) square render used for Telegram chat bubbles.
+  // Falls back to imageUrl if null.
+  telegramImageUrl: text("telegram_image_url"),
   captionEn: text("caption_en"),
   captionEs: text("caption_es"),
   hashtags: text("hashtags"),

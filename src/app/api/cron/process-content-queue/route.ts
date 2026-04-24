@@ -238,14 +238,16 @@ export async function GET(req: Request) {
         }
 
         // Telegram (always, not random — randomness is in social-posting for Buffer).
-        // Hashtags are intentionally stripped for Telegram: they're noise on chat
-        // feeds and don't drive discovery the way they do on IG/FB/X/Threads.
+        // Hashtags are stripped (noise on chat feeds, don't drive discovery
+        // there). Uses the 1080x1080 square variant when available — a 4:5
+        // portrait crops awkwardly in Telegram's message bubble.
         if (TELEGRAM_FREE_CHAT_ID && item.imageUrl) {
           try {
             let caption = item.captionEn || item.title;
             if (caption.length > 1024) caption = caption.substring(0, 1021) + "...";
 
-            const tgResult = await sendTelegramPhoto(TELEGRAM_FREE_CHAT_ID, item.imageUrl, caption, { parseMode: "none" });
+            const telegramPhotoUrl = item.telegramImageUrl || item.imageUrl;
+            const tgResult = await sendTelegramPhoto(TELEGRAM_FREE_CHAT_ID, telegramPhotoUrl, caption, { parseMode: "none" });
             telegramOk = tgResult.ok;
             if (!tgResult.ok) telegramError = tgResult.error || "Telegram failed";
             else console.log(`[content-queue] Filler sent to Telegram: ${item.title}`);
