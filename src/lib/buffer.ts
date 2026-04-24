@@ -98,6 +98,34 @@ async function writeDistributionLog(row: DistLogRow): Promise<void> {
   }
 }
 
+// ── Per-channel text shaping ───────────────────────────────────────────────
+
+/**
+ * Twitter / X hard limit is 280 chars. Our filler caption + hashtag block
+ * routinely runs 400-800 chars. Strategy:
+ *   1. If hashtag block takes us over, drop hashtags entirely (image carries
+ *      the discovery signal on X better than hashtags anyway).
+ *   2. If the body alone is still > 275, truncate at the nearest word boundary
+ *      under 275 and append a single ellipsis.
+ */
+function truncateForTwitter(text: string): string {
+  const MAX = 280;
+  if (text.length <= MAX) return text;
+
+  // Everything after a double-newline line that starts with "#" is the
+  // hashtag block we append in social-posting.ts.
+  const hashtagBlockStart = text.search(/\n\n#[A-Za-z0-9_]/);
+  const body = hashtagBlockStart >= 0 ? text.slice(0, hashtagBlockStart).trimEnd() : text;
+
+  if (body.length <= MAX) return body;
+
+  const hardCap = 275;
+  const truncated = body.slice(0, hardCap);
+  const lastSpace = truncated.lastIndexOf(" ");
+  const base = lastSpace > 200 ? truncated.slice(0, lastSpace) : truncated;
+  return `${base}...`;
+}
+
 // ── Channel-key/id helpers ─────────────────────────────────────────────────
 
 function idToKey(channelId: string): ChannelKey | null {
@@ -204,31 +232,27 @@ function buildMutation(args: {
   const assetsBlock = args.imageUrl
     ? `assets: { images: [{ url: ${JSON.stringify(args.imageUrl)} }] }`
     : "";
-  // Buffer's CreatePostInput requires BOTH schedulingType (automatic|custom)
-  // and mode (shareNow|addToQueue|custom). For immediate publishing we use
-  // schedulingType: custom with an explicit scheduledAt ~30s in the future.
-  // On the Essentials plan, mode: shareNow silently falls back to the account
-  // queue (filler posts ended up "Scheduled for tomorrow 6:59 PM"), so we
-  // force a concrete wall-clock time Buffer must respect.
-  let scheduleBlock: string;
-  if (args.publishNow) {
-    // +60s gives Buffer enough lead time (most providers reject scheduled
-    // posts less than a minute in the future) while still posting
-    // effectively in real time.
-    const scheduledAt = new Date(Date.now() + 60 * 1000).toISOString();
-    scheduleBlock = `schedulingType: custom, scheduledAt: ${JSON.stringify(scheduledAt)}, mode: custom`;
-  } else {
-    scheduleBlock = `schedulingType: automatic, mode: addToQueue`;
-  }
-  // Per-channel metadata. Instagram + Facebook both require a `type` field
-  // (post / story / reel / status) or Buffer rejects the mutation with
-  // "Instagram/Facebook posts require a type".
+  // Buffer enum constraints (confirmed via GraphQL error messages):
+  //   - SchedulingType enum: only `automatic` is valid. No `custom`, no `immediate`.
+  //   - ShareMode enum: `shareNow` | `addToQueue`. No `custom`.
+  // There is no `scheduledAt` field on CreatePostInput; time-scheduling is
+  // driven entirely by Buffer's account-level posting schedule. On the
+  // Essentials plan `shareNow` with media may route through the next queue
+  // slot instead of publishing instantly; configure posting slots in Buffer
+  // per channel to control wall-clock timing.
+  const scheduleBlock = args.publishNow
+    ? `schedulingType: automatic, mode: shareNow`
+    : `schedulingType: automatic, mode: addToQueue`;
+  // Per-channel metadata. Buffer requires Facebook/Instagram posts to declare
+  // a `type` (post/story/reel/status). Instagram additionally requires
+  // `shouldShareToFeed: true` for feed posts (or else GraphQL rejects with
+  // "InstagramPostMetadataInput.shouldShareToFeed of required type Boolean!").
   const metadataParts: string[] = [];
   if (args.channelId === args.facebookId) {
     metadataParts.push("facebook: { type: post }");
   }
   if (args.channelId === args.instagramId) {
-    metadataParts.push("instagram: { type: post }");
+    metadataParts.push("instagram: { type: post, shouldShareToFeed: true }");
   }
   const metadataBlock = metadataParts.length
     ? `, metadata: { ${metadataParts.join(", ")} }`
@@ -291,8 +315,15 @@ async function publishPost(
     const entry: PerChannelResult = { key, id: channelId, success: false, latencyMs: 0 };
 
     try {
+      // Twitter/X rejects posts > 280 chars. Shrink by dropping trailing
+      // hashtag lines first, then truncating mid-sentence if still too long.
+      const perChannelText =
+        channelId === CHANNELS.twitter && text.length > 280
+          ? truncateForTwitter(text)
+          : text;
+
       const mutation = buildMutation({
-        text, channelId, imageUrl,
+        text: perChannelText, channelId, imageUrl,
         publishNow: opts.publishNow,
         facebookId: CHANNELS.facebook,
         instagramId: CHANNELS.instagram,
