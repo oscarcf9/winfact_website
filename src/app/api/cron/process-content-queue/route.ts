@@ -237,11 +237,12 @@ export async function GET(req: Request) {
           console.error(`[content-queue] Filler Buffer error:`, err);
         }
 
-        // Telegram (always, not random — randomness is in social-posting for Buffer)
+        // Telegram (always, not random — randomness is in social-posting for Buffer).
+        // Hashtags are intentionally stripped for Telegram: they're noise on chat
+        // feeds and don't drive discovery the way they do on IG/FB/X/Threads.
         if (TELEGRAM_FREE_CHAT_ID && item.imageUrl) {
           try {
             let caption = item.captionEn || item.title;
-            if (item.hashtags) caption += `\n\n${item.hashtags}`;
             if (caption.length > 1024) caption = caption.substring(0, 1021) + "...";
 
             const tgResult = await sendTelegramPhoto(TELEGRAM_FREE_CHAT_ID, item.imageUrl, caption, { parseMode: "none" });
