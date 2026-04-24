@@ -61,8 +61,10 @@ export async function postVictoryToSocial(post: {
 
 /**
  * Post a filler matchup graphic to social media.
- * Route: Facebook + Instagram + Twitter + Threads (all channels, with image)
- * + occasionally Telegram.
+ * Route: Facebook + Instagram + Twitter + Threads (all channels, with image).
+ * Telegram is handled separately by the content-queue processor so we don't
+ * double-post (previously this function also did a random 40% Telegram
+ * send, which produced duplicate filler messages on Telegram).
  * `route` lets retry rows target only a subset.
  */
 export async function postFillerToSocial(post: {
@@ -86,14 +88,6 @@ export async function postFillerToSocial(post: {
       someSucceeded: false,
       failedChannels: [],
     };
-  }
-
-  // Occasionally also post to Telegram (~40% chance). Not tracked per-channel —
-  // Telegram is a fire-and-forget extra, not part of the retry surface.
-  if (TELEGRAM_FREE_CHAT_ID && Math.random() < 0.4) {
-    sendTelegramPhoto(TELEGRAM_FREE_CHAT_ID, post.imageUrl, fullCaption).catch((err) =>
-      console.error("[social] Filler Telegram post failed:", err)
-    );
   }
 
   return bufferToSocial(bufferResult);

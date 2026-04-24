@@ -203,7 +203,7 @@ export async function GET(req: Request) {
                 url: imageResult.url,
                 mimeType: "image/png",
                 width: 1080,
-                height: 1440,
+                height: 1350, // 4:5 ratio for IG/FB/X/Threads compatibility
                 altText: `${game.sport} matchup: ${title}`,
               })
               .catch((err) => console.error(`[filler] Media insert failed:`, err));

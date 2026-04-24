@@ -4,9 +4,15 @@ import { randomUUID } from "crypto";
 import { buildImagePrompt } from "./ai-blog-engine";
 import { uploadToR2, isR2Configured } from "./r2";
 
-// Instagram 3:4 feed post dimensions (2026 standard)
-const IG_WIDTH = 1080;
-const IG_HEIGHT = 1440;
+// Universal 4:5 feed post dimensions — works on IG (optimal), FB, X, Threads.
+// IG rejects taller than 4:5 with "There is an issue with the media" (that's
+// what killed our previous 3:4 / 1080x1440 images).
+const FEED_WIDTH = 1080;
+const FEED_HEIGHT = 1350;
+
+// Story version: 9:16 vertical (IG Stories / FB Stories).
+const STORY_WIDTH = 1080;
+const STORY_HEIGHT = 1920;
 
 // Blog hero 3:2 landscape dimensions
 const BLOG_WIDTH = 1200;
@@ -41,9 +47,9 @@ export async function generateMatchupImage(
 
     const response = await openai.images.generate({
       model: "gpt-image-1",
-      prompt: prompt + "\n\nIMPORTANT: This image MUST be in portrait/vertical orientation (taller than wide). Compose the scene vertically with subjects centered. Leave breathing room at top and bottom — content must not be cut off at edges.",
+      prompt: prompt + "\n\nIMPORTANT: This image MUST be in portrait/vertical orientation (taller than wide) at a roughly 4:5 ratio (1080x1350). Compose the scene vertically with subjects centered. Leave breathing room at top and bottom — content must not be cut off at edges.",
       n: 1,
-      size: "1024x1536", // Portrait orientation for Instagram 3:4 feed posts
+      size: "1024x1536", // Generate tall; we downscale to 1080x1350 (4:5) next.
       quality: "high",
     });
 
@@ -55,10 +61,11 @@ export async function generateMatchupImage(
     const filename = `matchup-${randomUUID()}.png`;
     const rawBuffer = Buffer.from(imageData.b64_json, "base64");
 
-    // Resize to exact Instagram 3:4 dimensions (1080x1440)
-    // Use "cover" to fill the frame, centering the content
+    // Resize to 4:5 feed dimensions (1080x1350). This ratio is accepted by
+    // Instagram (optimal), Facebook, X, and Threads — one image serves all
+    // four channels without per-platform re-encoding.
     const buffer = await sharp(rawBuffer)
-      .resize(IG_WIDTH, IG_HEIGHT, { fit: "cover", position: "center" })
+      .resize(FEED_WIDTH, FEED_HEIGHT, { fit: "cover", position: "center" })
       .png({ quality: 90 })
       .toBuffer();
 
@@ -78,9 +85,9 @@ export async function generateMatchupImage(
       url = `/uploads/${filename}`;
     }
 
-    // Also generate a story version (1080x1920, 9:16)
+    // Also generate a story version (9:16)
     const storyBuffer = await sharp(rawBuffer)
-      .resize(1080, 1920, { fit: "cover", position: "center" })
+      .resize(STORY_WIDTH, STORY_HEIGHT, { fit: "cover", position: "center" })
       .png({ quality: 90 })
       .toBuffer();
 
