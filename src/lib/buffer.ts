@@ -199,21 +199,32 @@ function buildMutation(args: {
   imageUrl?: string;
   publishNow?: boolean;
   facebookId: string;
+  instagramId: string;
 }): string {
   const assetsBlock = args.imageUrl
     ? `assets: { images: [{ url: ${JSON.stringify(args.imageUrl)} }] }`
     : "";
   // Buffer's CreatePostInput requires BOTH:
-  //   - schedulingType: SchedulingType! (how to schedule — immediate / automatic / custom)
-  //   - mode: ShareMode! (which share bucket — shareNow / addToQueue / custom)
-  // The immediate path historically omitted `mode` → live commentary failed
-  // for weeks. An intermediate fix dropped `schedulingType` → filler/queue
-  // started failing. The correct mutation sends both fields.
+  //   - schedulingType: SchedulingType!  — valid enum: automatic | custom
+  //   - mode: ShareMode!                 — valid enum: shareNow | addToQueue | ...
+  // Buffer rejected "immediate" as not in SchedulingType enum. For immediate
+  // publishing the working combination is automatic + shareNow (mode drives
+  // the action, schedulingType just says "don't use a custom time").
   const scheduleBlock = args.publishNow
-    ? `schedulingType: immediate, mode: shareNow`
+    ? `schedulingType: automatic, mode: shareNow`
     : `schedulingType: automatic, mode: addToQueue`;
-  const metadataBlock = args.channelId === args.facebookId
-    ? `, metadata: { facebook: { type: post } }`
+  // Per-channel metadata. Instagram + Facebook both require a `type` field
+  // (post / story / reel / status) or Buffer rejects the mutation with
+  // "Instagram/Facebook posts require a type".
+  const metadataParts: string[] = [];
+  if (args.channelId === args.facebookId) {
+    metadataParts.push("facebook: { type: post }");
+  }
+  if (args.channelId === args.instagramId) {
+    metadataParts.push("instagram: { type: post }");
+  }
+  const metadataBlock = metadataParts.length
+    ? `, metadata: { ${metadataParts.join(", ")} }`
     : "";
   return `
     mutation CreatePost {
@@ -277,6 +288,7 @@ async function publishPost(
         text, channelId, imageUrl,
         publishNow: opts.publishNow,
         facebookId: CHANNELS.facebook,
+        instagramId: CHANNELS.instagram,
       });
       const result = await bufferGraphQL(mutation, undefined, opts.token);
 

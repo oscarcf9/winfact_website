@@ -54,8 +54,10 @@ export const POST = handle;
 
 /**
  * Trigger the filler-content cron by making an internal fetch with the
- * CRON_SECRET. Returns the full response so the admin can see exactly why
- * filler generated N graphics or skipped.
+ * CRON_SECRET. Returns immediately — the filler cron can take 60-180s to
+ * generate N images in parallel, which exceeds most proxy timeouts.
+ *
+ * Use /distribution-diagnostics 60-120s later to see the resulting queue rows.
  */
 async function runFiller(originalReq: Request) {
   const secret = process.env.CRON_SECRET;
@@ -65,26 +67,25 @@ async function runFiller(originalReq: Request) {
   const origin = new URL(originalReq.url).origin;
   const fillerUrl = `${origin}/api/cron/filler-content`;
 
-  try {
-    const res = await fetch(fillerUrl, {
-      headers: { Authorization: `Bearer ${secret}` },
-    });
-    const body = await res.json().catch(() => ({}));
-    return NextResponse.json({
-      job: "filler",
-      ok: res.ok,
-      httpStatus: res.status,
-      cronResponse: body,
-      hint: res.ok
-        ? "If 'skipped', check reason. If 'generated > 0' but nothing hits IG, query /distribution-diagnostics."
-        : "Cron returned non-2xx. Verify CRON_SECRET env var matches on this deployment.",
-    });
-  } catch (err) {
-    return NextResponse.json({
-      ok: false,
-      error: err instanceof Error ? err.message : String(err),
-    }, { status: 502 });
-  }
+  // Fire-and-forget. We don't await the response so this endpoint returns
+  // immediately; the filler cron continues running on Vercel until it
+  // finishes or hits maxDuration.
+  fetch(fillerUrl, {
+    headers: { Authorization: `Bearer ${secret}` },
+  })
+    .then((res) => console.log(`[run-now/filler] cron finished: ${res.status}`))
+    .catch((err) => console.error("[run-now/filler] cron fetch failed:", err));
+
+  return NextResponse.json({
+    job: "filler",
+    ok: true,
+    dispatched: true,
+    hint:
+      "Filler cron fired in background. It takes 60-180s to generate images + captions. " +
+      "Wait ~2 min, then query /api/admin/content/distribution-diagnostics to see " +
+      "new filler rows under recentQueue, and (after process-content-queue picks them up) " +
+      "new filler entries in channelSummary.",
+  });
 }
 
 const PRIORITY: Record<MessageCategory, number> = {

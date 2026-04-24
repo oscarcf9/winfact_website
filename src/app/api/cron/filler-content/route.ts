@@ -9,6 +9,11 @@ import { notifyAdmin } from "@/lib/notifications";
 import { sendAdminNotification } from "@/lib/telegram";
 import Anthropic from "@anthropic-ai/sdk";
 
+// Filler generates N images × 20-30s each + captions. Vercel's default is
+// 300s on current plans but some routes may have a lower override. Pin to
+// 300s explicitly so parallel image generation has room to finish.
+export const maxDuration = 300;
+
 let _anthropic: Anthropic | null = null;
 function getAnthropic(): Anthropic {
   if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -170,13 +175,14 @@ export async function GET(req: Request) {
       prevSchedule = postAt;
     }
 
-    // 6. Generate content for each game
+    // 6. Generate content for each game — IN PARALLEL so 4 games finish in
+    // the time of 1 (image + captions each take ~30s; sequential = 120s+).
     let generated = 0;
     let skipped = 0;
     const imageGenFailures: string[] = [];
 
-    for (const game of selected) {
-      try {
+    const results = await Promise.all(
+      selected.map(async (game) => {
         const title = `${game.team1} vs ${game.team2}`;
         const time = new Date(game.startTime).toLocaleTimeString("en-US", {
           hour: "numeric",
@@ -184,61 +190,63 @@ export async function GET(req: Request) {
           hour12: true,
           timeZone: "America/New_York",
         });
+        try {
+          console.log(`[filler] Generating image + captions in parallel: ${title}`);
+          const [imageResult, captionEn, captionEs] = await Promise.all([
+            generateMatchupImage(title, game.sport, game.team1, game.team2),
+            generateFillerCaption(game, time, "English"),
+            generateFillerCaption(game, time, "Spanish (Latin American, Miami vibe)"),
+          ]);
 
-        console.log(`[filler] Generating image: ${title}`);
-        const imageResult = await generateMatchupImage(title, game.sport, game.team1, game.team2);
+          if (imageResult.error || !imageResult.url) {
+            console.error(`[filler] Image failed for ${title}:`, imageResult.error);
+            imageGenFailures.push(`${title} — ${imageResult.error || "no url returned"}`);
+            return { ok: false as const };
+          }
 
-        if (imageResult.error || !imageResult.url) {
-          console.error(`[filler] Image failed for ${title}:`, imageResult.error);
-          // Alert admin so silent image-gen breakage stops looking like "filler disabled"
-          imageGenFailures.push(`${title} — ${imageResult.error || "no url returned"}`);
-          skipped++;
-          continue;
-        }
+          if (imageResult.url && imageResult.filename) {
+            await db
+              .insert(media)
+              .values({
+                id: crypto.randomUUID(),
+                filename: imageResult.filename,
+                url: imageResult.url,
+                mimeType: "image/png",
+                width: 1080,
+                height: 1440,
+                altText: `${game.sport} matchup: ${title}`,
+              })
+              .catch((err) => console.error(`[filler] Media insert failed:`, err));
+          }
 
-        if (imageResult.url && imageResult.filename) {
-          await db.insert(media).values({
+          const scheduledAt = scheduleTimes.get(game.gameId) || now;
+          await db.insert(contentQueue).values({
             id: crypto.randomUUID(),
-            filename: imageResult.filename,
-            url: imageResult.url,
-            mimeType: "image/png",
-            width: 1080,
-            height: 1440,
-            altText: `${game.sport} matchup: ${title}`,
-          }).catch((err) => console.error(`[filler] Media insert failed:`, err));
+            type: "filler",
+            referenceId: game.gameId,
+            title,
+            preview: `${game.sport} — ${time} ET`,
+            imageUrl: imageResult.url,
+            captionEn: captionEn || "",
+            captionEs: captionEs || "",
+            hashtags: generateHashtags(game),
+            platform: "all",
+            status: "scheduled",
+            scheduledAt: scheduledAt.toISOString(),
+          });
+
+          const ptStr = scheduledAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/New_York" });
+          console.log(`[filler] Created: ${title} → scheduled for ${ptStr} ET`);
+          return { ok: true as const };
+        } catch (error) {
+          console.error(`[filler] Failed for ${title}:`, error);
+          return { ok: false as const };
         }
+      })
+    );
 
-        console.log(`[filler] Generating captions: ${title}`);
-        const [captionEn, captionEs] = await Promise.all([
-          generateFillerCaption(game, time, "English"),
-          generateFillerCaption(game, time, "Spanish (Latin American, Miami vibe)"),
-        ]);
-
-        const scheduledAt = scheduleTimes.get(game.gameId) || now;
-
-        await db.insert(contentQueue).values({
-          id: crypto.randomUUID(),
-          type: "filler",
-          referenceId: game.gameId,
-          title,
-          preview: `${game.sport} — ${time} ET`,
-          imageUrl: imageResult.url,
-          captionEn: captionEn || "",
-          captionEs: captionEs || "",
-          hashtags: generateHashtags(game),
-          platform: "all",
-          status: "scheduled",
-          scheduledAt: scheduledAt.toISOString(),
-        });
-
-        generated++;
-        const ptStr = scheduledAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/New_York" });
-        console.log(`[filler] Created: ${title} → scheduled for ${ptStr} ET`);
-      } catch (error) {
-        console.error(`[filler] Failed for ${game.team1} vs ${game.team2}:`, error);
-        skipped++;
-      }
-    }
+    generated = results.filter((r) => r.ok).length;
+    skipped = results.filter((r) => !r.ok).length;
 
     if (generated > 0) {
       const gameList = selected.slice(0, generated).map((g) => {
