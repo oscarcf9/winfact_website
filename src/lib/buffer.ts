@@ -153,8 +153,10 @@ async function bufferGraphQL(
 
   if (!res.ok) {
     const text = await res.text();
-    console.error("[buffer] GraphQL HTTP error:", res.status, text.substring(0, 300));
-    return { errors: [{ message: `HTTP ${res.status}: ${text.substring(0, 200)}` }] };
+    console.error("[buffer] GraphQL HTTP error:", res.status, text.substring(0, 600));
+    // Keep more context so distribution_log surfaces the actual GraphQL rejection
+    // instead of truncating mid-message (was 200, now 600 chars).
+    return { errors: [{ message: `HTTP ${res.status}: ${text.substring(0, 600)}` }] };
   }
 
   return res.json();
@@ -201,15 +203,15 @@ function buildMutation(args: {
   const assetsBlock = args.imageUrl
     ? `assets: { images: [{ url: ${JSON.stringify(args.imageUrl)} }] }`
     : "";
-  // Buffer's CreatePostInput requires `mode: ShareMode!` on ALL posts.
-  //   - shareNow: publish immediately (commentary / win celebrations)
-  //   - addToQueue: append to account queue (filler / victory / blog)
-  // Earlier the immediate branch only set `schedulingType: immediate`, which
-  // made Buffer reject every live-commentary post with a GraphQL validation
-  // error and left X/Threads silent for weeks.
+  // Buffer's CreatePostInput requires BOTH:
+  //   - schedulingType: SchedulingType! (how to schedule — immediate / automatic / custom)
+  //   - mode: ShareMode! (which share bucket — shareNow / addToQueue / custom)
+  // The immediate path historically omitted `mode` → live commentary failed
+  // for weeks. An intermediate fix dropped `schedulingType` → filler/queue
+  // started failing. The correct mutation sends both fields.
   const scheduleBlock = args.publishNow
-    ? `mode: shareNow`
-    : `mode: addToQueue`;
+    ? `schedulingType: immediate, mode: shareNow`
+    : `schedulingType: automatic, mode: addToQueue`;
   const metadataBlock = args.channelId === args.facebookId
     ? `, metadata: { facebook: { type: post } }`
     : "";

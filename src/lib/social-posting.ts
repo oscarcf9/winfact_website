@@ -104,6 +104,13 @@ export async function postFillerToSocial(post: {
  * Route: Facebook (via Buffer, with image if available) + Telegram (photo+caption if
  * image available, text otherwise).
  *
+ * Caption format:
+ *   📝 <title>
+ *
+ *   <excerpt>              (2-3 sentence preview, if present)
+ *
+ *   <url>
+ *
  * When the blog has a featured image the Telegram post uses sendTelegramPhoto so
  * the image actually renders — previously it was a text-only link with no preview.
  * Facebook preview also gets the explicit image URL rather than relying on OG tags.
@@ -112,8 +119,10 @@ export async function postBlogToSocial(post: {
   title: string;
   url: string;
   imageUrl?: string | null;
+  excerpt?: string | null;
 }): Promise<{ ok: boolean; error?: string }> {
-  const caption = `📝 ${post.title}\n\n${post.url}`;
+  const excerptBlock = post.excerpt?.trim() ? `${post.excerpt.trim()}\n\n` : "";
+  const caption = `📝 ${post.title}\n\n${excerptBlock}${post.url}`;
   let anyOk = false;
 
   try {
