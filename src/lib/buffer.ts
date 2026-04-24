@@ -380,6 +380,12 @@ function requireToken(preferred?: string): string {
 /**
  * Publish to all channels (or a route preset / comma-separated subset).
  * Throws BufferConfigError if token is missing.
+ *
+ * Uses `mode: shareNow` by default — our process-content-queue cron already
+ * controls timing (respecting random filler times + 30-min gaps). If we used
+ * `mode: addToQueue` instead, Buffer would hold posts until the account's
+ * configured posting schedule slots, which may be empty and keep posts pending
+ * indefinitely.
  */
 export async function postToBufferWithMedia(
   text: string,
@@ -392,6 +398,7 @@ export async function postToBufferWithMedia(
   const channels = getChannelsForRoute(route);
   return publishPost(text, channels, imageUrl, {
     token: resolvedToken,
+    publishNow: true,
     contentType: opts?.contentType ?? "filler",
     referenceId: opts?.referenceId ?? null,
   });
@@ -436,7 +443,8 @@ export async function postLiveToBuffer(
 }
 
 /**
- * Post blog link to Facebook ONLY.
+ * Post blog link to Facebook ONLY. Uses shareNow so Buffer publishes on call
+ * rather than queuing until an empty posting-schedule slot.
  */
 export async function postBlogLinkToBuffer(
   text: string,
@@ -447,6 +455,7 @@ export async function postBlogLinkToBuffer(
   const channels = getChannelsForRoute("facebook_only");
   return publishPost(text, channels, imageUrl, {
     token,
+    publishNow: true,
     contentType: "blog",
     referenceId: opts?.referenceId ?? null,
   });
