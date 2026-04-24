@@ -189,6 +189,7 @@ export async function GET(req: Request) {
             captionEn: item.captionEn || item.title,
             captionEs: item.captionEs || item.captionEn || item.title,
             imageUrl: item.imageUrl,
+            threadsImageUrl: item.threadsImageUrl,
             hashtags: item.hashtags || "#WinFactPicks #Winner",
             route: item.platform || "all",
           });
@@ -222,6 +223,7 @@ export async function GET(req: Request) {
             captionEn: item.captionEn || item.title,
             captionEs: item.captionEs || item.captionEn || item.title,
             imageUrl: item.imageUrl,
+            threadsImageUrl: item.threadsImageUrl,
             hashtags: item.hashtags || "#WinFactPicks #GameDay",
             route: item.platform || "all",
           });

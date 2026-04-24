@@ -288,6 +288,8 @@ type PublishOpts = {
   publishNow?: boolean;
   contentType: "commentary" | "filler" | "victory" | "blog" | "test";
   referenceId?: string | null;
+  /** Optional Threads-specific image URL (1440x1800 for sharper display). */
+  threadsImageUrl?: string;
 };
 
 async function publishPost(
@@ -328,8 +330,15 @@ async function publishPost(
           ? truncateForTwitter(text)
           : text;
 
+      // Pick per-channel image. Threads gets the 1440x1800 high-res render;
+      // IG / Facebook / X get the 1080x1350 feed render.
+      const perChannelImage =
+        channelId === CHANNELS.threads && opts.threadsImageUrl
+          ? opts.threadsImageUrl
+          : imageUrl;
+
       const mutation = buildMutation({
-        text: perChannelText, channelId, imageUrl,
+        text: perChannelText, channelId, imageUrl: perChannelImage,
         publishNow: opts.publishNow,
         facebookId: CHANNELS.facebook,
         instagramId: CHANNELS.instagram,
@@ -436,7 +445,12 @@ export async function postToBufferWithMedia(
   imageUrl?: string,
   token?: string,
   route: string = "all",
-  opts?: { contentType?: PublishOpts["contentType"]; referenceId?: string | null }
+  opts?: {
+    contentType?: PublishOpts["contentType"];
+    referenceId?: string | null;
+    /** Higher-res (1440x1800) render used specifically when posting to Threads. */
+    threadsImageUrl?: string;
+  }
 ): Promise<PublishResult> {
   const resolvedToken = requireToken(token);
   const channels = getChannelsForRoute(route);
@@ -445,6 +459,7 @@ export async function postToBufferWithMedia(
     publishNow: true,
     contentType: opts?.contentType ?? "filler",
     referenceId: opts?.referenceId ?? null,
+    threadsImageUrl: opts?.threadsImageUrl,
   });
 }
 

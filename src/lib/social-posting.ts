@@ -38,6 +38,7 @@ export async function postVictoryToSocial(post: {
   captionEn: string;
   captionEs: string;
   imageUrl: string;
+  threadsImageUrl?: string | null;
   hashtags: string;
   route?: string;
 }): Promise<SocialResult> {
@@ -46,7 +47,9 @@ export async function postVictoryToSocial(post: {
   const fullCaption = `${caption}\n\n${post.hashtags}`;
 
   try {
-    const result = await postToBufferWithMedia(fullCaption, post.imageUrl, undefined, post.route || "all");
+    const result = await postToBufferWithMedia(fullCaption, post.imageUrl, undefined, post.route || "all", {
+      threadsImageUrl: post.threadsImageUrl || undefined,
+    });
     return bufferToSocial(result);
   } catch (error) {
     return {
@@ -71,6 +74,7 @@ export async function postFillerToSocial(post: {
   captionEn: string;
   captionEs: string;
   imageUrl: string;
+  threadsImageUrl?: string | null;
   hashtags: string;
   route?: string;
 }): Promise<SocialResult> {
@@ -79,7 +83,9 @@ export async function postFillerToSocial(post: {
 
   let bufferResult: PublishResult;
   try {
-    bufferResult = await postToBufferWithMedia(fullCaption, post.imageUrl, undefined, post.route || "all");
+    bufferResult = await postToBufferWithMedia(fullCaption, post.imageUrl, undefined, post.route || "all", {
+      threadsImageUrl: post.threadsImageUrl || undefined,
+    });
   } catch (error) {
     return {
       ok: false,

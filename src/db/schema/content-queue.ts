@@ -8,6 +8,10 @@ export const contentQueue = sqliteTable("content_queue", {
   title: text("title").notNull(),
   preview: text("preview"),
   imageUrl: text("image_url"),
+  // Higher-resolution 1440x1800 (4:5) image used when posting to Threads.
+  // Falls back to imageUrl if null. Generated alongside imageUrl by
+  // generateMatchupImage and persisted so retries use the same assets.
+  threadsImageUrl: text("threads_image_url"),
   captionEn: text("caption_en"),
   captionEs: text("caption_es"),
   hashtags: text("hashtags"),

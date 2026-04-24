@@ -82,3 +82,9 @@ const _migratedParlayLegsIdx3 = client.execute(
 const _migratedParlayLegsIdx4 = client.execute(
   "CREATE INDEX IF NOT EXISTS idx_parlay_legs_result ON parlay_legs(result)"
 ).catch(() => {});
+
+// Per-channel image sizing: content_queue.threads_image_url holds the
+// higher-resolution 1440x1800 render for Threads. Idempotent ALTER.
+const _migratedThreadsImageUrl = client.execute(
+  "ALTER TABLE content_queue ADD COLUMN threads_image_url TEXT"
+).catch(() => {});
