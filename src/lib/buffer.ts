@@ -204,15 +204,22 @@ function buildMutation(args: {
   const assetsBlock = args.imageUrl
     ? `assets: { images: [{ url: ${JSON.stringify(args.imageUrl)} }] }`
     : "";
-  // Buffer's CreatePostInput requires BOTH:
-  //   - schedulingType: SchedulingType!  — valid enum: automatic | custom
-  //   - mode: ShareMode!                 — valid enum: shareNow | addToQueue | ...
-  // Buffer rejected "immediate" as not in SchedulingType enum. For immediate
-  // publishing the working combination is automatic + shareNow (mode drives
-  // the action, schedulingType just says "don't use a custom time").
-  const scheduleBlock = args.publishNow
-    ? `schedulingType: automatic, mode: shareNow`
-    : `schedulingType: automatic, mode: addToQueue`;
+  // Buffer's CreatePostInput requires BOTH schedulingType (automatic|custom)
+  // and mode (shareNow|addToQueue|custom). For immediate publishing we use
+  // schedulingType: custom with an explicit scheduledAt ~30s in the future.
+  // On the Essentials plan, mode: shareNow silently falls back to the account
+  // queue (filler posts ended up "Scheduled for tomorrow 6:59 PM"), so we
+  // force a concrete wall-clock time Buffer must respect.
+  let scheduleBlock: string;
+  if (args.publishNow) {
+    // +60s gives Buffer enough lead time (most providers reject scheduled
+    // posts less than a minute in the future) while still posting
+    // effectively in real time.
+    const scheduledAt = new Date(Date.now() + 60 * 1000).toISOString();
+    scheduleBlock = `schedulingType: custom, scheduledAt: ${JSON.stringify(scheduledAt)}, mode: custom`;
+  } else {
+    scheduleBlock = `schedulingType: automatic, mode: addToQueue`;
+  }
   // Per-channel metadata. Instagram + Facebook both require a `type` field
   // (post / story / reel / status) or Buffer rejects the mutation with
   // "Instagram/Facebook posts require a type".
