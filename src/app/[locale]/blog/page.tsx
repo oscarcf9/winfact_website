@@ -99,17 +99,25 @@ async function BlogCard({
   return (
     <Link href={`/blog/${post.slug}`} className="group block h-full">
       <Card className="h-full flex flex-col group-hover:border-primary/20 group-hover:shadow-lg transition-all duration-300 overflow-hidden !p-0">
-        {/* Thumbnail */}
-        {post.featuredImage && (
-          <div className="aspect-[3/2] overflow-hidden">
+        {/* Thumbnail — always rendered so every card has the same shape.
+            Falls back to a gradient + category badge when featuredImage is null
+            (backfill regenerates missing hero images separately). */}
+        <div className="aspect-[3/2] overflow-hidden relative bg-gradient-to-br from-[#0B1F3B] via-[#1168D9] to-[#0BC4D9]">
+          {post.featuredImage ? (
             <img
               src={post.featuredImage}
               alt={post.title}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               loading="lazy"
             />
-          </div>
-        )}
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-white/90 font-heading font-black uppercase tracking-wider text-xl sm:text-2xl px-6 text-center leading-tight drop-shadow-md">
+                {post.sports[0] || categoryLabel}
+              </span>
+            </div>
+          )}
+        </div>
 
         <div className="p-5 flex flex-col flex-1">
         {/* Category + Sport badges */}
