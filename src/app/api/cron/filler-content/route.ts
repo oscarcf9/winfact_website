@@ -125,7 +125,7 @@ export async function GET(req: Request) {
       .map((g) => ({ ...g, score: scoreAnticipation(g) }))
       .sort((a, b) => b.score - a.score);
 
-    // 4. Select top 3-4 games (max 2 per sport)
+    // 4. Select exactly 4 games (max 2 per sport). Falls back to <4 if not enough fresh games.
     const selected: ScheduledGame[] = [];
     const sportCount: Record<string, number> = {};
 
@@ -141,38 +141,28 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: "skipped", reason: "no_fresh_games" });
     }
 
-    // 5. Pre-calculate staggered scheduledAt times
+    // 5. Assign RANDOM scheduledAt times spread across 10am-7pm ET.
+    //    4 buckets, each picks a random time within a 75-min subwindow so
+    //    there's always at least ~60min gap between successive fillers.
+    //    Feels organic on IG/FB instead of "identical-cadence bot".
     const now = new Date();
-    const sortedByGameTime = [...selected].sort(
-      (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-    );
-
     const scheduleTimes: Map<string, Date> = new Map();
-    let prevSchedule: Date | null = null;
-
-    for (const game of sortedByGameTime) {
-      const gameStart = new Date(game.startTime);
-      let postAt = new Date(gameStart.getTime() - 2.5 * 60 * 60 * 1000);
-
-      // Enforce minimum gap from previous scheduled item
-      if (prevSchedule && postAt.getTime() - prevSchedule.getTime() < MIN_GAP_MS) {
-        // Push this one earlier (sooner, not later) to maintain gap
-        postAt = new Date(prevSchedule.getTime() + MIN_GAP_MS);
+    const randomizedTimes = pickRandomFillerTimes(now, selected.length);
+    // If cron fires late and some slots are already in the past, push them to
+    // "~5 min from now" one by one so we don't drop anything.
+    const minForwardMs = 5 * 60 * 1000;
+    let lastScheduled = now.getTime() - minForwardMs;
+    for (let i = 0; i < selected.length; i++) {
+      const target = randomizedTimes[i];
+      let at = target;
+      if (at.getTime() < now.getTime() + minForwardMs) {
+        at = new Date(Math.max(now.getTime() + minForwardMs, lastScheduled + MIN_GAP_MS));
       }
-
-      // Never schedule in the past
-      if (postAt <= now) {
-        postAt = new Date(now.getTime() + 5 * 60 * 1000); // 5 min from now
+      if (at.getTime() < lastScheduled + MIN_GAP_MS) {
+        at = new Date(lastScheduled + MIN_GAP_MS);
       }
-
-      // Never schedule after game start
-      if (postAt >= gameStart) {
-        postAt = new Date(gameStart.getTime() - 30 * 60 * 1000); // 30 min before game
-        if (postAt <= now) postAt = new Date(now.getTime() + 2 * 60 * 1000);
-      }
-
-      scheduleTimes.set(game.gameId, postAt);
-      prevSchedule = postAt;
+      scheduleTimes.set(selected[i].gameId, at);
+      lastScheduled = at.getTime();
     }
 
     // 6. Generate content for each game — IN PARALLEL so 4 games finish in
@@ -310,6 +300,63 @@ function scoreAnticipation(game: ScheduledGame): number {
   if (gameHour >= 23 || gameHour <= 3) score += 10;
 
   return score;
+}
+
+/**
+ * Pick N random scheduledAt times between 10am and 7pm ET for today (or
+ * tomorrow if it's already past 7pm). Window is 9 hours = 540 minutes,
+ * divided into N buckets; within each bucket a random offset in the
+ * first (bucket-width - 60) minutes is selected, guaranteeing ~60min min
+ * gap to the next post. Feels organic, not identical-cadence.
+ */
+function pickRandomFillerTimes(now: Date, count: number): Date[] {
+  const windowStartHourET = 10;
+  const windowEndHourET = 19; // 7pm
+  const windowMinutes = (windowEndHourET - windowStartHourET) * 60;
+
+  // Build "today 10am ET" as a Date in UTC. Determine ET offset from current date.
+  const etParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hour12: false,
+  }).formatToParts(now);
+  const get = (t: string) => parseInt(etParts.find((p) => p.type === t)?.value || "0");
+  const etYear = get("year");
+  const etMonth = get("month") - 1;
+  const etDay = get("day");
+  const etHour = get("hour");
+
+  // If it's already past 7pm ET, shift to tomorrow. Filler cron fires 9am ET
+  // so this branch is unlikely but defensive.
+  let targetDay = etDay;
+  if (etHour >= windowEndHourET) targetDay = etDay + 1;
+
+  // Probe hour to derive current ET→UTC offset (accounts for DST automatically).
+  const probe = new Date(Date.UTC(etYear, etMonth, targetDay, 12, 0, 0));
+  const probeHour = parseInt(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      hour: "2-digit",
+      hour12: false,
+    }).format(probe)
+  );
+  const offsetHours = probeHour - 12; // -4 for EDT, -5 for EST
+
+  // 10am ET → UTC
+  const windowStartUTC = new Date(
+    Date.UTC(etYear, etMonth, targetDay, windowStartHourET - offsetHours, 0, 0)
+  ).getTime();
+
+  const bucketWidth = Math.floor(windowMinutes / count);
+  const jitterMax = Math.max(0, bucketWidth - 60); // 60-min min gap
+
+  const times: Date[] = [];
+  for (let i = 0; i < count; i++) {
+    const bucketStart = i * bucketWidth;
+    const jitter = jitterMax > 0 ? Math.floor(Math.random() * jitterMax) : 0;
+    const offsetMin = bucketStart + jitter;
+    times.push(new Date(windowStartUTC + offsetMin * 60 * 1000));
+  }
+  return times;
 }
 
 async function generateFillerCaption(

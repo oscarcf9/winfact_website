@@ -53,10 +53,6 @@
       "schedule": "0 13 * * *"
     },
     {
-      "path": "/api/cron/filler-content",
-      "schedule": "0 17 * * *"
-    },
-    {
       "path": "/api/cron/refresh-performance",
       "schedule": "*/15 * * * *"
     },
