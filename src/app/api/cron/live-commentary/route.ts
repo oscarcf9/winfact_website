@@ -47,6 +47,12 @@ async function loadSettings(): Promise<CommentarySettings> {
   };
 }
 
+// Hard sanity window: regardless of admin-configured hours, never post
+// commentary outside this range. Prevents a misconfigured site_content row
+// (e.g. someone setting end_hour to "5") from posting at 4 AM.
+const ABSOLUTE_MIN_HOUR_ET = 8;  // earliest possible: 8 AM ET
+const ABSOLUTE_MAX_HOUR_ET = 1;  // latest possible: 1 AM ET (wraps past midnight)
+
 function isGameTime(settings: CommentarySettings): boolean {
   const now = new Date();
   const etHour = parseInt(
@@ -56,6 +62,13 @@ function isGameTime(settings: CommentarySettings): boolean {
   const isWeekend = etDay === "Sat" || etDay === "Sun";
   const start = isWeekend ? settings.weekendStart : settings.weekdayStart;
   const end = isWeekend ? settings.weekendEnd : settings.weekdayEnd;
+
+  // First: enforce hard sanity ceiling — outside [8 AM, 1 AM ET wrap], never post.
+  // Wrap logic: hour is in window if hour >= ABSOLUTE_MIN OR hour <= ABSOLUTE_MAX.
+  const inAbsoluteWindow = etHour >= ABSOLUTE_MIN_HOUR_ET || etHour <= ABSOLUTE_MAX_HOUR_ET;
+  if (!inAbsoluteWindow) return false;
+
+  // Then: respect admin-configured (narrower) window.
   if (end < start) return etHour >= start || etHour <= end;
   return etHour >= start && etHour <= end;
 }
@@ -219,6 +232,25 @@ export async function GET(req: Request) {
     // ── Buffer path ────────────────────────────────────────────────
     if (bufferResult && bufferResult.ok) {
       bufferLogId = crypto.randomUUID();
+
+      // INSERT LOG FIRST so retry enqueue's FK constraint
+      // (commentary_retry_queue.original_log_id → commentary_log.id)
+      // doesn't fire before the log row exists. Was previously inserted
+      // AFTER postLiveToBuffer returned, causing FK violations on every
+      // partial-failure retry insert.
+      await db.insert(commentaryLog).values({
+        id: bufferLogId,
+        gameId: pick.game.gameId,
+        sport: pick.game.sport,
+        message: bufferResult.message,
+        postedAt: Math.floor(Date.now() / 1000),
+        gameState: gameStateJson,
+        category: pick.category,
+        bucket: bufferResult.bucket,
+        language: bufferResult.language,
+        channel: "buffer",
+      }).catch((err) => console.error("[commentary] commentaryLog buffer insert failed:", err));
+
       try {
         const buf = await postLiveToBuffer(bufferResult.message, { referenceId: bufferLogId });
         bufferSent = buf.ok;
@@ -249,20 +281,6 @@ export async function GET(req: Request) {
           ).catch(() => {});
         }
       }
-
-      // Log Buffer row (with channel='buffer')
-      await db.insert(commentaryLog).values({
-        id: bufferLogId,
-        gameId: pick.game.gameId,
-        sport: pick.game.sport,
-        message: bufferResult.message,
-        postedAt: Math.floor(Date.now() / 1000),
-        gameState: gameStateJson,
-        category: pick.category,
-        bucket: bufferResult.bucket,
-        language: bufferResult.language,
-        channel: "buffer",
-      });
     }
 
     // 8. Cleanup: delete rows older than 7 days

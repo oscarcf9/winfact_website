@@ -6,6 +6,7 @@ import { generateVictoryBackground } from "@/lib/victory-image-generator";
 import { buildBackgroundPrompt } from "@/lib/victory-prompts";
 import { resolveWinningTeamVisuals } from "@/data/team-visuals";
 import { uploadToR2, isR2Configured } from "@/lib/r2";
+import { checkAdminRateLimit, rateLimitResponse } from "@/lib/admin-rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -28,6 +29,12 @@ export async function POST(req: NextRequest) {
   // ── Auth ──────────────────────────────────────────────────
   const adminResult = await requireAdmin();
   if (adminResult.error) return adminResult.error;
+
+  // Rate limit: each background image is ~$0.04. Cap at 6/min so a stuck
+  // click button can't burn $25 in a minute. (Rate-limit storage is per
+  // warm instance — Vercel cold starts reset, but that's fine.)
+  const limited = checkAdminRateLimit("victory-bg", 60_000, 6);
+  if (!limited.ok) return rateLimitResponse(limited.retryAfterMs);
 
   // ── Parse body ────────────────────────────────────────────
   let body: { sport?: string; team?: string; style?: string; customPrompt?: string };

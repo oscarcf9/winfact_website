@@ -2,9 +2,8 @@ import { sendAdminNotification } from "./telegram";
 import { sendTransactionalEmail } from "./mailerlite";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
+const ENABLE_ADMIN_EMAIL = process.env.ENABLE_ADMIN_EMAIL === "true";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com";
-
-if (!ADMIN_EMAIL) console.warn("[notify] ADMIN_EMAIL not set — email notifications to admin disabled");
 
 type NotifyOptions = {
   subject: string;
@@ -13,19 +12,24 @@ type NotifyOptions = {
 };
 
 /**
- * Unified admin notification — sends to both Telegram and email.
- * Telegram is the primary channel; email is best-effort backup.
- * Never throws — logs errors silently.
+ * Unified admin notification.
+ *
+ * Behavior:
+ *  - Telegram is the primary path; awaited but never throws.
+ *  - Email via MailerLite is OPT-IN (ENABLE_ADMIN_EMAIL=true) AND fire-and-forget.
+ *    Reason: prior config issues (unverified sender) caused MailerLite to
+ *    block the cron tick with retries on every notification, contributing
+ *    to 300s timeouts on filler-content and admin/run-now. Telegram alone
+ *    is enough operationally.
  */
 export async function notifyAdmin(opts: NotifyOptions): Promise<void> {
-  // Always send Telegram
   await sendAdminNotification(opts.telegramMessage).catch((err) =>
     console.error("[notify] Telegram failed:", err)
   );
 
-  // Send email if ADMIN_EMAIL is configured
-  if (ADMIN_EMAIL && opts.emailHtml) {
-    await sendTransactionalEmail(ADMIN_EMAIL, opts.subject, opts.emailHtml).catch((err) =>
+  if (ENABLE_ADMIN_EMAIL && ADMIN_EMAIL && opts.emailHtml) {
+    // Fire-and-forget: do NOT await — caller continues immediately.
+    sendTransactionalEmail(ADMIN_EMAIL, opts.subject, opts.emailHtml).catch((err) =>
       console.error("[notify] Email failed:", err)
     );
   }

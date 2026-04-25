@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { posts, media } from "@/db/schema";
 import { eq, isNull, or, desc } from "drizzle-orm";
 import { generateBlogHeroImage } from "@/lib/ai-image";
+import { checkAdminRateLimit, rateLimitResponse } from "@/lib/admin-rate-limit";
 
 // Generating up to 10 hero images sequentially can take 3-5 minutes.
 export const maxDuration = 300;
@@ -29,6 +30,12 @@ async function handle(req: Request) {
 
   const url = new URL(req.url);
   const dry = url.searchParams.get("dry") === "1";
+
+  // Rate-limit cost-spending mode: 1 non-dry run per 5 min. Dry runs free.
+  if (!dry) {
+    const limited = checkAdminRateLimit("backfill-blog-images", 5 * 60 * 1000);
+    if (!limited.ok) return rateLimitResponse(limited.retryAfterMs);
+  }
   // Default 3 to keep the call under typical HTTP response timeouts (~60s).
   // Each image is ~25s sequential; we run them in parallel below so 3 finish
   // in roughly the time of 1.

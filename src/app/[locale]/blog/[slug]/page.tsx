@@ -37,12 +37,23 @@ export async function generateMetadata({
     const description = dbPost.seoDescription
       ?? (dbPost.bodyEn ? dbPost.bodyEn.slice(0, 160).replace(/\s+\S*$/, "...") : "");
 
+    // Canonical MUST be absolute. A relative canonical (`/en/blog/x`) is
+    // ignored by Google and lets EN/ES variants compete for the same query.
+    // dbPost.canonicalUrl can also be a relative path → upgrade to absolute.
+    const rawCanonical = dbPost.canonicalUrl ?? `/${locale}/blog/${slug}`;
+    const canonicalAbs = rawCanonical.startsWith("http")
+      ? rawCanonical
+      : `${SITE_URL}${rawCanonical.startsWith("/") ? "" : "/"}${rawCanonical}`;
+
     return {
       title: dbPost.seoTitle ?? title,
       description,
       alternates: {
-        canonical: dbPost.canonicalUrl ?? `/${locale}/blog/${slug}`,
-        languages: { en: `/en/blog/${slug}`, es: `/es/blog/${slug}` },
+        canonical: canonicalAbs,
+        languages: {
+          en: `${SITE_URL}/en/blog/${slug}`,
+          es: `${SITE_URL}/es/blog/${slug}`,
+        },
       },
       openGraph: {
         title,

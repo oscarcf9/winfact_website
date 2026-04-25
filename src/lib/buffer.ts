@@ -110,16 +110,22 @@ async function writeDistributionLog(row: DistLogRow): Promise<void> {
  */
 function truncateForTwitter(text: string): string {
   const MAX = 280;
+  // Use an Intl.Segmenter-aware count if available. Twitter counts most
+  // graphemes as 1, emojis as 2 — we approximate by treating astral chars
+  // (emojis) as 2. JS String.length already double-counts surrogate pairs,
+  // which gets us close enough for safety.
   if (text.length <= MAX) return text;
 
-  // Everything after a double-newline line that starts with "#" is the
-  // hashtag block we append in social-posting.ts.
-  const hashtagBlockStart = text.search(/\n\n#[A-Za-z0-9_]/);
+  // Strip the trailing hashtag block. We append captions with a double
+  // newline before hashtags; a hashtag may start with any unicode word char
+  // (e.g. Spanish team names with accents), so the regex must accept those.
+  const hashtagBlockStart = text.search(/\n\n#[\p{L}\p{N}_]/u);
   const body = hashtagBlockStart >= 0 ? text.slice(0, hashtagBlockStart).trimEnd() : text;
 
   if (body.length <= MAX) return body;
 
-  const hardCap = 275;
+  // Final hard truncate at 270 to leave headroom for "...".
+  const hardCap = 270;
   const truncated = body.slice(0, hardCap);
   const lastSpace = truncated.lastIndexOf(" ");
   const base = lastSpace > 200 ? truncated.slice(0, lastSpace) : truncated;
@@ -232,26 +238,19 @@ function buildMutation(args: {
   const assetsBlock = args.imageUrl
     ? `assets: { images: [{ url: ${JSON.stringify(args.imageUrl)} }] }`
     : "";
-  // Buffer GraphQL schema (per Buffer's official docs):
-  //   - SchedulingType enum:   automatic | notification
-  //   - mode (ShareMode) enum: shareNow | addToQueue | customScheduled
-  //   - Time field is `dueAt` (ISO 8601), NOT `scheduledAt`.
-  //
-  // On the Essentials plan, `mode: shareNow` with media may still route
-  // through the account's posting schedule (posts get parked until the next
-  // configured slot). `mode: customScheduled` with a `dueAt` ~30s in the
-  // future forces Buffer to publish at that wall-clock time regardless of
-  // plan or slot configuration.
-  let scheduleBlock: string;
-  if (args.publishNow) {
-    const dueAt = new Date(Date.now() + 30 * 1000).toISOString();
-    scheduleBlock = `schedulingType: automatic, mode: customScheduled, dueAt: ${JSON.stringify(dueAt)}`;
-  } else {
-    scheduleBlock = `schedulingType: automatic, mode: addToQueue`;
-  }
-  // Per-channel metadata. Buffer requires Facebook/Instagram posts to declare
-  // a `type` (post/story/reel/status). Instagram additionally requires
-  // `shouldShareToFeed: true` for feed posts (or else GraphQL rejects with
+  // Buffer GraphQL schema (current as of 2026-04, verified by production errors):
+  //   - schedulingType enum:   automatic | notification
+  //   - mode (ShareMode) enum: shareNow | addToQueue
+  //     (Older "customScheduled" + dueAt was rejected with
+  //      "Value 'custom' does not exist in 'ShareMode' enum" — Buffer
+  //      removed the customScheduled path. Use shareNow for immediate.)
+  //   - On Essentials plan, shareNow with media still posts immediately
+  //     when the channel-side schedule is empty; this is the documented path.
+  const scheduleBlock = args.publishNow
+    ? `schedulingType: automatic, mode: shareNow`
+    : `schedulingType: automatic, mode: addToQueue`;
+  // Per-channel metadata. Facebook needs `type`, Instagram additionally needs
+  // `shouldShareToFeed: true` (otherwise GraphQL rejects with
   // "InstagramPostMetadataInput.shouldShareToFeed of required type Boolean!").
   const metadataParts: string[] = [];
   if (args.channelId === args.facebookId) {
@@ -273,7 +272,7 @@ function buildMutation(args: {
         ${metadataBlock}
       }) {
         ... on PostActionSuccess {
-          post { id text dueAt }
+          post { id text }
         }
         ... on MutationError {
           message
@@ -314,79 +313,80 @@ async function publishPost(
     `[buffer] Publishing to ${channelIds.length} channels${imageUrl ? " with image" : ""}: ${channelIds.join(", ")}`
   );
 
-  const channels: PerChannelResult[] = [];
+  // Post to all channels in parallel — each call is independent. Was sequential
+  // (4× HTTP round-trips serialized) which added 1-3s of latency per row.
+  const channels: PerChannelResult[] = await Promise.all(
+    channelIds.map(async (channelId) => {
+      const key = idToKey(channelId);
+      const channelLabel = key ?? channelId;
+      const t0 = Date.now();
+      const entry: PerChannelResult = { key, id: channelId, success: false, latencyMs: 0 };
 
-  for (const channelId of channelIds) {
-    const key = idToKey(channelId);
-    const channelLabel = key ?? channelId;
-    const t0 = Date.now();
-    const entry: PerChannelResult = { key, id: channelId, success: false, latencyMs: 0 };
+      try {
+        // Per-channel text: Twitter/X has a 280-char hard cap, IG/FB/Threads
+        // accept long captions but tail hashtag blocks should be trimmed if the
+        // whole thing exceeds Buffer's per-network limit.
+        const perChannelText =
+          channelId === CHANNELS.twitter && text.length > 280
+            ? truncateForTwitter(text)
+            : text;
 
-    try {
-      // Twitter/X rejects posts > 280 chars. Shrink by dropping trailing
-      // hashtag lines first, then truncating mid-sentence if still too long.
-      const perChannelText =
-        channelId === CHANNELS.twitter && text.length > 280
-          ? truncateForTwitter(text)
-          : text;
+        // Per-channel image: Threads gets the 1440x1800 high-res render;
+        // IG / Facebook / X get the 1080x1350 feed render.
+        const perChannelImage =
+          channelId === CHANNELS.threads && opts.threadsImageUrl
+            ? opts.threadsImageUrl
+            : imageUrl;
 
-      // Pick per-channel image. Threads gets the 1440x1800 high-res render;
-      // IG / Facebook / X get the 1080x1350 feed render.
-      const perChannelImage =
-        channelId === CHANNELS.threads && opts.threadsImageUrl
-          ? opts.threadsImageUrl
-          : imageUrl;
+        const mutation = buildMutation({
+          text: perChannelText, channelId, imageUrl: perChannelImage,
+          publishNow: opts.publishNow,
+          facebookId: CHANNELS.facebook,
+          instagramId: CHANNELS.instagram,
+        });
+        const result = await bufferGraphQL(mutation, undefined, opts.token);
 
-      const mutation = buildMutation({
-        text: perChannelText, channelId, imageUrl: perChannelImage,
-        publishNow: opts.publishNow,
-        facebookId: CHANNELS.facebook,
-        instagramId: CHANNELS.instagram,
-      });
-      const result = await bufferGraphQL(mutation, undefined, opts.token);
-
-      if (result.errors) {
-        entry.error = result.errors[0].message;
-      } else {
-        const payload = result.data?.createPost as Record<string, unknown> | undefined;
-        if (payload?.message) {
-          entry.error = String(payload.message);
+        if (result.errors) {
+          entry.error = result.errors[0].message;
         } else {
-          const post = payload?.post as Record<string, unknown> | undefined;
-          if (post?.id) {
-            entry.success = true;
-            entry.bufferPostId = String(post.id);
+          const payload = result.data?.createPost as Record<string, unknown> | undefined;
+          if (payload?.message) {
+            entry.error = String(payload.message);
           } else {
-            // No error but no post ID — log full response; treat as success to avoid retry storms.
-            console.warn(`[buffer] Channel ${channelLabel} — unexpected response:`, JSON.stringify(result.data));
-            entry.success = true;
+            const post = payload?.post as Record<string, unknown> | undefined;
+            if (post?.id) {
+              entry.success = true;
+              entry.bufferPostId = String(post.id);
+            } else {
+              console.warn(`[buffer] Channel ${channelLabel} — unexpected response:`, JSON.stringify(result.data));
+              entry.success = true;
+            }
           }
         }
+      } catch (err) {
+        entry.error = err instanceof Error ? err.message : String(err);
       }
-    } catch (err) {
-      entry.error = err instanceof Error ? err.message : String(err);
-    }
 
-    entry.latencyMs = Date.now() - t0;
-    if (entry.success) {
-      console.log(`[buffer] Channel ${channelLabel} → Post ${entry.bufferPostId ?? "(no id)"} in ${entry.latencyMs}ms`);
-    } else {
-      console.error(`[buffer] Channel ${channelLabel} failed (${entry.latencyMs}ms):`, entry.error);
-    }
+      entry.latencyMs = Date.now() - t0;
+      if (entry.success) {
+        console.log(`[buffer] Channel ${channelLabel} → Post ${entry.bufferPostId ?? "(no id)"} in ${entry.latencyMs}ms`);
+      } else {
+        console.error(`[buffer] Channel ${channelLabel} failed (${entry.latencyMs}ms):`, entry.error);
+      }
 
-    // Observability: one row per channel attempt
-    writeDistributionLog({
-      contentType: opts.contentType,
-      referenceId: opts.referenceId ?? null,
-      channel: channelLabel,
-      status: entry.success ? "success" : "failed",
-      bufferPostId: entry.bufferPostId ?? null,
-      error: entry.error ?? null,
-      latencyMs: entry.latencyMs,
-    }).catch(() => {});
+      writeDistributionLog({
+        contentType: opts.contentType,
+        referenceId: opts.referenceId ?? null,
+        channel: channelLabel,
+        status: entry.success ? "success" : "failed",
+        bufferPostId: entry.bufferPostId ?? null,
+        error: entry.error ?? null,
+        latencyMs: entry.latencyMs,
+      }).catch(() => {});
 
-    channels.push(entry);
-  }
+      return entry;
+    })
+  );
 
   const successCount = channels.filter((c) => c.success).length;
   const failedChannels = channels

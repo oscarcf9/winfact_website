@@ -5,6 +5,7 @@ import { generateBlogHeroImage } from "@/lib/ai-image";
 import { notifyBlogPublished, sendAdminNotification } from "@/lib/telegram";
 import { enrichPickData } from "@/lib/blog-enrichment";
 import { todayISOET } from "@/lib/timezone";
+import { pingIndexNowForBlog } from "@/lib/indexnow";
 import { like, eq } from "drizzle-orm";
 
 type AutoBlogInput = {
@@ -317,6 +318,10 @@ export async function runAutoBlog(data: AutoBlogInput): Promise<AutoBlogResult> 
     imageStatus,
     hasSpanish: !!(blogResult.titleEs && blogResult.bodyEs),
   }).catch((err) => alertAdmin("Telegram notify", pickContext, err));
+
+  // IndexNow ping (Bing/Yandex). Fire-and-forget — Google still discovers
+  // via sitemap but IndexNow can shave 3-7 days off cross-engine surfacing.
+  pingIndexNowForBlog(slug).catch(() => {});
 
   return {
     postId,

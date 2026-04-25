@@ -132,3 +132,19 @@ export async function getAllPublishedSlugs() {
     .from(posts)
     .where(eq(posts.status, "published"));
 }
+
+/**
+ * Same as getAllPublishedSlugs but also returns lastModified — used by the
+ * sitemap so Google's crawl budget tracks actual content changes instead
+ * of the per-render timestamp.
+ */
+export async function getAllPublishedSlugsWithTimestamps() {
+  return db
+    .select({
+      slug: posts.slug,
+      updatedAt: posts.updatedAt,
+      publishedAt: posts.publishedAt,
+    })
+    .from(posts)
+    .where(eq(posts.status, "published"));
+}

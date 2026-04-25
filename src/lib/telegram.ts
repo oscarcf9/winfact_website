@@ -14,7 +14,9 @@ const TELEGRAM_CONTENT_CHAT_ID = process.env.TELEGRAM_CONTENT_CHAT_ID || "570133
 
 if (!TELEGRAM_BOT_TOKEN) console.warn("[telegram] TELEGRAM_BOT_TOKEN not set — all Telegram features disabled");
 if (!TELEGRAM_FREE_CHAT_ID) console.warn("[telegram] TELEGRAM_FREE_CHAT_ID not set — free channel delivery disabled");
-if (!TELEGRAM_ADMIN_CHAT_ID) console.warn("[telegram] TELEGRAM_ADMIN_CHAT_ID not set — admin notifications disabled");
+// Intentional: TELEGRAM_ADMIN_CHAT_ID is OPTIONAL. When not set, admin
+// notifications fall back to TELEGRAM_FREE_CHAT_ID (operator confirmed
+// they run a single chat). No need to spam the per-tick warning.
 
 const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 
@@ -191,16 +193,22 @@ export async function testTelegramConnection(): Promise<{ ok: boolean; botName?:
 }
 
 /**
- * Send a notification to the admin's personal Telegram chat.
- * Used for blog draft alerts, system notifications, etc.
+ * Send a notification to the admin Telegram chat.
+ * Falls back to TELEGRAM_FREE_CHAT_ID when no dedicated admin chat is
+ * configured — operator confirmed they run one chat for everything, so
+ * "no admin chat configured" should NOT silently drop alerts.
  */
 export async function sendAdminNotification(
   text: string
 ): Promise<{ ok: boolean; error?: string }> {
-  if (!TELEGRAM_ADMIN_CHAT_ID || !TELEGRAM_BOT_TOKEN) {
-    return { ok: false, error: "Admin Telegram chat not configured" };
+  if (!TELEGRAM_BOT_TOKEN) {
+    return { ok: false, error: "Telegram bot token not configured" };
   }
-  return sendTelegramMessage(TELEGRAM_ADMIN_CHAT_ID, text);
+  const chatId = TELEGRAM_ADMIN_CHAT_ID || TELEGRAM_FREE_CHAT_ID;
+  if (!chatId) {
+    return { ok: false, error: "No Telegram chat configured (admin or free)" };
+  }
+  return sendTelegramMessage(chatId, text);
 }
 
 const CONTENT_BOT_API = TELEGRAM_CONTENT_BOT_TOKEN

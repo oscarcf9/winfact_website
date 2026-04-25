@@ -54,11 +54,20 @@ async function callClaude(
   temperature: number
 ): Promise<string> {
   const client = getClient();
+  // System block is the per-category style guide — same string repeats
+  // across all 96 daily ticks. Anthropic prompt caching makes this
+  // read-cheap once warm.
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: MAX_TOKENS,
     temperature,
-    system,
+    system: [
+      {
+        type: "text",
+        text: system,
+        cache_control: { type: "ephemeral" },
+      } as unknown as { type: "text"; text: string },
+    ],
     messages: [{ role: "user", content: user }],
   });
   const text = response.content[0]?.type === "text" ? response.content[0].text.trim() : "";
@@ -168,42 +177,39 @@ export async function generateMessage(
     channel,
   });
 
+  // Single-attempt to keep cost predictable. Previously 2 attempts on
+  // style-guard rejection — at $0.0015/call and 96 ticks/day × 2 channels,
+  // a single chronically-rejected day could double Claude spend with no
+  // user-facing benefit (we just skip the tick anyway on failure).
   const attemptInput: GenerationInput = { ...input, recentMessages };
+  const { system, user, temperature } = promptFor(attemptInput);
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    const { system, user, temperature } = promptFor(attemptInput);
-
-    let text = "";
-    try {
-      text = await callClaude(system, user, temperature);
-    } catch (err) {
-      console.error(`[commentary] Claude error (attempt ${attempt}, ${channel}):`, err);
-      return { ok: false, reason: "claude_error" };
-    }
-
-    if (!text || text === SKIP_SENTINEL) {
-      return { ok: false, reason: text === SKIP_SENTINEL ? "skip_sentinel" : "empty_response" };
-    }
-
-    const verdict = validateStyle(text, attemptInput.recentMessages, channel);
-    if (verdict.ok) {
-      return {
-        ok: true,
-        message: text,
-        language,
-        category,
-        bucket: category === "game_reaction" ? input.game.bucket : null,
-        channel,
-      };
-    }
-
-    console.log(`[commentary] style-guard rejected attempt ${attempt} (${channel}): ${verdict.reason} | msg="${text}"`);
-
-    // Add rejected text to dedup list so retry must produce different content
-    attemptInput.recentMessages = [text, ...attemptInput.recentMessages].slice(0, 12);
+  let text = "";
+  try {
+    text = await callClaude(system, user, temperature);
+  } catch (err) {
+    console.error(`[commentary] Claude error (${channel}):`, err);
+    return { ok: false, reason: "claude_error" };
   }
 
-  return { ok: false, reason: "style_guard_rejected_twice" };
+  if (!text || text === SKIP_SENTINEL) {
+    return { ok: false, reason: text === SKIP_SENTINEL ? "skip_sentinel" : "empty_response" };
+  }
+
+  const verdict = validateStyle(text, attemptInput.recentMessages, channel);
+  if (verdict.ok) {
+    return {
+      ok: true,
+      message: text,
+      language,
+      category,
+      bucket: category === "game_reaction" ? input.game.bucket : null,
+      channel,
+    };
+  }
+
+  console.log(`[commentary] style-guard rejected (${channel}): ${verdict.reason} | msg="${text}"`);
+  return { ok: false, reason: "style_guard_rejected" };
 }
 
 /**

@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { contentQueue, posts } from "@/db/schema";
-import { eq, and, lte, lt, desc, isNotNull } from "drizzle-orm";
+import { eq, and, lte, lt, desc, isNotNull, inArray } from "drizzle-orm";
 import { postVictoryToSocial, postFillerToSocial, postBlogToSocial } from "@/lib/social-posting";
 import { sendTelegramPhoto, notifyFillerPosted } from "@/lib/telegram";
 import { sendAdminNotification } from "@/lib/telegram";
 import { enqueueRetryForFailedChannels } from "@/lib/content-queue-retry";
+import { getSiteContent } from "@/db/queries/site-content";
+import { hourET } from "@/lib/timezone";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.winfactpicks.com";
 const TELEGRAM_FREE_CHAT_ID = process.env.TELEGRAM_FREE_CHAT_ID || "";
@@ -18,6 +20,18 @@ const MIN_GAP_MS = 30 * 60 * 1000;
 // that claimed it crashed mid-flight and reset it back to 'scheduled'.
 // Must be longer than worst-case Buffer fan-out time.
 const STALE_PROCESSING_MS = 10 * 60 * 1000;
+
+// Filler is matchup hype — nobody wants pre-game graphics for games that
+// already happened. If a filler row's scheduledAt is more than this far in
+// the past, we cancel it instead of posting. Prevents the "2 AM posting
+// yesterday's calendar" failure mode.
+const FILLER_STALE_AFTER_MS = 6 * 60 * 60 * 1000;
+
+// Filler is allowed to post during waking hours in ET only. Outside this
+// window, the processor leaves filler rows alone (other types are
+// unaffected). Window is inclusive on both ends.
+const FILLER_WINDOW_START_HOUR_ET = 9;
+const FILLER_WINDOW_END_HOUR_ET = 22; // last hour to post is 22 (10 PM)
 
 export async function GET(req: Request) {
   const cronSecret = process.env.CRON_SECRET;
@@ -61,6 +75,46 @@ export async function GET(req: Request) {
       ).catch(() => {});
     }
 
+    // ── Step 0a: Honor admin toggle — kill pending filler if disabled ─
+    // Acts as a kill switch when the operator flips the admin UI toggle.
+    // Without this, queued filler rows keep posting after "disable".
+    const fillerEnabled = (await getSiteContent("filler_content_enabled")) === "true";
+    if (!fillerEnabled) {
+      const cancelled = await db
+        .update(contentQueue)
+        .set({ status: "failed", error: "cancelled_filler_disabled" })
+        .where(
+          and(
+            eq(contentQueue.type, "filler"),
+            inArray(contentQueue.status, ["draft", "scheduled"])
+          )
+        )
+        .returning({ id: contentQueue.id });
+      if (cancelled.length > 0) {
+        console.log(`[queue] cancelled ${cancelled.length} pending filler rows (toggle off)`);
+      }
+    }
+
+    // ── Step 0b: Drop stale filler rows ──────────────────────────────
+    // Filler is pre-game hype; posting it long after the game starts is
+    // worse than not posting it. Wipe any filler row whose scheduledAt is
+    // beyond FILLER_STALE_AFTER_MS in the past.
+    const staleFillerCutoff = new Date(Date.now() - FILLER_STALE_AFTER_MS).toISOString();
+    const staleFiller = await db
+      .update(contentQueue)
+      .set({ status: "failed", error: "stale_filler_skipped" })
+      .where(
+        and(
+          eq(contentQueue.type, "filler"),
+          eq(contentQueue.status, "scheduled"),
+          lt(contentQueue.scheduledAt, staleFillerCutoff)
+        )
+      )
+      .returning({ id: contentQueue.id });
+    if (staleFiller.length > 0) {
+      console.log(`[queue] cancelled ${staleFiller.length} stale filler rows (>${FILLER_STALE_AFTER_MS / 3600000}h past)`);
+    }
+
     // ── Step 1: Anti-spam cadence check ──────────────────────────────
     const [lastPosted] = await db
       .select({ postedAt: contentQueue.postedAt })
@@ -82,15 +136,23 @@ export async function GET(req: Request) {
     }
 
     // ── Step 2: Find a candidate row (read-only, cheap) ──────────────
+    // When outside the filler ET window (9 AM – 10 PM ET), exclude filler
+    // type from the candidate query so we don't claim-and-release on every
+    // tick. Other types (blog, victory) still post 24/7.
+    const h = hourET();
+    const inFillerWindow = h >= FILLER_WINDOW_START_HOUR_ET && h <= FILLER_WINDOW_END_HOUR_ET;
+    const candidateWhere = inFillerWindow
+      ? and(eq(contentQueue.status, "scheduled"), lte(contentQueue.scheduledAt, now))
+      : and(
+          eq(contentQueue.status, "scheduled"),
+          lte(contentQueue.scheduledAt, now),
+          inArray(contentQueue.type, ["blog", "victory_post"])
+        );
+
     const [candidate] = await db
       .select({ id: contentQueue.id })
       .from(contentQueue)
-      .where(
-        and(
-          eq(contentQueue.status, "scheduled"),
-          lte(contentQueue.scheduledAt, now)
-        )
-      )
+      .where(candidateWhere)
       .orderBy(contentQueue.scheduledAt)
       .limit(1);
 
@@ -132,6 +194,23 @@ export async function GET(req: Request) {
     // From here on, `item` is exclusively ours. Any abnormal exit must mark it
     // either 'posted' or 'failed' — never leave it as 'processing' (the next
     // cron tick's stale-reclaim will catch it otherwise, but sooner is better).
+
+    // Defense in depth: the candidate query already excludes filler when
+    // outside the ET window, but if the toggle disabled filler mid-run we
+    // should still skip processing.
+    if (item.type === "filler" && !fillerEnabled) {
+      await db
+        .update(contentQueue)
+        .set({ status: "failed", error: "cancelled_filler_disabled" })
+        .where(eq(contentQueue.id, item.id));
+      return NextResponse.json({
+        processed: 0,
+        posted: 0,
+        failed: 1,
+        reason: "filler_disabled",
+        reclaimed: reclaimed.length,
+      });
+    }
 
     let bufferOk = false;
     let telegramOk = false;
@@ -285,7 +364,11 @@ export async function GET(req: Request) {
           })
           .where(eq(contentQueue.id, item.id));
 
-        if (failedChannels.length > 0 && (item.type === "filler" || item.type === "victory_post")) {
+        // Only retry victory posts. Filler is pre-game hype graphics — it's
+        // better to skip a missing channel than to repost the same matchup
+        // graphic minutes later (which is exactly the "same calendar
+        // repeats" pattern the user reported).
+        if (failedChannels.length > 0 && item.type === "victory_post") {
           const retry = await enqueueRetryForFailedChannels(
             item,
             failedChannels as ("instagram" | "facebook" | "threads" | "twitter")[]

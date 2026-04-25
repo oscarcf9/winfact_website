@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { contentQueue, media } from "@/db/schema";
-import { eq, and, gte, inArray } from "drizzle-orm";
+import { eq, and, gte } from "drizzle-orm";
 import { getSiteContent } from "@/db/queries/site-content";
 import { fetchScoreboard, toESPNDate } from "@/lib/espn";
 import { generateMatchupImage } from "@/lib/ai-image";
 import { notifyAdmin } from "@/lib/notifications";
 import { sendAdminNotification } from "@/lib/telegram";
+import { todayET } from "@/lib/timezone";
 import Anthropic from "@anthropic-ai/sdk";
 
 // Filler generates N images × 20-30s each + captions. Vercel's default is
@@ -45,10 +46,21 @@ const RIVALRIES = [
 /**
  * GET /api/cron/filler-content
  *
- * Runs twice daily (9 AM ET + 1 PM ET) to generate matchup graphics.
- * IDEMPOTENT: skips games already in the queue (checks by gameId).
- * Pre-staggers scheduledAt times to enforce 30-min gaps between posts.
+ * Runs once daily at 13:00 UTC (9 AM ET / 8 AM EST) per vercel.json.
+ * Generates up to 4 matchup graphics, max 2 per sport, scheduled inside
+ * the ET 10am-7pm posting window with random spacing.
+ *
+ * IDEMPOTENT (atomic): pre-reserves a row per (gameId, dayET) using a
+ * deterministic primary key + onConflictDoNothing, so concurrent cron
+ * fires (or admin run-now while cron is mid-flight) cannot double-insert
+ * the same matchup. Only the row that wins the insert race generates
+ * image+caption; collisions exit cheaply with no AI spend.
  */
+
+/** Deterministic id so concurrent crons can't race the dedup check. */
+function fillerRowId(gameId: string, dayStampET: string): string {
+  return `filler-${dayStampET}-${gameId}`;
+}
 export async function GET(req: Request) {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret || cronSecret.length < 16) {
@@ -91,35 +103,22 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: "skipped", reason: "no_games_today" });
     }
 
-    // 2. IDEMPOTENT CHECK — find games already in queue (by gameId)
-    const gameIds = allGames.map(g => g.gameId);
-    const existing = await db
-      .select({ referenceId: contentQueue.referenceId })
-      .from(contentQueue)
-      .where(and(
-        eq(contentQueue.type, "filler"),
-        inArray(contentQueue.referenceId, gameIds)
-      ));
-    const existingIds = new Set(existing.map(e => e.referenceId));
-
-    // 3. Filter: remove duplicates + teams used in last 24h
+    // 2. Filter: remove teams used in last 24h. Case-insensitive parse so
+    //    "Lakers vs Celtics" and "lakers vs celtics" dedup the same.
     const yesterdayISO = new Date(Date.now() - 86400000).toISOString();
     const recentFillers = await db
       .select({ title: contentQueue.title })
       .from(contentQueue)
       .where(and(eq(contentQueue.type, "filler"), gte(contentQueue.createdAt, yesterdayISO)));
 
+    const normalize = (s: string) => s.trim().toLowerCase();
     const recentTeams = new Set(
-      recentFillers.flatMap((f) => f.title?.split(" vs ") || [])
+      recentFillers.flatMap((f) => (f.title || "").split(/\s+vs\s+/i).map(normalize)).filter(Boolean)
     );
 
     const scored = allGames
       .filter((g) => {
-        if (existingIds.has(g.gameId)) {
-          console.log(`[filler] Skipping ${g.team1} vs ${g.team2} — already in queue`);
-          return false;
-        }
-        if (recentTeams.has(g.team1) || recentTeams.has(g.team2)) return false;
+        if (recentTeams.has(normalize(g.team1)) || recentTeams.has(normalize(g.team2))) return false;
         return true;
       })
       .map((g) => ({ ...g, score: scoreAnticipation(g) }))
@@ -165,32 +164,68 @@ export async function GET(req: Request) {
       lastScheduled = at.getTime();
     }
 
-    // 6. Generate content for each game — IN PARALLEL so 4 games finish in
-    // the time of 1 (image + captions each take ~30s; sequential = 120s+).
+    // 6. ATOMIC CLAIM — pre-insert a placeholder row per game using a
+    // deterministic primary key (filler-{dayET}-{gameId}). onConflictDoNothing
+    // means concurrent crons silently lose the race instead of double-spending
+    // on image + caption generation. We only generate for games whose claim
+    // we actually won.
+    const dayET = todayET();
+    const claimResults = await Promise.all(
+      selected.map(async (game) => {
+        const title = `${game.team1} vs ${game.team2}`;
+        const scheduledAt = scheduleTimes.get(game.gameId) || now;
+        const time = new Date(game.startTime).toLocaleTimeString("en-US", {
+          hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/New_York",
+        });
+        const claimed = await db
+          .insert(contentQueue)
+          .values({
+            id: fillerRowId(game.gameId, dayET),
+            type: "filler",
+            referenceId: game.gameId,
+            title,
+            preview: `${game.sport} — ${time} ET`,
+            platform: "all",
+            status: "draft", // upgraded to "scheduled" once content is generated
+            scheduledAt: scheduledAt.toISOString(),
+          })
+          .onConflictDoNothing()
+          .returning({ id: contentQueue.id });
+        return { game, time, scheduledAt, won: claimed.length > 0 };
+      })
+    );
+
+    const winners = claimResults.filter((r) => r.won);
+    const skippedDuplicates = claimResults.length - winners.length;
+    if (skippedDuplicates > 0) {
+      console.log(`[filler] Skipped ${skippedDuplicates} duplicate claim(s) — another cron run already reserved`);
+    }
+
+    // 7. Generate image + captions only for games we successfully claimed.
+    // IN PARALLEL so 4 games finish in the time of 1.
     let generated = 0;
-    let skipped = 0;
+    let skipped = skippedDuplicates;
     const imageGenFailures: string[] = [];
 
     const results = await Promise.all(
-      selected.map(async (game) => {
+      winners.map(async ({ game, time, scheduledAt }) => {
         const title = `${game.team1} vs ${game.team2}`;
-        const time = new Date(game.startTime).toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-          timeZone: "America/New_York",
-        });
+        const rowId = fillerRowId(game.gameId, dayET);
         try {
           console.log(`[filler] Generating image + captions in parallel: ${title}`);
-          const [imageResult, captionEn, captionEs] = await Promise.all([
+          const [imageResult, captions] = await Promise.all([
             generateMatchupImage(title, game.sport, game.team1, game.team2),
-            generateFillerCaption(game, time, "English"),
-            generateFillerCaption(game, time, "Spanish (Latin American, Miami vibe)"),
+            generateBilingualFillerCaption(game, time),
           ]);
 
           if (imageResult.error || !imageResult.url) {
             console.error(`[filler] Image failed for ${title}:`, imageResult.error);
             imageGenFailures.push(`${title} — ${imageResult.error || "no url returned"}`);
+            // Mark the claim row as failed so it doesn't block tomorrow's retry.
+            await db
+              .update(contentQueue)
+              .set({ status: "failed", error: `image_gen_failed: ${imageResult.error || "no url"}` })
+              .where(eq(contentQueue.id, rowId));
             return { ok: false as const };
           }
 
@@ -203,42 +238,43 @@ export async function GET(req: Request) {
                 url: imageResult.url,
                 mimeType: "image/png",
                 width: 1080,
-                height: 1350, // 4:5 ratio for IG/FB/X/Threads compatibility
+                height: 1350,
                 altText: `${game.sport} matchup: ${title}`,
               })
               .catch((err) => console.error(`[filler] Media insert failed:`, err));
           }
 
-          const scheduledAt = scheduleTimes.get(game.gameId) || now;
-          await db.insert(contentQueue).values({
-            id: crypto.randomUUID(),
-            type: "filler",
-            referenceId: game.gameId,
-            title,
-            preview: `${game.sport} — ${time} ET`,
-            imageUrl: imageResult.url,
-            threadsImageUrl: imageResult.threadsUrl || null,
-            telegramImageUrl: imageResult.telegramUrl || null,
-            captionEn: captionEn || "",
-            captionEs: captionEs || "",
-            hashtags: generateHashtags(game),
-            platform: "all",
-            status: "scheduled",
-            scheduledAt: scheduledAt.toISOString(),
-          });
+          // Promote the placeholder draft row to scheduled with full content.
+          await db
+            .update(contentQueue)
+            .set({
+              imageUrl: imageResult.url,
+              threadsImageUrl: imageResult.threadsUrl || null,
+              telegramImageUrl: imageResult.telegramUrl || null,
+              captionEn: captions.en,
+              captionEs: captions.es,
+              hashtags: generateHashtags(game),
+              status: "scheduled",
+            })
+            .where(eq(contentQueue.id, rowId));
 
           const ptStr = scheduledAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/New_York" });
           console.log(`[filler] Created: ${title} → scheduled for ${ptStr} ET`);
           return { ok: true as const };
         } catch (error) {
           console.error(`[filler] Failed for ${title}:`, error);
+          await db
+            .update(contentQueue)
+            .set({ status: "failed", error: `generation_threw: ${error instanceof Error ? error.message : String(error)}` })
+            .where(eq(contentQueue.id, rowId))
+            .catch(() => {});
           return { ok: false as const };
         }
       })
     );
 
     generated = results.filter((r) => r.ok).length;
-    skipped = results.filter((r) => !r.ok).length;
+    skipped += results.filter((r) => !r.ok).length;
 
     if (generated > 0) {
       const gameList = selected.slice(0, generated).map((g) => {
@@ -273,7 +309,7 @@ export async function GET(req: Request) {
       generated,
       skipped,
       imageGenFailures: imageGenFailures.length,
-      duplicatesSkipped: existingIds.size,
+      duplicatesSkipped: skippedDuplicates,
       total: selected.length,
     });
   } catch (error) {
@@ -361,43 +397,65 @@ function pickRandomFillerTimes(now: Date, count: number): Date[] {
   return times;
 }
 
-async function generateFillerCaption(
+/**
+ * Generate BOTH English and Spanish (Miami vibe) captions in a SINGLE
+ * Claude call. Halves Anthropic spend vs the previous two-call approach,
+ * and keeps both versions thematically consistent (same hooks, same emojis).
+ *
+ * Returns { en, es } even on partial parse failure (best-effort split).
+ */
+async function generateBilingualFillerCaption(
   game: ScheduledGame,
-  time: string,
-  language: string
-): Promise<string> {
+  time: string
+): Promise<{ en: string; es: string }> {
   try {
     const client = getAnthropic();
     const response = await client.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 300,
+      max_tokens: 600,
+      // System block is identical across all matchups — Anthropic prompt
+      // caching makes this read-cheap once warm, saving ~50% input tokens.
+      system: [
+        {
+          type: "text",
+          text: `You write short pre-game Instagram captions for WinFact Picks (@winfact_picks).
+RULES (apply to every output):
+- Max 4-5 lines
+- 1 sport emoji + 1 emoji per team
+- Mention both teams; reference real context only (no fake stats, no hype)
+- End with a simple interaction (English: "Who you got?" / "Big one tonight" — Spanish: "¿Quién gana hoy?" / "Esto va estar bueno")
+- Close with 8-12 hashtags (teams, league, sport, generic sports)
+- Avoid betting terms ("sharp", "lock", "parlay")`,
+          cache_control: { type: "ephemeral" },
+        } as unknown as { type: "text"; text: string },
+      ],
       messages: [{
         role: "user",
-        content: `Generate an Instagram caption for a pre-game matchup graphic by WinFact Picks (@winfact_picks).
-
-Game: ${game.team1} vs ${game.team2}
+        content: `Game: ${game.team1} vs ${game.team2}
 Sport: ${game.sport}
 Time: ${time} ET
 ${game.team1Record ? `Records: ${game.team1} (${game.team1Record}) vs ${game.team2} (${game.team2Record})` : ""}
 
-Language: ${language}
+Output BOTH versions, exactly in this format with the literal markers:
 
-RULES:
-- Max 4-5 lines
-- Use 1 sport emoji + 1 emoji per team
-- Mention teams, key context if available
-- End with simple interaction ("Who you got?" / "Big one tonight" / "Quién gana hoy?")
-- Close with 8-12 hashtags: teams, league, sport, general sports
-- Avoid betting terms (no "sharp", "lock", "parlay")
-- No hype, no fake stats. Only reference real info provided.
-- Output ONLY the caption with hashtags. No preamble.`,
+===EN===
+<English caption + hashtags>
+
+===ES===
+<Spanish (Latin American, Miami vibe) caption + hashtags>`,
       }],
     });
 
-    return response.content[0].type === "text" ? response.content[0].text.trim() : "";
+    const raw = response.content[0]?.type === "text" ? response.content[0].text.trim() : "";
+    const enMatch = raw.match(/===EN===\s*([\s\S]*?)(?:===ES===|$)/i);
+    const esMatch = raw.match(/===ES===\s*([\s\S]*?)$/i);
+    return {
+      en: enMatch?.[1]?.trim() || raw,
+      es: esMatch?.[1]?.trim() || "",
+    };
   } catch (error) {
-    console.error("[filler] Caption generation failed:", error);
-    return "";
+    console.error("[filler] Bilingual caption generation failed:", error);
+    return { en: "", es: "" };
   }
 }
 

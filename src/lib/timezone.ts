@@ -73,8 +73,11 @@ export function monthStartET(): string {
 }
 
 /**
- * Get the current hour in ET (0-23).
+ * Get the current hour in ET (0-23). Robust against the host process
+ * timezone: nowET() returns a Date whose UTC fields encode ET wall-clock,
+ * so getUTCHours() reads the ET hour regardless of where the process runs.
+ * Using getHours() here was incorrect on non-UTC dev machines.
  */
 export function hourET(): number {
-  return nowET().getHours();
+  return nowET().getUTCHours();
 }

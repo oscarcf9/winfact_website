@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/constants";
-import { getAllPublishedSlugs } from "@/db/queries/posts";
+import { getAllPublishedSlugsWithTimestamps } from "@/db/queries/posts";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = SITE_URL;
@@ -47,21 +47,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   }
 
-  // Add blog posts from DB
+  // Blog posts: emit one entry per locale, with lastModified pulled from
+  // posts.updatedAt (or publishedAt as fallback) so Google's crawl budget
+  // tracks real content changes instead of the per-render timestamp.
   try {
-    const blogSlugs = await getAllPublishedSlugs();
-    for (const { slug } of blogSlugs) {
+    const blogPosts = await getAllPublishedSlugsWithTimestamps();
+    for (const post of blogPosts) {
+      const lastModRaw = post.updatedAt ?? post.publishedAt ?? new Date().toISOString();
+      const lastMod = new Date(lastModRaw);
       for (const locale of locales) {
         entries.push({
-          url: `${baseUrl}/${locale}/blog/${slug}`,
-          lastModified: new Date(),
+          url: `${baseUrl}/${locale}/blog/${post.slug}`,
+          lastModified: isNaN(lastMod.valueOf()) ? new Date() : lastMod,
           changeFrequency: "weekly",
           priority: 0.6,
           alternates: {
             languages: {
-              "x-default": `${baseUrl}/en/blog/${slug}`,
-              en: `${baseUrl}/en/blog/${slug}`,
-              es: `${baseUrl}/es/blog/${slug}`,
+              "x-default": `${baseUrl}/en/blog/${post.slug}`,
+              en: `${baseUrl}/en/blog/${post.slug}`,
+              es: `${baseUrl}/es/blog/${post.slug}`,
             },
           },
         });

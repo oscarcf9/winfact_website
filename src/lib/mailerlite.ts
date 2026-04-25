@@ -31,7 +31,24 @@ type Pick = {
   legs?: ParlayLegLite[] | null;
 };
 
+// Circuit breaker: trip on 422 "sender not verified" so we stop hammering
+// MailerLite (and stop spamming logs) on every cron tick. Auto-recovers
+// after 1h so a fixed sender takes effect without redeploy. State is
+// per-instance — Vercel cold starts forget, which is fine.
+let _breakerTrippedUntil = 0;
+function isBreakerTripped(): boolean {
+  return Date.now() < _breakerTrippedUntil;
+}
+function tripBreaker(reasonHint: string) {
+  _breakerTrippedUntil = Date.now() + 60 * 60 * 1000;
+  console.warn(`[mailerlite] circuit breaker TRIPPED for 1h (reason: ${reasonHint})`);
+}
+
 async function mailerliteFetch(endpoint: string, options: RequestInit = {}) {
+  if (isBreakerTripped()) {
+    return { data: null, message: "MailerLite circuit breaker tripped (recent 4xx)", status: 0 };
+  }
+
   const res = await fetch(`${MAILERLITE_API}${endpoint}`, {
     ...options,
     headers: {
@@ -45,7 +62,12 @@ async function mailerliteFetch(endpoint: string, options: RequestInit = {}) {
     const text = await res.text().catch(() => "");
     const msg = `MailerLite ${options.method || "GET"} ${endpoint} failed: HTTP ${res.status} — ${text.substring(0, 200)}`;
     console.error(`[mailerlite]`, msg);
-    // Return a structure that callers can detect as an error
+    // Trip the breaker on persistent config errors that a retry can't fix.
+    if (res.status === 422 && /sender email must be verified|from address/i.test(text)) {
+      tripBreaker("sender email not verified");
+    } else if (res.status === 401 || res.status === 403) {
+      tripBreaker(`auth failure ${res.status}`);
+    }
     return { data: null, message: msg, status: res.status };
   }
 

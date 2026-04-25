@@ -46,31 +46,43 @@ export type LiveGame = {
   isInteresting: boolean;
 };
 
+// In-memory cache (per warm function instance) so we don't hammer ESPN with
+// 8 fetches × 96 ticks/day = 768 requests. Live games change every 30s+, so
+// 60s cache is invisible to users while saving ~90% of ESPN traffic.
+type SportCacheEntry = { ts: number; games: LiveGame[] };
+const SPORT_CACHE_TTL_MS = 60 * 1000;
+const sportCache = new Map<string, SportCacheEntry>();
+
+async function fetchSport(sport: string, path: string): Promise<LiveGame[]> {
+  const cached = sportCache.get(sport);
+  if (cached && Date.now() - cached.ts < SPORT_CACHE_TTL_MS) {
+    return cached.games;
+  }
+  try {
+    const url = `${ESPN_BASE}/${path}/scoreboard`;
+    const response = await fetch(url, {
+      cache: "no-store",
+      headers: { "User-Agent": "WinFactPicks/1.0" },
+    });
+    if (!response.ok) return cached?.games ?? [];
+    const data = await response.json();
+    const games = parseScoreboard(data, sport);
+    sportCache.set(sport, { ts: Date.now(), games });
+    return games;
+  } catch (error) {
+    console.error(`[live-commentary] Failed to fetch ${sport}:`, error);
+    // On error, prefer last-known cached games over empty so a brief ESPN
+    // outage doesn't immediately kill commentary.
+    return cached?.games ?? [];
+  }
+}
+
 export async function fetchAllLiveGames(): Promise<LiveGame[]> {
-  const allGames: LiveGame[] = [];
-
-  const fetches = Object.entries(LIVE_ENDPOINTS).map(async ([sport, path]) => {
-    try {
-      const url = `${ESPN_BASE}/${path}/scoreboard`;
-      const response = await fetch(url, {
-        cache: "no-store",
-        headers: { "User-Agent": "WinFactPicks/1.0" },
-      });
-
-      if (!response.ok) return [];
-
-      const data = await response.json();
-      return parseScoreboard(data, sport);
-    } catch (error) {
-      console.error(`[live-commentary] Failed to fetch ${sport}:`, error);
-      return [];
-    }
-  });
-
+  const fetches = Object.entries(LIVE_ENDPOINTS).map(([sport, path]) =>
+    fetchSport(sport, path)
+  );
   const results = await Promise.all(fetches);
-  for (const games of results) allGames.push(...games);
-
-  return allGames;
+  return results.flat();
 }
 
 function parseScoreboard(data: any, sport: string): LiveGame[] {

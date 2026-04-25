@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
+import { checkAdminRateLimit, rateLimitResponse } from "@/lib/admin-rate-limit";
 import Anthropic from "@anthropic-ai/sdk";
 
 let _anthropic: Anthropic | null = null;
@@ -11,6 +12,11 @@ function getAnthropic(): Anthropic {
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
   if (admin.error) return admin.error;
+
+  // Rate limit: 12 captions/min should cover legitimate generation flow,
+  // but stops a stuck button from spending $1+ per minute.
+  const limited = checkAdminRateLimit("victory-caption", 60_000, 12);
+  if (!limited.ok) return rateLimitResponse(limited.retryAfterMs);
 
   const body = await req.json();
   const { sport, matchup, pickText, odds, units, tier, winner } = body;

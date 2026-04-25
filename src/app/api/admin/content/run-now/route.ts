@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
+import { checkAdminRateLimit, rateLimitResponse } from "@/lib/admin-rate-limit";
 import { db } from "@/db";
 import { commentaryLog, siteContent } from "@/db/schema";
 import { inArray } from "drizzle-orm";
@@ -37,10 +38,18 @@ async function handle(req: Request): Promise<Response> {
   const dry = url.searchParams.get("dry") === "1";
 
   if (job === "commentary") {
+    // Cap at 1 non-dry commentary run per minute (each = 2 Claude calls + Buffer/Telegram).
+    if (!dry) {
+      const limited = checkAdminRateLimit("run-now-commentary", 60_000);
+      if (!limited.ok) return rateLimitResponse(limited.retryAfterMs);
+    }
     return runCommentary(dry);
   }
 
   if (job === "filler") {
+    // Filler is expensive (4 images + bilingual captions). Cap at 1 per 10 min.
+    const limited = checkAdminRateLimit("run-now-filler", 10 * 60_000);
+    if (!limited.ok) return rateLimitResponse(limited.retryAfterMs);
     return runFiller(req);
   }
 
